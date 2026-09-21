@@ -21,7 +21,7 @@ pnpm build
 pnpm background:start
 ```
 
-Open **[localhost:4317](http://127.0.0.1:4317)**. The board starts empty. Setup creates `data/nextstep.sqlite` and a private `data/profile.md` template; running it again preserves your jobs and profile.
+Open **[localhost:4317](http://127.0.0.1:4317)**. The board starts empty, with no job type or search criteria selected. Setup creates `data/nextstep.sqlite`; running it again preserves your jobs and saved preferences. Choose **Search preferences** in the app, or use the setup-agent prompt below to define what you want.
 
 ```sh
 pnpm background:status
@@ -48,12 +48,16 @@ Use an agent that can read local files, run commands, and browse employer career
 
 | Task | Request to give your agent |
 | --- | --- |
-| Install and configure | `Follow prompts/setup.md to set up Nextstep and help me define my private search profile.` |
-| Find and save jobs | `Follow prompts/collect-jobs.md using data/profile.md. Save verified new matches to this CRM.` |
+| Install and configure | `Follow prompts/setup.md. Ask me what jobs I want and save my answers in the app's Search preferences.` |
+| Find and save jobs | `Follow prompts/collect-jobs.md using my saved Search preferences. Save verified new matches to this CRM.` |
 | Import an old shortlist | `Follow prompts/import-shortlist.md to import the shortlist I provide into this CRM.` |
 | Search on a schedule | Use [prompts/recurring-search.md](prompts/recurring-search.md) as the task prompt in your local agent scheduler. Choose the schedule and timezone there. |
 
-Edit **`data/profile.md`** with your location, eligibility, target roles, evidence of experience, compensation preferences, and exclusions before searching. [An optional remote-EMEA startup preset](templates/remote-emea.example.md) is included; it is a starting point, not somebody else's résumé or application history.
+During setup, the agent asks **what kind of job you want**, along with location/eligibility, work arrangement, employment type, compensation, experience, company preferences, and exclusions. There are no built-in roles, industries, regions, or company types. You can leave optional criteria undecided.
+
+Your answers are saved in **Search preferences inside the app**, backed by the same private SQLite database as your board. Edit them there at any time. Agents read the current preferences through the context command before searching. If the job type is undefined, they ask you to complete setup instead of choosing one for you.
+
+For command-line setup, use `node scripts/job-finder.mjs profile get`, then `profile set data/search-answers.json` with the current version and your answers. [The blank JSON schema](templates/profile.example.json) documents the fields. See [JOB-FINDER.md](JOB-FINDER.md#save-the-users-setup-answers) for details. Existing private Markdown profiles are preserved but should be reviewed and transferred into app preferences once.
 
 The agent reads existing **Uninterested**, **Interested**, and **Applied** records before researching. All stages and removed records participate in duplicate checks. New matches go at the **top of Prospects**, with the best new match first. Existing stages, notes, priorities, and ordering are preserved. A company-only Uninterested card excludes the company; an uninterested specific role excludes that role.
 
@@ -75,13 +79,13 @@ The importer checks again inside a SQLite transaction, skips duplicates and prev
 
 ## Data, privacy, and backups
 
-`data/` contains your SQLite database, private profile, research, and any local résumé you choose to add. It is ignored by Git, along with logs, browser test artifacts, local environment files, and database files. Keep personal additions under `data/`; check staged files before publishing your own fork.
+`data/` contains your SQLite database (including Search preferences), research, and any local résumé you choose to add. It is ignored by Git, along with logs, browser test artifacts, local environment files, and database files. Keep personal additions under `data/`; check staged files before publishing your own fork.
 
 The app serves only on `127.0.0.1`, with Host/Origin checks. It has no accounts or authentication and is intended for one person's local computer. Public source code does not make your running app or job database public. Do not expose the server to the internet.
 
 Agent prompts ask for public employer information and keep research local. Your chosen agent provider may still process the profile and board context it reads; Nextstep does not add a model or telemetry service of its own.
 
-The download button exports active and closed opportunities as JSON. For a complete backup including removed records and activity, **stop the app, then copy the `data` folder**. SQLite can have `-wal` and `-shm` companion files while running. Restore by stopping the app and replacing `data` with the complete backup. There is no full-backup import UI.
+The download button exports Search preferences and active/closed opportunities as JSON. For a complete backup including removed records and activity, **stop the app, then copy the `data` folder**. SQLite can have `-wal` and `-shm` companion files while running. Restore by stopping the app and replacing `data` with the complete backup. There is no full-backup import UI.
 
 | Setting | Default | Notes |
 | --- | --- | --- |
@@ -90,7 +94,7 @@ The download button exports active and closed opportunities as JSON. For a compl
 | `PORT` | `4317` | Production server port. Development uses fixed UI/API ports. |
 | `PLAYWRIGHT_CHANNEL` | Bundled Chromium | Set to `chrome` to test with installed Google Chrome. |
 
-The scripts read the process environment; `.env` files are not loaded automatically. The search profile remains at `data/profile.md` even with a custom database path. Logs and background process details live in `.runtime/`.
+The scripts read the process environment; `.env` files are not loaded automatically. Search preferences live in the selected database, so the app and agent always share them when using the same path. Logs and background process details live in `.runtime/`.
 
 ## Development and checks
 

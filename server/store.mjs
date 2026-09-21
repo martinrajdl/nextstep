@@ -13,6 +13,14 @@ const opportunityColumns = `
 export class AppError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
 }
+const profileLimits = { roles: 2000, locations: 2000, workStyle: 1000, employmentType: 1000, compensation: 1000, experience: 8000, preferences: 4000, exclusions: 4000 };
+export function readSearchProfile(db) {
+  const blank = { ...Object.fromEntries(Object.keys(profileLimits).map(key => [key, ''])), version: 0, updatedAt: null };
+  // Context is read-only and must also work before an existing database is upgraded.
+  if (!db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'search_profile'").get()) return blank;
+  const row = db.prepare('SELECT * FROM search_profile WHERE id = 1').get();
+  return row ? { ...blank, ...JSON.parse(row.data), version: row.version, updatedAt: row.updated_at } : blank;
+}
 const limits = { company: 160, role: 200, location: 200, salary: 160, url: 2000, contact: 200, contactEmail: 254, nextStep: 500, followUp: 10, notes: 20000 };
 const defaults = Object.fromEntries(Object.keys(limits).map(key => [key, '']));
 function validate(input, current = {}) {
@@ -45,7 +53,7 @@ export function openStore(filename) {
   const db = new DatabaseSync(filename);
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
   const schemaVersion = db.prepare('PRAGMA user_version').get().user_version;
-  if (schemaVersion > 3) { db.close(); throw new Error('This database requires a newer version of Nextstep.'); }
+  if (schemaVersion > 4) { db.close(); throw new Error('This database requires a newer version of Nextstep.'); }
   db.exec(`CREATE TABLE IF NOT EXISTS opportunities (${opportunityColumns});
   CREATE INDEX IF NOT EXISTS idx_opportunities_stage_position ON opportunities(stage, position) WHERE deleted_at IS NULL;
   CREATE TABLE IF NOT EXISTS activity (
@@ -72,6 +80,15 @@ export function openStore(filename) {
       db.exec('PRAGMA foreign_keys = ON;');
     }
   }
+  if (schemaVersion < 4) {
+    db.exec(`BEGIN IMMEDIATE;
+      CREATE TABLE IF NOT EXISTS search_profile (
+        id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT NOT NULL,
+        version INTEGER NOT NULL, updated_at TEXT NOT NULL
+      );
+      PRAGMA user_version = 4;
+      COMMIT;`);
+  }
   const hydrate = row => row ? { ...JSON.parse(row.data), id: row.id, stage: row.stage, position: row.position, version: row.version, createdAt: row.created_at, updatedAt: row.updated_at } : null;
   const list = () => db.prepare('SELECT * FROM opportunities WHERE deleted_at IS NULL ORDER BY position, created_at, id').all().map(hydrate);
   const get = (id, includeDeleted = false) => {
@@ -92,6 +109,26 @@ export function openStore(filename) {
   };
   return {
     list, get, activity,
+    getProfile() { return readSearchProfile(db); },
+    updateProfile(input) {
+      if (!input || typeof input !== 'object' || Array.isArray(input)) throw new AppError('Search preferences must be an object.');
+      if (Object.keys(input).some(key => key !== 'version' && !Object.hasOwn(profileLimits, key))) throw new AppError('Unknown search preference field.');
+      return transaction(() => {
+        const current = readSearchProfile(db);
+        if (!Number.isInteger(input.version) || input.version < 0) throw new AppError('The current search preferences version is required.');
+        if (input.version !== current.version) throw new AppError('Search preferences changed elsewhere. Close and reopen them before saving.', 409);
+        const data = {};
+        for (const [key, limit] of Object.entries(profileLimits)) {
+          const value = input[key] === undefined ? current[key] : input[key];
+          if (typeof value !== 'string' || value.length > limit) throw new AppError(`${key} must be text of at most ${limit} characters.`);
+          data[key] = value.trim();
+        }
+        db.prepare(`INSERT INTO search_profile(id, data, version, updated_at) VALUES (1, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET data = excluded.data, version = excluded.version, updated_at = excluded.updated_at`)
+          .run(JSON.stringify(data), current.version + 1, new Date().toISOString());
+        return readSearchProfile(db);
+      });
+    },
     create(input) {
       const data = validate(input);
       return transaction(() => insert(data,nextPosition(data.stage)));

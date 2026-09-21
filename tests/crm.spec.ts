@@ -11,15 +11,15 @@ test('create, edit, search, list stage change, reload, close, remove, undo, and 
   await page.goto('/'); await expect(page.getByText('Saved locally')).toBeVisible();
   await add(page,'QA Cedar');
   await page.getByRole('button',{name:'Open QA Cedar',exact:true}).click();
-  await page.getByLabel('Role',{exact:true}).fill('Product Engineer');
-  await page.getByLabel('Location / work setup').fill('Remote · Europe');
+  await page.getByLabel('Role',{exact:true}).fill('Example Role');
+  await page.getByLabel('Location / work setup').fill('User-defined location');
   await page.getByLabel('Notes',{exact:true}).fill('Interview notes\nAsk about product ownership');
   await page.getByLabel('Next step',{exact:true}).fill('Send portfolio');
   await page.getByLabel('Follow-up date').fill('2026-01-01');
   await page.getByLabel('Priority',{exact:true}).selectOption('high');
   await page.getByRole('button',{name:'Save changes',exact:true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.reload(); await expect(page.getByText('Product Engineer',{exact:true})).toBeVisible();
+  await page.reload(); await expect(page.getByText('Example Role',{exact:true})).toBeVisible();
   await page.getByLabel('Search opportunities').fill('nothing-matches');
   await expect(page.getByRole('button',{name:'Open QA Cedar',exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'Clear filters',exact:false}).click();
@@ -98,11 +98,80 @@ test('mobile editor, unsaved-change protection, keyboard move, and database erro
   await page.unrouteAll();
 });
 test('API rejects cross-origin writes and stale versions',async ({request}) => {
+  expect((await request.patch('/api/profile',{headers:{Origin:'https://untrusted.example'},data:{version:0,roles:'Unwanted change'}})).status()).toBe(403);
   const denied = await request.post('/api/opportunities',{headers:{Origin:'https://untrusted.example'},data:{company:'Should not exist'}}); expect(denied.status()).toBe(403);
   const invalid = await request.post('/api/opportunities',{data:{company:'Unsafe link',url:'javascript:alert(1)'}}); expect(invalid.status()).toBe(400);
   const create = await request.post('/api/opportunities',{data:{company:'Version test'}}); const {opportunity:job} = await create.json();
   expect((await request.patch(`/api/opportunities/${job.id}`,{data:{version:job.version,notes:'First edit'}})).ok()).toBeTruthy();
   expect((await request.patch(`/api/opportunities/${job.id}`,{data:{version:job.version,notes:'Stale edit'}})).status()).toBe(409);
+});
+
+test('search preferences start undecided and persist in the app, API and export', async ({page,request}) => {
+  await page.goto('/');
+  await expect(page.getByText('What are you looking for?',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Set up your search',exact:false}).click();
+  await expect(page.getByLabel('Roles and work you want',{exact:true})).toHaveValue('');
+  await expect(page.getByLabel('Work arrangement',{exact:true})).toHaveValue('');
+  await page.getByLabel('Roles and work you want',{exact:true}).fill('Museum education and public programmes');
+  await page.getByLabel('Location and work eligibility',{exact:true}).fill('My selected region and eligibility');
+  await page.getByLabel('Employment type and hours',{exact:true}).fill('Part-time employee');
+  await page.getByLabel('Things to avoid',{exact:true}).fill('Sales targets');
+  await page.getByRole('button',{name:'Save preferences',exact:true}).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByText('Search preferences saved',{exact:true})).toBeVisible();
+  await expect(page.getByText('What are you looking for?',{exact:true})).toHaveCount(0);
+  await page.reload();
+  await page.getByRole('button',{name:'Search preferences',exact:true}).click();
+  await expect(page.getByLabel('Roles and work you want',{exact:true})).toHaveValue('Museum education and public programmes');
+  const {profile} = await (await request.get('/api/profile')).json();
+  expect(profile.roles).toBe('Museum education and public programmes');
+  expect(profile.employmentType).toBe('Part-time employee');
+  expect(profile.version).toBe(1);
+  const exported = await (await request.get('/api/export')).json();
+  expect(exported.profile).toEqual(profile);
+  expect(exported.version).toBe(2);
+  await page.screenshot({path:'test-results/search-preferences-desktop.png',fullPage:true});
+});
+
+test('search preferences preserve drafts on conflicts and failed saves', async ({page,request}) => {
+  await page.goto('/');
+  await page.getByRole('button',{name:'Search preferences',exact:true}).click();
+  const roles = page.getByLabel('Roles and work you want',{exact:true});
+  await roles.fill('My unsaved role preferences');
+  const {profile} = await (await request.get('/api/profile')).json();
+  const update = await request.patch('/api/profile',{data:{version:profile.version,roles:'A change from the setup agent'}});
+  expect(update.ok()).toBeTruthy();
+  await page.getByRole('button',{name:'Save preferences',exact:true}).click();
+  await expect(page.getByRole('alert')).toContainText('Search preferences changed elsewhere');
+  await expect(roles).toHaveValue('My unsaved role preferences');
+  await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await page.getByRole('button',{name:'Discard changes',exact:true}).click();
+  await page.getByRole('button',{name:'Search preferences',exact:true}).click();
+  await expect(roles).toHaveValue('A change from the setup agent');
+  await roles.fill('Keep this profile draft');
+  await page.route('**/api/profile',route => route.request().method()==='PATCH' ? route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({error:'Simulated preference save failure'})}) : route.continue());
+  await page.getByRole('button',{name:'Save preferences',exact:true}).click();
+  await expect(page.getByRole('alert')).toHaveText('Simulated preference save failure');
+  await expect(roles).toHaveValue('Keep this profile draft');
+  await page.unrouteAll();
+});
+
+test('mobile preferences can be edited, discarded and deliberately left undecided', async ({page}) => {
+  await page.setViewportSize({width:390,height:844}); await page.goto('/');
+  await page.getByRole('button',{name:'Search preferences',exact:true}).click();
+  const roles = page.getByLabel('Roles and work you want',{exact:true});
+  await roles.fill('An unsaved change');
+  await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await page.getByRole('button',{name:'Keep editing',exact:true}).click();
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  await expect(roles).toHaveValue('An unsaved change');
+  await page.screenshot({path:'test-results/search-preferences-mobile.png',fullPage:true});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
+  await roles.fill('');
+  await page.getByRole('button',{name:'Save preferences',exact:true}).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByText('What are you looking for?',{exact:true})).toBeVisible();
 });
 test('conflicting edits preserve the draft and reopening loads the other window’s version', async ({page,request}) => {
   await page.goto('/'); await add(page,'QA Conflict');

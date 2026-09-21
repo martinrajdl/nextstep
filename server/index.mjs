@@ -13,7 +13,7 @@ const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
 function json(res, status, value) { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(value)); }
 async function body(req) {
   if (!req.headers['content-type']?.startsWith('application/json')) throw new AppError('Use a JSON request.', 415);
-  let text = ''; for await (const chunk of req) { text += chunk; if (Buffer.byteLength(text) > 65536) throw new AppError('This opportunity is too large.', 413); }
+  let text = ''; for await (const chunk of req) { text += chunk; if (Buffer.byteLength(text) > 65536) throw new AppError('This request is too large.', 413); }
   try { const value = JSON.parse(text); if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(); return value; } catch { throw new AppError('Invalid JSON request.'); }
 }
 const server = createServer(async (req, res) => {
@@ -25,11 +25,13 @@ const server = createServer(async (req, res) => {
     if (req.headers.origin && !allowedOrigins.has(req.headers.origin)) throw new AppError('Requests must come from this app.', 403);
     const path = new URL(req.url, `http://127.0.0.1:${port}`).pathname;
     if (path === '/api/health' && req.method === 'GET') return json(res, 200, { status: 'ok', app: 'nextstep', pid: process.pid });
+    if (path === '/api/profile' && req.method === 'GET') return json(res, 200, { profile: store.getProfile() });
+    if (path === '/api/profile' && req.method === 'PATCH') return json(res, 200, { profile: store.updateProfile(await body(req)) });
     if (path === '/api/opportunities' && req.method === 'GET') return json(res, 200, { opportunities: store.list() });
     if (path === '/api/opportunities' && req.method === 'POST') { const opportunity = store.create(await body(req)); return json(res, 201, { opportunity, opportunities: store.list() }); }
     if (path === '/api/export' && req.method === 'GET') {
       res.setHeader('Content-Disposition', 'attachment; filename="nextstep-backup.json"');
-      return json(res, 200, { format: 'nextstep', version: 1, exportedAt: new Date().toISOString(), opportunities: store.list() });
+      return json(res, 200, { format: 'nextstep', version: 2, exportedAt: new Date().toISOString(), profile: store.getProfile(), opportunities: store.list() });
     }
     const match = path.match(/^\/api\/opportunities\/([a-f0-9-]{36})(?:\/(move|activity|restore))?$/);
     if (match) {
