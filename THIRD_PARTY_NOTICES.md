@@ -1,6 +1,6 @@
 # Third-party notices
 
-The generated components in `components/ui/` are based on shadcn/ui. Its MIT notice is reproduced below. Installed dependencies retain their respective licenses.
+The generated components in `components/ui/` are based on shadcn/ui. Its MIT notice is reproduced below. Installed dependencies retain their respective licenses. Desktop packaging also collects the installed dependency license and notice files in `DEPENDENCY_LICENSES.txt` inside the app archive. Electron includes its own license and Chromium notices in the packaged runtime.
 
 MIT License
 

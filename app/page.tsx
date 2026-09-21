@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowDownToLine, ArrowUpRight, CheckCheck, Columns3, Eye, EyeOff, Layers3, List, Plus, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpRight, Bot, CheckCheck, Columns3, Eye, EyeOff, Layers3, List, Plus, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
@@ -8,6 +8,7 @@ import JobBoard from '@/components/job-board';
 import JobList from '@/components/job-list';
 import OpportunityEditor from '@/components/opportunity-editor';
 import SearchPreferences from '@/components/search-preferences';
+import AgentConnection from '@/components/agent-connection';
 import type { SearchProfile } from '@/lib/search-profile';
 import { blankDraft, request, stageInfo, STAGES, today, type Draft, type Opportunity, type StageId } from '@/lib/model';
 
@@ -33,6 +34,7 @@ export default function Home() {
   const [sort, setSort] = useState('manual');
   const [editor, setEditor] = useState<Editor>(null);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const [agentOpen, setAgentOpen] = useState(false);
   const [profile, setProfile] = useState<SearchProfile | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const refreshVersion = useRef(0);
@@ -44,9 +46,10 @@ export default function Home() {
   }, []);
   useEffect(() => { void Promise.resolve().then(refresh); }, [refresh]);
   useEffect(() => {
-    const focus = () => { if (!busyRef.current && !editor && !preferencesOpen) void refresh(); };
-    window.addEventListener('focus', focus); return () => window.removeEventListener('focus',focus);
-  }, [editor,preferencesOpen,refresh]);
+    const focus = () => { if (!busyRef.current && !editor && !preferencesOpen && !agentOpen && document.visibilityState === 'visible') void refresh(); };
+    const interval = window.setInterval(focus,15000);
+    window.addEventListener('focus', focus); return () => { window.clearInterval(interval); window.removeEventListener('focus',focus); };
+  }, [editor,preferencesOpen,agentOpen,refresh]);
   useEffect(() => {
     const controller = new AbortController();
     const read = () => { request<{profile: SearchProfile}>('/api/profile').then(result => { if (!controller.signal.aborted) setProfile(current => current && current.version > result.profile.version ? current : result.profile); }).catch(() => { /* The preferences editor provides its own error and retry controls. */ }); };
@@ -55,14 +58,14 @@ export default function Home() {
   }, []);
   useEffect(() => {
     function key(event: KeyboardEvent) {
-      if (event.metaKey || event.ctrlKey || event.altKey || editor || preferencesOpen || loading || loadError) return;
+      if (event.metaKey || event.ctrlKey || event.altKey || editor || preferencesOpen || agentOpen || loading || loadError) return;
       const target = event.target as HTMLElement;
       if (['INPUT','TEXTAREA','SELECT'].includes(target.tagName) || target.isContentEditable || target.closest('[role="dialog"]')) return;
       if (event.key === '/') { event.preventDefault(); searchRef.current?.focus(); }
       if (event.key.toLowerCase() === 'n') { event.preventDefault(); setEditor({job:null,stage:'prospect'}); }
     }
     window.addEventListener('keydown',key); return () => window.removeEventListener('keydown',key);
-  }, [editor,preferencesOpen,loading,loadError]);
+  }, [editor,preferencesOpen,agentOpen,loading,loadError]);
   const mutate = useCallback(async (path: string, method: string, data: unknown) => {
     if (busyRef.current) throw new Error('Wait for the previous change to finish saving.');
     busyRef.current = true; setBusy(true); ++refreshVersion.current;
@@ -123,7 +126,7 @@ export default function Home() {
   }
   return <div className="app-shell">
     <Toaster richColors position="bottom-right" closeButton style={{ zIndex: 40 }}/>
-    <header className="app-header"><a className="brand" href="/"><span className="brand-icon"><Layers3 size={21}/></span>nextstep<span className="brand-divider"/><span className="workspace-name">Your workspace</span></a><div className="header-right"><output className={`local-badge ${loadError ? 'offline' : ''}`}><span/>{loading ? 'Connecting…' : loadError ? 'Connection interrupted' : busy ? 'Saving…' : 'Saved locally'}</output><button className="preferences-button" onClick={() => setPreferencesOpen(true)} aria-label="Search preferences" title="Search preferences"><SlidersHorizontal size={17}/><span>Search preferences</span></button></div></header>
+    <header className="app-header"><a className="brand" href="/"><span className="brand-icon"><Layers3 size={21}/></span>nextstep<span className="brand-divider"/><span className="workspace-name">Your workspace</span></a><div className="header-right"><output className={`local-badge ${loadError ? 'offline' : ''}`}><span/>{loading ? 'Connecting…' : loadError ? 'Connection interrupted' : busy ? 'Saving…' : 'Saved locally'}</output><button className="preferences-button" onClick={() => setAgentOpen(true)} aria-label="Search agent" title="Search agent"><Bot size={17}/><span>Search agent</span></button><button className="preferences-button" onClick={() => setPreferencesOpen(true)} aria-label="Search preferences" title="Search preferences"><SlidersHorizontal size={17}/><span>Search preferences</span></button></div></header>
     <main><div className="page-heading"><div><div className="eyebrow">YOUR NEXT CHAPTER</div><h1>Job pipeline<span className="title-dot">.</span></h1><p>A home for your prospects, conversations, and next steps.</p></div><button className="primary-button" onClick={() => add()} disabled={loading || Boolean(loadError)} title="New opportunity (N)"><Plus size={18}/>New opportunity</button></div>
       {profile && !profile.roles.trim() && <div className="preferences-prompt"><div><strong>What are you looking for?</strong><p>Define your job preferences so your agent can find the right opportunities.</p></div><button className="secondary-button" onClick={() => setPreferencesOpen(true)}>Set up your search <ArrowUpRight size={15}/></button></div>}
       <div className="pipeline-summary"><span><strong>{active.length}</strong> active opportunities</span><span><strong>{active.filter(job => ['screening','interview','final'].includes(job.stage)).length}</strong> in interviews</span><span><strong>{active.filter(job => job.stage === 'offer').length}</strong> offers</span><div className="summary-note"><CheckCheck size={14}/>{active.filter(job => job.followUp && job.followUp <= today()).length} follow-ups due</div></div>
@@ -137,5 +140,6 @@ export default function Home() {
     </main>
     {editor && <OpportunityEditor key={editor.job?.id || `new-${editor.stage}`} opportunity={editor.job} stage={editor.stage} onClose={() => setEditor(null)} onSave={async (draft,existing) => { await save(draft,existing); }} onDelete={remove}/>}
     {preferencesOpen && <SearchPreferences onClose={() => setPreferencesOpen(false)} onSaved={saved => { setProfile(saved); toast.success('Search preferences saved'); }}/>}
+    {agentOpen && <AgentConnection onClose={() => setAgentOpen(false)}/>}
   </div>;
 }

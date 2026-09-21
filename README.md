@@ -2,11 +2,29 @@
 
 A personal job-search CRM that runs on your computer. Move opportunities through a Kanban board, switch to a searchable list, and let your coding agent collect verified jobs into the same local database.
 
-React + TypeScript, a small Node HTTP server, and SQLite. No database account, cloud service, API key, or separate database daemon is needed to use the app. Agent-assisted research uses your own agent and its browsing access.
+React + TypeScript, a small Node HTTP server, and SQLite, with an optional Electron desktop app and local MCP connection. No database account, cloud service, API key, or separate database daemon is needed to use the app. Agent-assisted research uses your own agent and its browsing access.
 
 ![Nextstep Kanban board with fictional test records](docs/images/board.png)
 
 *Example board using fictional records. New installations start empty.*
+
+## Desktop app
+
+After cloning and installing dependencies, run:
+
+```sh
+pnpm exec install-electron
+pnpm build
+pnpm desktop
+# Build a self-contained app for this computer:
+pnpm desktop:package
+```
+
+The packaged app includes SQLite and its runtime. New desktop installations start empty; **File → Open database…** connects an existing Nextstep database without copying it. Builds are currently unsigned.
+
+In **Search agent**, choose Codex or Claude Code Desktop, save when to search, and copy the MCP connection and setup request into your agent. It uses its native scheduler to create or update the task. Every run reads current preferences and uses **Interested / Uninterested** feedback to refine search and ranking. It preserves existing cards and never edits the app's code or interface.
+
+Saving setup choices does not activate a task. The computer must be awake and the local agent app running for scheduled work; the Nextstep window can be closed. See **[desktop setup and limitations](docs/desktop.md)** for connection steps, packaging, and checks.
 
 ## Start in five minutes
 
@@ -59,9 +77,9 @@ Your answers are saved in **Search preferences inside the app**, backed by the s
 
 For command-line setup, use `node scripts/job-finder.mjs profile get`, then `profile set data/search-answers.json` with the current version and your answers. [The blank JSON schema](templates/profile.example.json) documents the fields. See [JOB-FINDER.md](JOB-FINDER.md#save-the-users-setup-answers) for details. Existing private Markdown profiles are preserved but should be reviewed and transferred into app preferences once.
 
-The agent reads existing **Uninterested**, **Interested**, and **Applied** records before researching. All stages and removed records participate in duplicate checks. New matches go at the **top of Prospects**, with the best new match first. Existing stages, notes, priorities, and ordering are preserved. A company-only Uninterested card excludes the company; an uninterested specific role excludes that role.
+The agent reads existing **Uninterested**, **Interested**, and **Applied** records before researching. Interested and Uninterested choices refine search terms and ranking, with explicit preferences taking precedence over inferred patterns. All stages and removed records participate in duplicate checks. New matches go at the **top of Prospects**, with the best new match first. Existing stages, notes, priorities, and ordering are preserved. A company-only Uninterested card excludes the company; an uninterested specific role excludes that role.
 
-Prompts are instructions for your agent, not a built-in crawler or autonomous AI service. Scheduled runs need a local agent with this checkout and database available; a cloud-only scheduled chat cannot write to your local SQLite file. No schedule is enabled just by cloning this repo.
+Prompts are instructions for your agent, not a built-in crawler or autonomous AI service. Scheduled runs need a local agent with the MCP connection or this checkout and database available; a cloud-only scheduled chat cannot write to your local SQLite file. No schedule is enabled just by cloning this repo.
 
 See **[JOB-FINDER.md](JOB-FINDER.md)** for the full collection and import contract.
 
@@ -85,7 +103,7 @@ The app serves only on `127.0.0.1`, with Host/Origin checks. It has no accounts 
 
 Agent prompts ask for public employer information and keep research local. Your chosen agent provider may still process the profile and board context it reads; Nextstep does not add a model or telemetry service of its own.
 
-The download button exports Search preferences and active/closed opportunities as JSON. For a complete backup including removed records and activity, **stop the app, then copy the `data` folder**. SQLite can have `-wal` and `-shm` companion files while running. Restore by stopping the app and replacing `data` with the complete backup. There is no full-backup import UI.
+The download button exports Search preferences, active/closed opportunities, schedule registration, and recent search reports as JSON. For a complete source-checkout backup including removed records and activity, **stop the app and connected MCP helpers, then copy the `data` folder**. SQLite can have `-wal` and `-shm` companion files while running. Restore by stopping the app/helpers and replacing `data` with the complete backup. Desktop databases live in your application-data directory or the location you selected; see [desktop backups](docs/desktop.md#your-database). There is no full-backup import UI.
 
 | Setting | Default | Notes |
 | --- | --- | --- |
@@ -104,7 +122,7 @@ Node.js **22.13+** is required for built-in SQLite; Node 24 is recommended and u
 pnpm background:stop        # if the production app is running
 pnpm dev                   # Vite on 4317, API on 4318
 pnpm build                 # Type-check and build
-pnpm test                  # Store, import, migration, and setup tests
+pnpm test                  # Store, import, migration, HTTP, setup, and MCP tests
 pnpm lint
 pnpm exec playwright install chromium
 pnpm test:e2e              # Isolated temporary database on port 4321
@@ -112,7 +130,7 @@ pnpm test:e2e              # Isolated temporary database on port 4321
 
 Development and production use the same local database unless you configure a different one. Tests create their own temporary databases and never populate your personal pipeline. CI runs the same checks on Linux. For contributors, see [CONTRIBUTING.md](CONTRIBUTING.md); coding agents should read [AGENTS.md](AGENTS.md).
 
-The UI optionally exposes `list_opportunities`, `create_opportunity`, and `move_opportunity` through WebMCP in supporting browsers. The app and file-based importer work without it.
+The UI optionally exposes `list_opportunities`, `create_opportunity`, and `move_opportunity` through WebMCP in supporting browsers. This is separate from the bounded local research MCP server, which cannot edit existing stages or run arbitrary commands. The app and file-based importer work without either connection.
 
 ## License
 

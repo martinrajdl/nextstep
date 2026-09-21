@@ -1,0 +1,46 @@
+name: Desktop builds
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec install-electron
+      - run: pnpm test
+      - run: pnpm desktop:package
+      - if: runner.os == 'macOS'
+        run: pnpm test:desktop
+      - name: Archive macOS app
+        if: runner.os == 'macOS'
+        run: ditto -c -k --sequesterRsrc --keepParent desktop-releases/Nextstep-darwin-*/Nextstep.app desktop-releases/Nextstep-macOS-unsigned.zip
+      - name: Archive Windows app
+        if: runner.os == 'Windows'
+        run: Compress-Archive -Path desktop-releases/Nextstep-win32-* -DestinationPath desktop-releases/Nextstep-Windows-unsigned.zip
+      - name: Archive Linux app
+        if: runner.os == 'Linux'
+        run: tar -czf desktop-releases/Nextstep-Linux-unsigned.tar.gz -C desktop-releases Nextstep-linux-$(node -p process.arch)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Nextstep-${{ runner.os }}-unsigned
+          path: |
+            desktop-releases/*.zip
+            desktop-releases/*.tar.gz
+          if-no-files-found: error
+          retention-days: 14

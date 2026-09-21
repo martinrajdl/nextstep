@@ -1,5 +1,6 @@
 allowBuilds:
-  esbuild: false
+  esbuild: true
+  electron: true
   sharp: false
   workerd: false
   agent-browser: false

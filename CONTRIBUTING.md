@@ -12,4 +12,6 @@ Keep `data/`, `.runtime/`, credentials, résumé files, exports, research, and p
 
 Changes to collection prompts should remain profile-driven, verify employer sources, preserve user decisions, and distinguish researching a job from submitting an application. Adding an agent prompt must not silently enable a schedule or an external service.
 
+For Electron or MCP changes, read [docs/desktop.md](docs/desktop.md), install the Electron runtime with `pnpm exec install-electron`, and run `pnpm test:desktop` after building. Test a packaged executable as well when changing packaging. The manual Desktop builds workflow produces unsigned archives; signing credentials and personal data do not belong in this repository. A protocol smoke test does not prove that a provider's native scheduler is configured.
+
 By contributing, you agree that your contribution is licensed under this project's MIT license.

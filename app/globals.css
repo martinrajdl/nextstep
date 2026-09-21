@@ -178,3 +178,19 @@ h1 { font-size: 36px; font-weight: 620; line-height: 1.15; letter-spacing: -1.5p
 @media(max-width: 700px) { .summary-note { display: none; } .pipeline-summary { gap: 12px; } .pipeline-summary>span:first-child { max-width: 130px; } .scope-switch { margin-left: auto; padding: 0; border: 0; } .search-wrap { flex: 1; min-width: 175px; } .filter-select { max-width: 145px; } .filter-select select { font-size: 12px; } .sort-select { margin: 0; } .export-button { width: 30px; } .drag-handle { opacity: 1; width: 30px; height: 30px; } .editor-header { padding: 25px 20px 20px!important; } .editor-scroll { padding: 23px 20px; } .editor-footer { padding: 16px 20px; } .field-row { gap: 11px; } .field-row label { font-size: 12px; } .field input,.field textarea,.field select { font-size: 16px; } .activity-entry { flex-direction: column; gap: 4px; } }
 @media(min-width: 701px) and (max-width: 1150px) { .search-wrap input { width: 190px; } }
 @media(max-width: 700px) { .export-button { display: none; } }
+
+/* Agent connection and search history share the existing editor layout. */
+.agent-sheet .field select,.agent-sheet .field input { width:100%; border:1px solid var(--border); border-radius:6px; padding:10px 12px; background:white; font:inherit; }
+.agent-hint { color:var(--muted-foreground); font-size:12px; line-height:1.55; margin-top:9px; }
+.agent-section { margin-top:26px; padding-top:22px; border-top:1px solid var(--border); }
+.agent-section h3 { margin:0 0 10px; font-size:15px; font-weight:650; }
+.agent-section p { font-size:13px; line-height:1.65; white-space:pre-wrap; }
+.agent-buttons { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0; }
+.agent-section details { margin-top:14px; font-size:12px; }
+.agent-section summary { cursor:pointer; font-weight:600; }
+.agent-config { padding:12px; margin-top:10px; background:var(--muted); border-radius:6px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; font-size:11px; line-height:1.6; }
+.agent-setup-text { width:100%; padding:12px; margin-top:10px; border:1px solid var(--border); border-radius:6px; font-size:12px; line-height:1.6; }
+.agent-notice { display:block; color:#367962; font-size:12px; line-height:1.5; margin-bottom:12px; }
+.search-run { border:1px solid var(--border); border-radius:8px; padding:14px; margin-top:12px; }
+.search-run-meta { color:var(--muted-foreground); font-size:11px; }
+.search-learning { background:#f6f7fd; padding:10px; border-radius:6px; }
