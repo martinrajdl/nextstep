@@ -20,6 +20,14 @@
 # misc
 .DS_Store
 *.pem
+*.p12
+*.pfx
+*.p8
+*.key
+*.cer
+*.certSigningRequest
+*.keychain
+*.keychain-db
 
 # debug
 npm-debug.log*

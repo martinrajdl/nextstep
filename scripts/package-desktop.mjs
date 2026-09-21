@@ -3,7 +3,10 @@ import { packager } from '@electron/packager';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { root } from '../server/config.mjs';
+import { archiveMacRelease, packagingTarget, signingOptions } from './macos-release.mjs';
 
+const {platform,arch,release} = packagingTarget(process.argv.slice(2));
+const signing = release ? await signingOptions({root}) : null;
 const stage = resolve(root,'.desktop-staging');
 const manifest = JSON.parse(readFileSync(resolve(root,'package.json'),'utf8'));
 rmSync(stage,{recursive:true,force:true}); mkdirSync(stage,{recursive:true});
@@ -34,7 +37,11 @@ for (const entry of readdirSync(installed,{withFileTypes:true})) {
 }
 writeFileSync(resolve(stage,'DEPENDENCY_LICENSES.txt'),[...licenses.entries()].sort(([a],[b]) => a.localeCompare(b)).map(([,notice]) => notice).join('\n\n--------------------\n\n'));
 writeFileSync(resolve(stage,'package.json'),JSON.stringify({name:'nextstep',productName:'Nextstep',version:manifest.version,description:manifest.description,main:'main.mjs',type:'module',license:'MIT'},null,2));
-const [platform = process.platform,arch = process.arch] = process.argv.slice(2);
-if (!['darwin','win32','linux'].includes(platform) || !['arm64','x64'].includes(arch)) throw new Error('Choose darwin, win32 or linux and arm64 or x64.');
-const output = await packager({dir:stage,name:'Nextstep',out:resolve(root,'desktop-releases'),platform,arch,electronVersion:manifest.devDependencies.electron,overwrite:true,asar:true,prune:false,appBundleId:'app.nextstep.crm',appCategoryType:'public.app-category.productivity'});
-console.log(`Desktop app ready: ${output.join(', ')}\nThis build is unsigned. See docs/desktop.md for distribution and agent setup.`);
+if (release) console.log(`Signing with ${signing.identity.name}. Apple notarization may take several minutes.`);
+const output = await packager({dir:stage,name:'Nextstep',out:resolve(root,release ? 'desktop-releases/signed' : 'desktop-releases'),platform,arch,electronVersion:manifest.devDependencies.electron,overwrite:true,asar:true,prune:false,appBundleId:'app.nextstep.crm',appCategoryType:'public.app-category.productivity',...(signing?.options ?? {})});
+if (release) {
+  const app = resolve(output[0],'Nextstep.app');
+  const archive = resolve(root,'desktop-releases',`Nextstep-${manifest.version}-macOS-${arch}.zip`);
+  await archiveMacRelease({app,archive,identity:signing.identity});
+  console.log(`Signed, notarized, stapled and Gatekeeper-verified macOS release: ${archive}`);
+} else console.log(`Desktop app ready: ${output.join(', ')}\nThis build is unsigned. Use pnpm desktop:release for a signed macOS release. See docs/desktop.md.`);

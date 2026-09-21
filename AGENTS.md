@@ -28,4 +28,6 @@ Schema changes need migration coverage that proves existing records and activity
 
 For desktop changes, install the runtime with `pnpm exec install-electron`, build the interface, and run `pnpm test:desktop`. After packaging, repeat the desktop check with the packaged executable as its argument. Never include `data/`, `.runtime/`, personal settings, or research in a bundle; `scripts/package-desktop.mjs` stages an explicit set of application files. See `docs/desktop.md` for the connection and packaging contract.
 
+For signed macOS distribution, follow `docs/macos-signing.md`. Use an explicitly selected Developer ID Application identity and a local notarytool Keychain profile. Never substitute an Apple Development or ad-hoc signature, disable verification, or claim notarization from a successful local launch alone. Keep credentials and private keys out of Git and app bundles.
+
 Before publishing a contribution, inspect the exact staged file list and diff for personal data, credentials, database files, screenshots, logs, or absolute home-directory paths. Keep generic templates public and completed profiles private.
