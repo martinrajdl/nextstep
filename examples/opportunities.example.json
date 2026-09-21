@@ -1,0 +1,13 @@
+{
+  "opportunities": [
+    {
+      "company": "Example Northstar Studio",
+      "role": "Product Engineer",
+      "url": "https://example.com/jobs/product-engineer",
+      "location": "Example location; replace with verified hiring countries",
+      "salary": "",
+      "nextStep": "Replace this example with a verified live opening",
+      "notes": "FICTIONAL FORMAT EXAMPLE. Not a real vacancy and not verified. For real imports, include verification date, employer source, fit, gaps, eligibility and compensation caveats."
+    }
+  ]
+}
