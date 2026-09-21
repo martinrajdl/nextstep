@@ -23,7 +23,7 @@ The runnable app is in ignored `desktop-releases/`. It includes its own runtime,
 
 To choose another target after building the interface, run `node scripts/package-desktop.mjs <platform> <arch>`. Supported values are `darwin`, `win32`, or `linux`, and `arm64` or `x64`. The manual **Desktop builds** GitHub workflow builds on each operating system. Only macOS Apple silicon has been exercised with the full desktop smoke test so far.
 
-These are unsigned builds. Distribution signing, macOS notarization, installers, and automatic updates are not configured. Move the app to its permanent location before copying its MCP connection settings: those settings contain the executable's absolute path.
+`desktop:package` and the manual Desktop builds workflow produce unsigned development builds. For a Developer ID-signed and notarized macOS app, use `pnpm desktop:release` after completing the [Apple signing setup](macos-signing.md). A release ZIP is created only after its signature, notarization ticket, and Gatekeeper acceptance pass verification. Installers and automatic updates are not configured. Move the app to its permanent location before copying its MCP connection settings: those settings contain the executable's absolute path.
 
 ## Your database
 

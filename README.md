@@ -20,7 +20,7 @@ pnpm desktop
 pnpm desktop:package
 ```
 
-The packaged app includes SQLite and its runtime. New desktop installations start empty; **File → Open database…** connects an existing Nextstep database without copying it. Builds are currently unsigned.
+The packaged app includes SQLite and its runtime. New desktop installations start empty; **File → Open database…** connects an existing Nextstep database without copying it. `desktop:package` produces an unsigned development build. For a signed and notarized macOS release, configure your [Apple signing identity and Keychain profile](docs/macos-signing.md), then run `pnpm desktop:release`.
 
 In **Search agent**, choose Codex or Claude Code Desktop, save when to search, and copy the MCP connection and setup request into your agent. It uses its native scheduler to create or update the task. Every run reads current preferences and uses **Interested / Uninterested** feedback to refine search and ranking. It preserves existing cards and never edits the app's code or interface.
 
