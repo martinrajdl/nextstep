@@ -9,18 +9,23 @@ Nextstep is a local job-search CRM. Read `README.md` before changing or running 
 - Use the provided importer for additive collection. Read current context before each run, deduplicate all stages and removed records, and prepend only new Prospects. Existing stages, notes, priorities, and order belong to the user.
 - Search preferences live in SQLite and are returned by `context` and `profile get`. Ask the user what kind of job they want during setup, then save their answers with `profile set`. There are no default job types or search criteria. Do not keep the only copy in a chat or Markdown file. Use the app's Search preferences panel for user edits.
 - Do not infer permission to apply or contact employers from a request to research or import jobs.
+- Scheduled research refines search terms and ranking from Interested/Uninterested decisions. Explicit preferences take precedence. Keep inferred adjustments tentative in search reports with evidence IDs; never silently rewrite preferences or change app code, UI, existing notes, stages, priorities, or ordering.
 
 ## Architecture and commands
 
 - `app/` and `components/`: React interface; `lib/model.ts`: shared UI types and stage labels.
 - `server/store.mjs`: SQLite schema, validation, migrations, transactional writes, optimistic versions, activity and imports.
 - `server/job-identity.mjs`: import identity normalization; `server/config.mjs`: shared database path resolution.
-- `server/index.mjs`: loopback HTTP API and production assets. Preserve Host/Origin checks and loopback binding.
+- `server/http.mjs`: reusable loopback HTTP API and production assets; `server/index.mjs`: standalone entrypoint. Preserve Host/Origin checks and loopback binding.
+- `desktop/main.mjs`: sandboxed Electron window and local service. `mcp/stdio.mjs` and `mcp/server.mjs`: separate local helper with bounded research tools and an explicit database path.
+- `server/context.mjs` and `server/agent-instructions.mjs`: current board context and provider-native scheduling handoff. Saving setup choices or recording a task ID does not create or verify a schedule.
 - `scripts/setup.mjs`: non-destructive initialization; `scripts/job-finder.mjs`: context/import CLI.
 - `pnpm dev`: UI 4317 and API 4318. `pnpm build` then `pnpm start`: production 4317. Avoid launching a second server on the user's occupied port.
 
 Use pinned dependencies and keep `pnpm-lock.yaml` in sync. Tests use temporary databases. Run `pnpm test`, `pnpm build`, and `pnpm lint` for relevant changes; UI changes also require `pnpm test:e2e` and a visual check. Install Playwright Chromium first, or set `PLAYWRIGHT_CHANNEL=chrome` for installed Chrome. Browser tests always use their own database on port 4321.
 
 Schema changes need migration coverage that proves existing records and activity survive. Import changes need coverage for duplicate identities, Uninterested/Interested/Applied decisions, removed records, ordering, and repeat imports. Use fictional company names and example.com URLs in fixtures.
+
+For desktop changes, install the runtime with `pnpm exec install-electron`, build the interface, and run `pnpm test:desktop`. After packaging, repeat the desktop check with the packaged executable as its argument. Never include `data/`, `.runtime/`, personal settings, or research in a bundle; `scripts/package-desktop.mjs` stages an explicit set of application files. See `docs/desktop.md` for the connection and packaging contract.
 
 Before publishing a contribution, inspect the exact staged file list and diff for personal data, credentials, database files, screenshots, logs, or absolute home-directory paths. Keep generic templates public and completed profiles private.

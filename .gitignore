@@ -49,3 +49,7 @@ playwright-report/
 *.sqlite-*
 *.db
 *.db-*
+
+# Generated desktop applications
+/.desktop-staging/
+/desktop-releases/

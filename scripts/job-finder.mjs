@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { existsSync, readFileSync } from 'node:fs';
-import { openStore, readSearchProfile, STAGES } from '../server/store.mjs';
+import { openStore, readSearchProfile } from '../server/store.mjs';
+import { readContext } from '../server/context.mjs';
 import { databasePath } from '../server/config.mjs';
 
 const database = databasePath();
@@ -11,8 +12,7 @@ try {
   if (command === 'context' && !filename) {
     const db = new DatabaseSync(database,{readOnly:true});
     try {
-      const records = db.prepare('SELECT * FROM opportunities ORDER BY position, created_at, id').all().map(row => ({...JSON.parse(row.data),id:row.id,stage:row.stage,position:row.position,version:row.version,createdAt:row.created_at,updatedAt:row.updated_at,removedAt:row.deleted_at}));
-      console.log(JSON.stringify({database,readAt:new Date().toISOString(),profile:readSearchProfile(db),byStage:Object.fromEntries(STAGES.map(stage => [stage,records.filter(job => job.stage === stage && !job.removedAt)])),removed:records.filter(job => job.removedAt)},null,2));
+      console.log(JSON.stringify(readContext(db,database),null,2));
     } finally { db.close(); }
   } else if (command === 'profile' && filename === 'get' && options.length === 0) {
     const db = new DatabaseSync(database,{readOnly:true});

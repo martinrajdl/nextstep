@@ -129,8 +129,43 @@ test('search preferences start undecided and persist in the app, API and export'
   expect(profile.version).toBe(1);
   const exported = await (await request.get('/api/export')).json();
   expect(exported.profile).toEqual(profile);
-  expect(exported.version).toBe(2);
+  expect(exported.version).toBe(3);
   await page.screenshot({path:'test-results/search-preferences-desktop.png',fullPage:true});
+});
+
+test('agent setup saves a handoff without claiming a schedule was created',async ({page,request}) => {
+  await page.goto('/'); await page.getByRole('button',{name:'Search agent',exact:true}).click();
+  await page.getByLabel('Choose your desktop agent').selectOption('claude-code');
+  await page.getByLabel('When should it search?').fill('Mondays at 10:00');
+  await page.getByLabel('Timezone',{exact:true}).fill('Europe/Prague');
+  await page.getByRole('button',{name:'Save setup choices'}).click();
+  await expect(page.getByText('Setup choices saved.',{exact:false})).toBeVisible();
+  await expect(page.getByText('No scheduled task has been reported yet.')).toBeVisible();
+  const state = await (await request.get('/api/agent')).json();
+  expect(state.schedule.taskId).toBe(''); expect(state.schedule.reportedAt).toBeNull();
+  expect(state.schedule.provider).toBe('claude-code');
+  const setup = await (await request.get('/api/agent/setup')).json();
+  expect(setup.instructions).toContain('Mondays at 10:00'); expect(setup.instructions).toContain('Claude Code Desktop');
+  expect(setup.instructions).toContain('Never edit app code');
+  await page.reload(); await page.getByRole('button',{name:'Search agent',exact:true}).click();
+  await expect(page.getByLabel('When should it search?')).toHaveValue('Mondays at 10:00');
+  await page.getByLabel('When should it search?').fill('An unsaved schedule');
+  await page.getByRole('button',{name:'Close',exact:true}).first().click();
+  await expect(page.getByRole('alertdialog')).toBeVisible();
+  await page.getByRole('button',{name:'Discard changes',exact:true}).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('mobile agent setup preserves drafts when saving fails',async ({page}) => {
+  await page.setViewportSize({width:390,height:844}); await page.goto('/');
+  await page.getByRole('button',{name:'Search agent',exact:true}).click();
+  await page.getByLabel('When should it search?').fill('Keep this schedule draft');
+  await page.route('**/api/agent/schedule',route => route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({error:'Simulated setup failure'})}));
+  await page.getByRole('button',{name:'Save setup choices'}).click();
+  await expect(page.getByRole('alert')).toHaveText('Simulated setup failure');
+  await expect(page.getByLabel('When should it search?')).toHaveValue('Keep this schedule draft');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
+  await page.screenshot({path:'test-results/mobile-agent.png',fullPage:true});
 });
 
 test('search preferences preserve drafts on conflicts and failed saves', async ({page,request}) => {
