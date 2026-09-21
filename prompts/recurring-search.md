@@ -4,13 +4,13 @@ Use the prompt below in your local coding-agent scheduler. Set its working direc
 
 ---
 
-Run the Nextstep job collection workflow in this repository. Read `AGENTS.md`, `JOB-FINDER.md`, `prompts/collect-jobs.md`, and my private `data/profile.md` on every run so you use current criteria and implementation. Do not copy personal criteria into public prompt files.
+Run the Nextstep job collection workflow in this repository. Read `AGENTS.md`, `JOB-FINDER.md`, and `prompts/collect-jobs.md`, then read the live `profile` returned by `node scripts/job-finder.mjs context` on every run. These are my current Search preferences saved in the app. Do not copy personal criteria into public prompt files or use a built-in job-type preset.
 
 Start with live CRM context and compare Uninterested, Interested, Applied, other stages, and removed records. Find currently open roles matching my criteria, verify them on live employer pages, and save only net-new strong matches at the top of Prospects through the importer. Preserve all existing stages, notes, priorities, history, and relative card order. Do not resurrect removed or declined roles.
 
 Save dated research and batch JSON under ignored `data/research/`, and keep a concise `data/research/monitor.md` for meaningful changes already reported. Recheck context after importing and report saved jobs only if their IDs exist. Record important closures or changed requirements in monitor notes rather than modifying my existing cards. Do not repeat unchanged recommendations as new finds.
 
-If the intended database, profile, or browsing access is unavailable, do not create a replacement pipeline or claim a successful search/import. Report the concrete blocker. Do not fabricate new leads to satisfy a quota.
+If the intended database or browsing access is unavailable, do not create a replacement pipeline or claim a successful search/import. Report the concrete blocker. If the profile has no defined job type (`roles` is blank), ask me to complete setup or Search preferences and pause dependent collection until my answers are saved in the app. Never choose the job type for me. Do not fabricate new leads to satisfy a quota.
 
 Stay quiet when nothing actionable has changed. Notify me when new strong matches were actually saved, a meaningful known-role change needs attention, or a failure requires my action. Include a short fit/gaps summary and direct links, with salary and eligibility uncertainties stated. Use whatever notification controls the scheduler supports.
 

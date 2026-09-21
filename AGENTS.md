@@ -7,6 +7,7 @@ Nextstep is a local job-search CRM. Read `README.md` before changing or running 
 - Personal jobs, profile, résumé, and research belong under ignored `data/`. Runtime logs live in `.runtime/`. Never commit these or use them as public fixtures/screenshots.
 - Preserve the existing database and user decisions. Do not run demo seeds or destructive migrations against it. If an established database is missing, investigate the configured path instead of creating a replacement.
 - Use the provided importer for additive collection. Read current context before each run, deduplicate all stages and removed records, and prepend only new Prospects. Existing stages, notes, priorities, and order belong to the user.
+- Search preferences live in SQLite and are returned by `context` and `profile get`. Ask the user what kind of job they want during setup, then save their answers with `profile set`. There are no default job types or search criteria. Do not keep the only copy in a chat or Markdown file. Use the app's Search preferences panel for user edits.
 - Do not infer permission to apply or contact employers from a request to research or import jobs.
 
 ## Architecture and commands

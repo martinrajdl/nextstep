@@ -21,7 +21,7 @@
     "background:status": "node scripts/background.mjs status",
     "test": "node --test tests/store.test.mjs tests/setup.test.mjs",
     "test:e2e": "playwright test",
-    "lint": "oxlint app components/job-board.tsx components/job-list.tsx components/opportunity-editor.tsx lib/model.ts",
+    "lint": "oxlint app components/job-board.tsx components/job-list.tsx components/opportunity-editor.tsx components/search-preferences.tsx lib/model.ts lib/search-profile.ts",
     "format": "oxfmt"
   },
   "dependencies": {

@@ -30,6 +30,15 @@ button,a { transition: background .15s, box-shadow .15s, color .15s; }
 .brand-divider { width: 1px; height: 20px; background: var(--border); margin: 0 12px; }
 .workspace-name { color: #858b9a; font-size: 14px; font-weight: 400; letter-spacing: 0; }
 .header-right { display: flex; align-items: center; gap: 24px; }
+.preferences-button { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 7px; background: var(--card); color: var(--muted-foreground); padding: 8px 10px; font-size: 12px; }
+.preferences-button:hover { background: var(--muted); color: var(--foreground); }
+.preferences-prompt { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 20px; margin-top: 25px; background: #f6f7fd; border: 1px solid #e8eafa; border-radius: 9px; font-size: 14px; }
+.preferences-prompt strong { font-weight: 600; }
+.preferences-prompt p { margin: 4px 0 0; font-size: 13px; color: var(--muted-foreground); }
+.preferences-prompt button { flex-shrink: 0; }
+.field-hint { font-size: 12px; line-height: 1.5; color: var(--muted-foreground); margin: -2px 0 8px; }
+.preferences-privacy { font-size: 12px; color: var(--muted-foreground); line-height: 1.5; margin: 10px 0 0; }
+@media(max-width: 700px) { .header-right { gap: 8px; } .preferences-button span { display: none; } .preferences-button { padding: 9px; } .preferences-prompt { align-items: flex-start; flex-direction: column; gap: 14px; padding: 16px; } }
 .local-badge { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #72798a; }
 .local-badge>span { width: 6px; height: 6px; border-radius: 50%; background: #56a686; }
 .avatar { width: 32px; height: 32px; border-radius: 50%; background: #eeeff6; color: #62698c; font-size: 11px; font-weight: 700; display: grid; place-items: center; border: 3px solid white; box-shadow: 0 0 0 1px #eaecf2; }

@@ -2,8 +2,8 @@
   "opportunities": [
     {
       "company": "Example Northstar Studio",
-      "role": "Product Engineer",
-      "url": "https://example.com/jobs/product-engineer",
+      "role": "Example role",
+      "url": "https://example.com/jobs/example-role",
       "location": "Example location; replace with verified hiring countries",
       "salary": "",
       "nextStep": "Replace this example with a verified live opening",
