@@ -1,6 +1,6 @@
 {
   "name": "nextstep-local-crm",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "A local job-search CRM with a Kanban board, SQLite and reusable agent prompts.",
   "license": "MIT",

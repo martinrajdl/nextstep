@@ -39,7 +39,7 @@ For a full backup, stop the app and any connected MCP helpers, then copy the dat
 
 ## First-run setup
 
-The first launch opens a three-step wizard. Existing databases keep their jobs and preferences and get a **Set up your search** / **Continue setup** button instead of an interrupting modal.
+The first launch opens a three-step wizard. Existing databases keep their jobs and preferences and can start or resume the wizard from **Search agent** in the compact header, without an interrupting modal.
 
 1. **Your search:** describe the work you want and optionally your location and work arrangement. More preferences are tucked under an optional section. No profession, region, or company type is assumed.
 2. **Your agent:** choose Codex or Claude Code Desktop. Search only when asked, or choose weekdays, daily, or a custom schedule. The timezone starts from your computer's setting.
