@@ -40,17 +40,17 @@ If your identity or notarization profile is in a separate Keychain, set `NEXTSTE
 
 Outputs:
 
-- App: `desktop-releases/signed/Nextstep-darwin-<arch>/Nextstep.app`
+- App: `desktop-releases/signed/<version>/Nextstep-darwin-<arch>/Nextstep.app`
 - Verified archive: `desktop-releases/Nextstep-<version>-macOS-<arch>.zip`
 
-The final archive appears only after notarization and verification succeed. It is generated from the stapled app. Apple may take several minutes to finish notarization. If it rejects a build, the packaging tool reports the rejection and available diagnostic log. Fix the reported issue before retrying.
+The final archive appears only after notarization and verification succeed. It is generated from the stapled app. Versioned app directories preserve earlier releases while a newer build is being reviewed. Apple may take several minutes to finish notarization. If it rejects a build, the packaging tool reports the rejection and available diagnostic log. Fix the reported issue before retrying.
 
 The app uses Hardened Runtime, secure timestamps, and only the JIT entitlement needed by Electron. It does not add debugger, camera, microphone, unsigned-memory, or disabled-library-validation entitlements. All nested executable code is signed by Electron's signing tool, with signature failures treated as errors.
 
 Run the desktop check against the resulting signed executable:
 
 ```sh
-node scripts/test-desktop.mjs "desktop-releases/signed/Nextstep-darwin-arm64/Nextstep.app/Contents/MacOS/Nextstep"
+node scripts/test-desktop.mjs "desktop-releases/signed/<version>/Nextstep-darwin-arm64/Nextstep.app/Contents/MacOS/Nextstep"
 ```
 
 The release command already runs these distribution checks:
