@@ -22,7 +22,7 @@ pnpm desktop:package
 
 The packaged app includes SQLite and its runtime. New desktop installations start empty; **File → Open database…** connects an existing Nextstep database without copying it. `desktop:package` produces an unsigned development build. For a signed and notarized macOS release, configure your [Apple signing identity and Keychain profile](docs/macos-signing.md), then run `pnpm desktop:release`.
 
-In **Search agent**, choose Codex or Claude Code Desktop, save when to search, and copy the MCP connection and setup request into your agent. It uses its native scheduler to create or update the task. Every run reads current preferences and uses **Interested / Uninterested** feedback to refine search and ranking. It preserves existing cards and never edits the app's code or interface.
+A three-step **onboarding wizard** helps you describe the work you want, choose Codex or Claude Code, and connect your agent. On macOS, **Add connection** handles the settings for you. **Copy request & open agent** prepares the handoff; paste it into a new local task and send. Search on demand, or let the agent set up a recurring search with its native scheduler. You can skip setup and use the board manually, then resume from **Search agent**. Every run reads current preferences and uses **Interested / Uninterested** feedback to refine search and ranking. It preserves existing cards and never edits the app's code or interface.
 
 Saving setup choices does not activate a task. The computer must be awake and the local agent app running for scheduled work; the Nextstep window can be closed. See **[desktop setup and limitations](docs/desktop.md)** for connection steps, packaging, and checks.
 
@@ -39,7 +39,7 @@ pnpm build
 pnpm background:start
 ```
 
-Open **[localhost:4317](http://127.0.0.1:4317)**. The board starts empty, with no job type or search criteria selected. Setup creates `data/nextstep.sqlite`; running it again preserves your jobs and saved preferences. Choose **Search preferences** in the app, or use the setup-agent prompt below to define what you want.
+Open **[localhost:4317](http://127.0.0.1:4317)**. The board starts empty, with no job type or search criteria selected. Setup creates `data/nextstep.sqlite`; running it again preserves your jobs and saved preferences. Follow the onboarding wizard, open **Search preferences**, or use the setup-agent prompt below to define what you want.
 
 ```sh
 pnpm background:status

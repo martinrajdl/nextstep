@@ -1,4 +1,4 @@
-import { readSearchProfile, STAGES } from './store.mjs';
+import { readSearchProfile, readOnboarding, STAGES } from './store.mjs';
 
 export function readContext(db, database, afterActivityId = 0) {
   if (!Number.isInteger(afterActivityId) || afterActivityId < 0) throw new Error('afterActivityId must be a nonnegative integer.');
@@ -14,7 +14,7 @@ export function readContext(db, database, afterActivityId = 0) {
     removed:records.filter(job => job.removedAt),recentChanges,nextActivityCursor,
     hasMoreChanges:Boolean(db.prepare('SELECT 1 FROM activity WHERE id > ? LIMIT 1').get(nextActivityCursor)),
     schedule:schedule ? {...JSON.parse(schedule.data),version:schedule.version,updatedAt:schedule.updated_at} : null,
-    recentSearches:runs,
+    recentSearches:runs,onboarding:readOnboarding(db),
     guidance:'Explicit preferences are authoritative. Interested is positive feedback. Uninterested is negative feedback within the role or company scope. Treat prior learning as tentative and re-evaluate it against current choices. Never modify app code or UI, application stages, existing notes or priorities during collection. Import only new verified Prospects.'
   };
 }

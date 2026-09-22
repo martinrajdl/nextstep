@@ -37,13 +37,23 @@ The MCP connection always includes the selected database's absolute path. Your a
 
 For a full backup, stop the app and any connected MCP helpers, then copy the database and any SQLite `-wal`/`-shm` companion files together. A SQLite backup operation is also safe while the database is open. JSON export includes preferences, current opportunities, schedule registration, and recent search reports; it is not a full database backup.
 
-## Connect and schedule
+## First-run setup
 
-1. Fill in **Search preferences**, or let the setup agent ask what jobs you want. No role, region, company type, or work arrangement is assumed.
-2. Open **Search agent**, choose **Codex / ChatGPT desktop** or **Claude Code Desktop**, and save a cadence and timezone. Saving choices does not activate a schedule.
-3. Copy the connection settings into your agent's local MCP configuration. Preserve its other servers and restart or reconnect as that agent requires. Check that `nextstep_get_context` returns the intended database.
-4. Copy the setup request into the selected agent. It asks for missing preferences, finds an existing task for this database or creates one using its native scheduler, and records the returned task ID in Nextstep.
-5. Run the task once in the agent, review any tool permissions, and check that new cards and a search report appear. The open board refreshes automatically while you are not editing.
+The first launch opens a three-step wizard. Existing databases keep their jobs and preferences and get a **Set up your search** / **Continue setup** button instead of an interrupting modal.
+
+1. **Your search:** describe the work you want and optionally your location and work arrangement. More preferences are tucked under an optional section. No profession, region, or company type is assumed.
+2. **Your agent:** choose Codex or Claude Code Desktop. Search only when asked, or choose weekdays, daily, or a custom schedule. The timezone starts from your computer's setting.
+3. **Ready to go:** click **Add connection** in the Mac app. Then **Copy request & open agent**, paste into a new **local** task, and send. For Claude, use the **Code** tab. The agent confirms it reached the correct board, asks about missing criteria, creates or updates a native schedule if requested, and runs the first search.
+
+**Use the board for now** skips setup. Saved steps survive closing and reopening the app, and **Search agent** lets you resume. You can add and organize jobs manually at any time. Once connected, **Search agent → Copy search request** prepares another on-demand search without changing the schedule. Returning to the board does not imply that an agent or schedule is running.
+
+Automatic connection is available on macOS for installed desktop agents. Nextstep uses the official bundled `codex mcp add` command for Codex, and merges the `nextstep` server into the documented user-level `~/.claude.json` for Claude Code, keeping a private backup when it changes that JSON file. Other settings are preserved. A conflicting `nextstep` connection to a different database is never silently replaced. Custom or managed configurations may need **Advanced connection**. If the agent was already open, start a new local task or restart it so it loads the tools.
+
+The browser version and other platforms offer the generated connection settings under **Advanced connection**. Install the Mac app in its permanent location before connecting. Moving or renaming it later requires updating the executable path in the agent settings.
+
+The wizard distinguishes **connection added** (settings saved), **agent connection confirmed** (an MCP tool call with the matching setup token reached this database), and **agent reported the scheduled task** (the native scheduler's task ID was reported). These are recorded events, not a live agent-health check. Completed searches and new matches appear in the board; an agent that finds no new matches still records a report.
+
+An on-demand setup never requests a schedule. A recurring setup uses the agent's own scheduling tools after the user sends the request. Manage pause, resume, and deletion in the agent app. The local helper works while the Nextstep window is closed.
 
 For CLI configuration, the equivalent commands are:
 
@@ -64,7 +74,7 @@ Manage actual task status in the agent app. After changing the cadence in Nextst
 
 Local scheduled work requires an awake computer, a running agent app, and permission to use its browsing and MCP tools. A cloud-only scheduled chat cannot directly reach a local SQLite file. This setup targets local Codex tasks and Claude Code Desktop scheduled tasks; a generic ChatGPT web task or a remote Claude connector is not equivalent.
 
-Official references checked September 21, 2026:
+Official MCP and desktop connection references checked September 22, 2026:
 
 - [Codex MCP connections](https://learn.chatgpt.com/docs/extend/mcp?surface=cli)
 - [OpenAI desktop automations](https://learn.chatgpt.com/docs/automations)
@@ -91,6 +101,7 @@ Your chosen agent provider processes the context it reads. Nextstep itself does 
 | `nextstep_import_prospects` | Preview or import verified new jobs, with duplicate checks and preserved user decisions. Defaults to a dry run. |
 | `nextstep_record_search` | Save an idempotent report and tentative adjustments with real evidence/imported IDs. |
 | `nextstep_get_setup` | Read the setup request for the chosen provider and schedule. |
+| `nextstep_confirm_connection` | Confirm that the setup request reached this exact database; it does not activate a schedule. |
 | `nextstep_register_schedule` | Record the actual task ID returned by the native agent scheduler. |
 
 There are no arbitrary SQL, shell, code-editing, deletion, or stage-moving MCP tools. A job type must be saved before MCP imports are allowed. See [JOB-FINDER.md](../JOB-FINDER.md) for the import contract and [server/agent-instructions.mjs](../server/agent-instructions.mjs) for the exact agent instructions.
@@ -106,4 +117,4 @@ pnpm test:desktop
 node scripts/test-desktop.mjs "/absolute/path/to/Nextstep.app/Contents/MacOS/Nextstep"
 ```
 
-Tests use temporary databases. The desktop check opens a window, saves setup choices, imports through a real MCP client, verifies that the board refreshes, and reads the same database after closing the window. It does not create a real task in Codex or Claude; provider-native scheduling must be checked during connection setup.
+Tests use temporary databases and agent configurations. The desktop check goes through onboarding, installs the Codex connection into an isolated `CODEX_HOME` when Codex is installed (otherwise it checks the manual path), checks the clipboard handoff, confirms the connection through a real MCP client, imports a fictional match, verifies live board refresh, and reads the database after closing the window. `NEXTSTEP_AGENT_CONFIG_HOME` overrides the agent settings home for these tests; it is read only by the native main process. Agent opening is stubbed in the test, and no message is sent to an agent. It does not create a real task in Codex or Claude; provider-native scheduling must be checked during connection setup.

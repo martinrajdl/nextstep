@@ -12,6 +12,7 @@ const manifest = JSON.parse(readFileSync(resolve(root,'package.json'),'utf8'));
 rmSync(stage,{recursive:true,force:true}); mkdirSync(stage,{recursive:true});
 await build({entryPoints:[resolve(root,'desktop/main.mjs')],outfile:resolve(stage,'main.mjs'),bundle:true,platform:'node',format:'esm',target:'node24',external:['electron','node:*'],banner:{js:"import { createRequire as nextstepCreateRequire } from 'node:module'; const require = nextstepCreateRequire(import.meta.url);"}});
 cpSync(resolve(root,'dist'),resolve(stage,'dist'),{recursive:true});
+cpSync(resolve(root,'desktop/preload.cjs'),resolve(stage,'preload.cjs'));
 for (const file of ['LICENSE','THIRD_PARTY_NOTICES.md']) cpSync(resolve(root,file),resolve(stage,file));
 // Include installed dependency notices even when bundling removes node_modules.
 // Keeping extra build-tool notices is harmless and avoids omitting a transitive license.

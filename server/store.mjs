@@ -21,6 +21,11 @@ export function readSearchProfile(db) {
   const row = db.prepare('SELECT * FROM search_profile WHERE id = 1').get();
   return row ? { ...blank, ...JSON.parse(row.data), version: row.version, updatedAt: row.updated_at } : blank;
 }
+export function readOnboarding(db) {
+  if (!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='onboarding'").get()) return null;
+  const row = db.prepare('SELECT * FROM onboarding WHERE id=1').get();
+  return row ? {...JSON.parse(row.data),version:row.version} : null;
+}
 const limits = { company: 160, role: 200, location: 200, salary: 160, url: 2000, contact: 200, contactEmail: 254, nextStep: 500, followUp: 10, notes: 20000 };
 const defaults = Object.fromEntries(Object.keys(limits).map(key => [key, '']));
 function validate(input, current = {}) {
@@ -53,7 +58,7 @@ export function openStore(filename) {
   const db = new DatabaseSync(filename);
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
   const schemaVersion = db.prepare('PRAGMA user_version').get().user_version;
-  if (schemaVersion > 5) { db.close(); throw new Error('This database requires a newer version of Nextstep.'); }
+  if (schemaVersion > 6) { db.close(); throw new Error('This database requires a newer version of Nextstep.'); }
   db.exec(`CREATE TABLE IF NOT EXISTS opportunities (${opportunityColumns});
   CREATE INDEX IF NOT EXISTS idx_opportunities_stage_position ON opportunities(stage, position) WHERE deleted_at IS NULL;
   CREATE TABLE IF NOT EXISTS activity (
@@ -102,6 +107,15 @@ export function openStore(filename) {
       PRAGMA user_version = 5;
       COMMIT;`);
   }
+  if (schemaVersion < 6) {
+    db.exec('BEGIN IMMEDIATE;');
+    try {
+      db.exec('CREATE TABLE IF NOT EXISTS onboarding (id INTEGER PRIMARY KEY CHECK(id=1), data TEXT NOT NULL, version INTEGER NOT NULL)');
+      const established = Boolean(db.prepare('SELECT 1 FROM opportunities LIMIT 1').get() || db.prepare('SELECT 1 FROM search_profile LIMIT 1').get() || db.prepare('SELECT 1 FROM agent_schedule LIMIT 1').get());
+      db.prepare('INSERT OR IGNORE INTO onboarding VALUES (1, ?, 0)').run(JSON.stringify({status:established ? 'dismissed' : 'new',step:0,connectionToken:randomUUID(),configuredProvider:'',configuredAt:null,connectedProvider:'',connectedAt:null}));
+      db.exec('PRAGMA user_version=6; COMMIT;');
+    } catch (error) { db.exec('ROLLBACK;'); db.close(); throw error; }
+  }
   const hydrate = row => row ? { ...JSON.parse(row.data), id: row.id, stage: row.stage, position: row.position, version: row.version, createdAt: row.created_at, updatedAt: row.updated_at } : null;
   const list = () => db.prepare('SELECT * FROM opportunities WHERE deleted_at IS NULL ORDER BY position, created_at, id').all().map(hydrate);
   const get = (id, includeDeleted = false) => {
@@ -112,6 +126,11 @@ export function openStore(filename) {
   const activity = id => { get(id); return db.prepare('SELECT action, from_stage AS fromStage, to_stage AS toStage, created_at AS createdAt FROM activity WHERE opportunity_id = ? ORDER BY id DESC LIMIT 50').all(id); };
   const log = (id, action, from = null, to = null) => db.prepare('INSERT INTO activity(opportunity_id,action,from_stage,to_stage,created_at) VALUES (?,?,?,?,?)').run(id, action, from, to, new Date().toISOString());
   const transaction = fn => { db.exec('BEGIN IMMEDIATE'); try { const result = fn(); db.exec('COMMIT'); return result; } catch (error) { db.exec('ROLLBACK'); throw error; } };
+  const writeOnboarding = data => {
+    const {version,...value} = data;
+    db.prepare('UPDATE onboarding SET data=?, version=? WHERE id=1').run(JSON.stringify(value),version+1);
+    return readOnboarding(db);
+  };
   const schedule = () => {
     const row = db.prepare('SELECT * FROM agent_schedule WHERE id = 1').get();
     return row ? {...JSON.parse(row.data),version:row.version,updatedAt:row.updated_at} : {provider:'',cadence:'',timezone:'',taskId:'',reportedAt:null,version:0,updatedAt:null};
@@ -127,7 +146,29 @@ export function openStore(filename) {
   };
   return {
     list, get, activity,
-    agentStatus() { return {schedule:schedule(),runs:runs()}; },
+    agentStatus() { return {schedule:schedule(),runs:runs(),onboarding:readOnboarding(db)}; },
+    updateOnboarding(input) {
+      return transaction(() => {
+        const current = readOnboarding(db);
+        if (!input || input.version !== current.version) throw new AppError('Setup changed in another window. Reopen setup to continue.',409);
+        if (Object.keys(input).some(key => !['version','status','step'].includes(key))) throw new AppError('Unknown setup field.');
+        if (!['new','started','dismissed','complete'].includes(input.status) || !Number.isInteger(input.step) || input.step < 0 || input.step > 2) throw new AppError('Choose a valid setup step.');
+        return writeOnboarding({...current,status:input.status,step:input.step});
+      });
+    },
+    markAgentConfigured(provider) {
+      return transaction(() => {
+        if (!provider || provider !== schedule().provider) throw new AppError('The agent choice changed. Reopen setup to continue.',409);
+        return writeOnboarding({...readOnboarding(db),configuredProvider:provider,configuredAt:new Date().toISOString()});
+      });
+    },
+    confirmConnection(input) {
+      return transaction(() => {
+        const current = readOnboarding(db);
+        if (!input || input.token !== current.connectionToken || !schedule().provider) throw new AppError('This setup request is out of date or belongs to a different database. Copy a fresh request from Nextstep.',409);
+        return writeOnboarding({...current,connectedProvider:schedule().provider,connectedAt:new Date().toISOString()});
+      });
+    },
     forgetSchedule(input) {
       return transaction(() => {
         const current = schedule();
@@ -135,6 +176,7 @@ export function openStore(filename) {
         const data = {provider:'',cadence:'',timezone:'',taskId:'',reportedAt:null};
         db.prepare(`INSERT INTO agent_schedule VALUES (1, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET data=excluded.data, version=excluded.version, updated_at=excluded.updated_at`).run(JSON.stringify(data),current.version+1,new Date().toISOString());
+        writeOnboarding({...readOnboarding(db),connectionToken:randomUUID(),configuredProvider:'',configuredAt:null,connectedProvider:'',connectedAt:null});
         return schedule();
       });
     },
@@ -153,12 +195,14 @@ export function openStore(filename) {
           data = {...current,taskId:input.taskId.trim(),reportedAt:now};
         } else {
           if (!['codex','claude-code'].includes(input.provider)) throw new AppError('Choose Codex or Claude Code Desktop.');
-          if (typeof input.cadence !== 'string' || !input.cadence.trim() || input.cadence.length > 300) throw new AppError('Describe when the search should run, in at most 300 characters.');
+          if (typeof input.cadence !== 'string' || input.cadence.length > 300) throw new AppError('Describe when the search should run, in at most 300 characters.');
+          if (!input.cadence.trim() && current.taskId) throw new AppError('Pause the task in your agent and unlink it before switching to on-demand searches.',409);
           if (typeof input.timezone !== 'string' || input.timezone.length > 100) throw new AppError('Choose a valid timezone.');
           try { new Intl.DateTimeFormat('en',{timeZone:input.timezone}).format(); } catch { throw new AppError('Choose a valid timezone.'); }
           // Keep the previous task ID so the agent updates it instead of creating a duplicate.
           data = {...current,provider:input.provider,cadence:input.cadence.trim(),timezone:input.timezone,reportedAt:null};
           if (current.provider && current.provider !== input.provider && current.taskId) throw new AppError('Pause the existing task in its agent before switching providers. Create a separate setup only after removing its registration.',409);
+          if (current.provider !== input.provider) writeOnboarding({...readOnboarding(db),connectionToken:randomUUID(),configuredProvider:'',configuredAt:null,connectedProvider:'',connectedAt:null});
         }
         delete data.version; delete data.updatedAt;
         db.prepare(`INSERT INTO agent_schedule VALUES (1, ?, ?, ?)

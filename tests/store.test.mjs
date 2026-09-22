@@ -104,7 +104,7 @@ for (const schemaVersion of [1,2,3]) test(`upgrading schema ${schemaVersion} pre
       assert.deepEqual(check.prepare('SELECT * FROM opportunities ORDER BY id').all(),before);
       assert.deepEqual(check.prepare('SELECT * FROM activity').all(),history);
       assert.deepEqual(check.prepare('PRAGMA foreign_key_check').all(),[]);
-      assert.equal(check.prepare('PRAGMA user_version').get().user_version,5);
+      assert.equal(check.prepare('PRAGMA user_version').get().user_version,6);
     } finally { check.close(); }
     const moved = store.move('saved',{stage:'uninterested',beforeId:null,version:7});
     assert.equal(moved.stage,'uninterested'); assert.equal(moved.notes,notes);
