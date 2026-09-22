@@ -3,7 +3,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { resolve, extname, sep } from 'node:path';
 import { openStore, AppError } from './store.mjs';
 import { root, databasePath } from './config.mjs';
-import { connectionConfig, setupInstructions, researchInstructions } from './agent-instructions.mjs';
+import { connectionConfig, setupInstructions, searchInstructions } from './agent-instructions.mjs';
 export async function startServer({port = Number(process.env.PORT || 4317), database = databasePath(), dist = resolve(root,'dist'), agentCommand = {command:process.execPath,args:[resolve(root,'mcp/stdio.mjs')]}, developmentOrigins = []} = {}) {
 if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('Choose a valid local port.');
 const store = openStore(database);
@@ -29,7 +29,7 @@ const server = createServer(async (req, res) => {
     if (path === '/api/health' && req.method === 'GET') return json(res, 200, { status: 'ok', app: 'nextstep', pid: process.pid });
     if (path === '/api/agent' && req.method === 'GET') return json(res,200,agentState());
     if (path === '/api/agent/setup' && req.method === 'GET') return json(res,200,{instructions:setupInstructions(store.agentStatus().schedule,store.agentStatus().onboarding,database)});
-    if (path === '/api/agent/search' && req.method === 'GET') return json(res,200,{instructions:`Find new job matches for my Nextstep board now. Confirm nextstep_get_context returns this exact database: ${JSON.stringify(database)}. If it differs, stop and help me reconnect. Run one search and record a report even if no new matches are found. Do not create or change any schedule.\n\n${researchInstructions}`});
+    if (path === '/api/agent/search' && req.method === 'GET') return json(res,200,{instructions:searchInstructions(database)});
     if (path === '/api/onboarding' && req.method === 'PATCH') { store.updateOnboarding(await body(req)); return json(res,200,agentState()); }
     if (path === '/api/agent/schedule' && req.method === 'PATCH') { store.updateSchedule(await body(req)); return json(res,200,agentState()); }
     if (path === '/api/agent/schedule' && req.method === 'DELETE') { store.forgetSchedule(await body(req)); return json(res,200,agentState()); }

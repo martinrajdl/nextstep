@@ -154,7 +154,7 @@ test('guided agent setup saves a handoff without claiming a schedule was created
   expect(state.schedule.taskId).toBe(''); expect(state.schedule.reportedAt).toBeNull();
   expect(state.schedule.provider).toBe('claude-code');
   const setup = await (await request.get('/api/agent/setup')).json();
-  expect(setup.instructions).toContain('Mondays at 10:00'); expect(setup.instructions).toContain('Claude Code Desktop');
+  expect(setup.instructions).toContain('Mondays at 10:00'); expect(setup.instructions).toContain('a local session in the Code tab of Claude Desktop');
   expect(setup.instructions).toContain('Never edit app code');
   await page.getByRole('button',{name:'Go to my board'}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);

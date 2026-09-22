@@ -10,7 +10,7 @@ React + TypeScript, a small Node HTTP server, and SQLite, with an optional Elect
 
 ## Desktop app
 
-**[Download Nextstep for macOS (Apple silicon, ZIP)](https://github.com/martinrajdl/nextstep/releases/download/v0.3.1/Nextstep-0.3.1-macOS-arm64-DMG.zip)** · [All releases](https://github.com/martinrajdl/nextstep/releases)
+**[Download Nextstep for macOS (Apple silicon, ZIP)](https://github.com/martinrajdl/nextstep/releases/download/v0.3.2/Nextstep-0.3.2-macOS-arm64-DMG.zip)** · [All releases](https://github.com/martinrajdl/nextstep/releases)
 
 For Macs with an M1 chip or later. Unzip the download, open the DMG, and drag Nextstep into **Applications**. Both the app and installer are signed with Developer ID and notarized by Apple. Open Nextstep to follow the setup wizard; no developer tools are needed.
 
@@ -26,7 +26,7 @@ pnpm desktop:package
 
 The packaged app includes SQLite and its runtime. New desktop installations start empty; **File → Open database…** connects an existing Nextstep database without copying it. `desktop:package` produces an unsigned development build. For a signed and notarized macOS release, configure your [Apple signing identity and Keychain profile](docs/macos-signing.md), then run `pnpm desktop:release`.
 
-A three-step **onboarding wizard** helps you describe the work you want, choose Codex or Claude Code, and connect your agent. On macOS, **Add connection** handles the settings for you. **Copy request & open agent** prepares the handoff; paste it into a new local task and send. Search on demand, or let the agent set up a recurring search with its native scheduler. You can skip setup and use the board manually, then resume from **Search agent**. Every run reads current preferences and uses **Interested / Uninterested** feedback to refine search and ranking. It preserves existing cards and never edits the app's code or interface.
+A three-step **onboarding wizard** helps you describe the work you want, choose Codex or Claude Code, and connect your agent. On macOS, **Open setup in Claude Code / Codex** adds the connection and opens a new local conversation with the request already filled in. Claude opens its **Code** tab; Codex opens a local task in ChatGPT desktop or the Codex app. Confirm the Research folder if asked, review the request, and send it. Search on demand, or let the agent set up a recurring search with its native scheduler. You can skip setup and use the board manually, then resume from **Search agent**. Every run reads current preferences and uses **Interested / Uninterested** feedback to refine search and ranking. It preserves existing cards and never edits the app's code or interface.
 
 Saving setup choices does not activate a task. The computer must be awake and the local agent app running for scheduled work; the Nextstep window can be closed. See **[desktop setup and limitations](docs/desktop.md)** for connection steps, packaging, and checks.
 

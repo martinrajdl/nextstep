@@ -5,7 +5,8 @@ import { assertNextstepDatabase } from '../server/database-file.mjs';
 import { startServer } from '../server/http.mjs';
 import { startMcp, databaseArgument } from '../mcp/stdio.mjs';
 import { createAgentConnector } from './agent-connector.mjs';
-import { connectionConfig } from '../server/agent-instructions.mjs';
+import { connectionConfig, setupInstructions, searchInstructions } from '../server/agent-instructions.mjs';
+import { agentHandoffUrl } from './agent-handoff.mjs';
 
 app.setName('Nextstep');
 if (process.env.NEXTSTEP_USER_DATA) app.setPath('userData',resolve(process.env.NEXTSTEP_USER_DATA));
@@ -90,8 +91,7 @@ function agentBridge() {
   };
   let connecting = false;
   ipcMain.handle('nextstep:agents',event => { validate(event); return connector.detect(); });
-  ipcMain.handle('nextstep:connect-agent',async (event,provider) => {
-    validate(event);
+  async function configureAgent(provider) {
     if (connecting) throw new Error('A connection is already being added.');
     const active = service;
     if (active.store.agentStatus().schedule.provider !== provider) throw new Error('Save your agent choice first.');
@@ -104,13 +104,27 @@ function agentBridge() {
       await connector.connect(provider,connection);
       if (service !== active) throw new Error('The open database changed. Reopen setup for the new database.');
       active.store.markAgentConfigured(provider);
-      return {configured:true};
+      return active;
     } finally { connecting = false; }
-  });
-  ipcMain.handle('nextstep:open-agent',async (event,provider) => {
+  }
+  ipcMain.handle('nextstep:connect-agent',async (event,provider) => {
     validate(event);
-    const error = await shell.openPath(connector.appPath(provider));
-    if (error) throw new Error('Could not open your agent. Open it from Applications and paste the copied request.');
+    await configureAgent(provider);
+    return {configured:true};
+  });
+  ipcMain.handle('nextstep:open-agent',async (event,provider,purpose) => {
+    validate(event);
+    if (!['setup','search'].includes(purpose)) throw new Error('Choose a setup or search request.');
+    connector.appPath(provider);
+    const active = await configureAgent(provider);
+    const status = active.store.agentStatus();
+    const instructions = purpose === 'setup' ? setupInstructions(status.schedule,status.onboarding,active.database) : searchInstructions(active.database);
+    const workspace = resolve(app.getPath('userData'),'Research');
+    mkdirSync(workspace,{recursive:true});
+    const url = agentHandoffUrl(provider,instructions,workspace);
+    try { await shell.openExternal(url); }
+    catch { throw new Error(`Could not open a new ${provider === 'claude-code' ? 'Claude Code conversation' : 'Codex task'}. Update your agent app and retry, or copy the request below into a new local Code/Codex conversation.`); }
+    return {instructions};
   });
 }
 async function main() {
