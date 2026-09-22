@@ -10,7 +10,11 @@ React + TypeScript, a small Node HTTP server, and SQLite, with an optional Elect
 
 ## Desktop app
 
-After cloning and installing dependencies, run:
+**[Download Nextstep for macOS (Apple silicon, ZIP)](https://github.com/martinrajdl/nextstep/releases/download/v0.3.1/Nextstep-0.3.1-macOS-arm64-DMG.zip)** · [All releases](https://github.com/martinrajdl/nextstep/releases)
+
+For Macs with an M1 chip or later. Unzip the download, open the DMG, and drag Nextstep into **Applications**. Both the app and installer are signed with Developer ID and notarized by Apple. Open Nextstep to follow the setup wizard; no developer tools are needed.
+
+To build from source, clone the repository, install dependencies, then run:
 
 ```sh
 pnpm exec install-electron
