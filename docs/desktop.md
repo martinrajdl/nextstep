@@ -21,6 +21,8 @@ pnpm desktop:package
 
 The runnable app is in ignored `desktop-releases/`. It includes its own runtime, so the person running the packaged app does not need Node or pnpm. Packaging stages only the compiled interface, bundled app code, and licenses. Personal databases, research, settings, and logs are excluded.
 
+macOS packages use the custom Nextstep icon in `desktop/icons/nextstep.icns`. Its transparent 1024 px PNG master and generation prompt are kept beside it. After changing the master, run `pnpm desktop:icon` on macOS to rebuild the standard and Retina icon sizes before packaging. The generated `.icns` is committed, so ordinary builds do not need image-generation tools. An icon change requires a newly signed and notarized build; do not replace files inside an already signed app.
+
 To choose another target after building the interface, run `node scripts/package-desktop.mjs <platform> <arch>`. Supported values are `darwin`, `win32`, or `linux`, and `arm64` or `x64`. The manual **Desktop builds** GitHub workflow builds on each operating system. Only macOS Apple silicon has been exercised with the full desktop smoke test so far.
 
 `desktop:package` and the manual Desktop builds workflow produce unsigned development builds. For a Developer ID-signed and notarized macOS app, use `pnpm desktop:release` after completing the [Apple signing setup](macos-signing.md). A release ZIP is created only after its signature, notarization ticket, and Gatekeeper acceptance pass verification. Installers and automatic updates are not configured. Move the app to its permanent location before copying its MCP connection settings: those settings contain the executable's absolute path.

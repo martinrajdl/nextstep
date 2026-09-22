@@ -38,7 +38,7 @@ for (const entry of readdirSync(installed,{withFileTypes:true})) {
 writeFileSync(resolve(stage,'DEPENDENCY_LICENSES.txt'),[...licenses.entries()].sort(([a],[b]) => a.localeCompare(b)).map(([,notice]) => notice).join('\n\n--------------------\n\n'));
 writeFileSync(resolve(stage,'package.json'),JSON.stringify({name:'nextstep',productName:'Nextstep',version:manifest.version,description:manifest.description,main:'main.mjs',type:'module',license:'MIT'},null,2));
 if (release) console.log(`Signing with ${signing.identity.name}. Apple notarization may take several minutes.`);
-const output = await packager({dir:stage,name:'Nextstep',out:resolve(root,release ? 'desktop-releases/signed' : 'desktop-releases'),platform,arch,electronVersion:manifest.devDependencies.electron,overwrite:true,asar:true,prune:false,appBundleId:'app.nextstep.crm',appCategoryType:'public.app-category.productivity',...(signing?.options ?? {})});
+const output = await packager({dir:stage,name:'Nextstep',out:resolve(root,release ? `desktop-releases/signed/${manifest.version}` : 'desktop-releases'),platform,arch,electronVersion:manifest.devDependencies.electron,overwrite:true,asar:true,prune:false,appBundleId:'app.nextstep.crm',appCategoryType:'public.app-category.productivity',...(platform === 'darwin' ? {icon:resolve(root,'desktop/icons/nextstep.icns')} : {}),...(signing?.options ?? {})});
 if (release) {
   const app = resolve(output[0],'Nextstep.app');
   const archive = resolve(root,'desktop-releases',`Nextstep-${manifest.version}-macOS-${arch}.zip`);
