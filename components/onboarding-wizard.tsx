@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState, type SubmitEvent } from 'react';
-import { ArrowLeft, ArrowRight, Check, CheckCheck, Copy, ExternalLink, Layers3, LoaderCircle, LockKeyhole, Plug, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, CheckCheck, Copy, ExternalLink, LoaderCircle, LockKeyhole, Plug, Sparkles, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { profileDraft, profileFields, type SearchProfile, type SearchProfileDraft } from '@/lib/search-profile';
 import { agentLabel, connectionText, errorMessage, type AgentState, type DesktopAgent, type Provider } from '@/lib/agent';
 import { request } from '@/lib/model';
+import nextstepLogo from '@/desktop/icons/nextstep.png';
 
-type Props = {onClose:(state?:AgentState) => void;onSavedProfile:(profile:SearchProfile) => void;initialStep?:number};
+type Props = {onClose:(state?:AgentState) => void;initialStep?:number};
 const stepNames = ['Your search','Your agent','Ready to go'];
 
-export default function OnboardingWizard({onClose,onSavedProfile,initialStep}:Props) {
+export default function OnboardingWizard({onClose,initialStep}:Props) {
   const [state,setState] = useState<AgentState|null>(null);
   const [profile,setProfile] = useState<SearchProfile|null>(null);
   const [draft,setDraft] = useState<SearchProfileDraft|null>(null);
@@ -74,7 +75,7 @@ export default function OnboardingWizard({onClose,onSavedProfile,initialStep}:Pr
         if (!draft.roles.trim()) throw new Error('Tell your agent what kind of work you want. A short description is enough.');
         if (JSON.stringify(profileDraft(profile)) !== JSON.stringify(draft)) {
           const saved = await request<{profile:SearchProfile}>('/api/profile','PATCH',{...draft,version:profile.version});
-          setProfile(saved.profile); setDraft(profileDraft(saved.profile)); onSavedProfile(saved.profile);
+          setProfile(saved.profile); setDraft(profileDraft(saved.profile));
         }
       } else {
         if (!provider) throw new Error('Choose an agent to continue.');
@@ -126,7 +127,7 @@ export default function OnboardingWizard({onClose,onSavedProfile,initialStep}:Pr
   const label = agentLabel(provider);
 
   return <><Dialog open onOpenChange={open => { if (!open) close(); }}><DialogContent className="setup-wizard" showCloseButton={false}>
-    <aside className="setup-aside"><div className="setup-brand"><span><Layers3 size={22}/></span>nextstep</div><div className="setup-aside-copy"><span className="setup-eyebrow">A LITTLE SETUP. A CLEARER SEARCH.</span><h2>Your next chapter<br/>starts here.</h2><p>One place for the opportunities<br className="setup-desktop-break"/> that could become your next job.</p></div><ol className="setup-steps" aria-label="Setup progress">{stepNames.map((name,index) => <li key={name} aria-current={step === index ? 'step' : undefined} className={index < step ? 'done' : ''}><span>{index < step ? <Check size={14}/> : index+1}</span>{name}</li>)}</ol><div className="setup-private"><LockKeyhole size={15}/><span>Your board stays on this device.<br/>You choose which agent can use it.</span></div></aside>
+    <aside className="setup-aside"><div className="setup-brand"><img src={nextstepLogo} alt="" width={44} height={44}/>nextstep</div><div className="setup-aside-copy"><span className="setup-eyebrow">A LITTLE SETUP. A CLEARER SEARCH.</span><h2>Your next chapter<br/>starts here.</h2><p>One place for the opportunities<br className="setup-desktop-break"/> that could become your next job.</p></div><ol className="setup-steps" aria-label="Setup progress">{stepNames.map((name,index) => <li key={name} aria-current={step === index ? 'step' : undefined} className={index < step ? 'done' : ''}><span>{index < step ? <Check size={14}/> : index+1}</span>{name}</li>)}</ol><div className="setup-private"><LockKeyhole size={15}/><span>Your board stays on this device.<br/>You choose which agent can use it.</span></div></aside>
     <div className="setup-main"><button className="setup-close" aria-label="Close setup" disabled={busy} onClick={close}><X size={19}/></button>
       <form className="setup-form" onSubmit={next}>
         <div className="setup-scroll">

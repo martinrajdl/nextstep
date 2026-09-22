@@ -17,7 +17,7 @@ test('first launch is generic, can be skipped, stays skipped, and can be resumed
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.reload(); await expect(page.getByRole('button',{name:'New opportunity',exact:true})).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.getByRole('button',{name:'Set up your search'}).click();
+  await page.getByRole('button',{name:'Search agent',exact:true}).click();
   await page.getByRole('button',{name:'Continue',exact:true}).click();
   await expect(page.getByRole('alert')).toContainText('what kind of work');
   await page.getByLabel('Roles and work you want').fill('Museum education and public programmes');
@@ -27,7 +27,7 @@ test('first launch is generic, can be skipped, stays skipped, and can be resumed
   await expect(page.getByLabel('When should it look for jobs?')).toHaveValue('demand');
   await page.getByRole('button',{name:'Close setup'}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.reload(); await page.getByRole('button',{name:'Continue setup'}).click();
+  await page.reload(); await page.getByRole('button',{name:'Search agent',exact:true}).click();
   await expect(page.getByRole('heading',{name:'A little help finding your next role.'})).toBeVisible();
   const {profile} = await (await request.get('/api/profile')).json(); expect(profile.roles).toBe('Museum education and public programmes');
 });

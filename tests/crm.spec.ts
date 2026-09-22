@@ -25,6 +25,11 @@ test('create, edit, search, list stage change, reload, close, remove, undo, and 
   await page.getByRole('button',{name:'Save changes',exact:true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.reload(); await expect(page.getByText('Example Role',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Show 1 follow-ups due',exact:true}).click();
+  await expect(page.getByLabel('Filter opportunities')).toHaveValue('due');
+  await expect(page.getByRole('button',{name:'Open QA Cedar',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Show 1 follow-ups due',exact:true}).click();
+  await expect(page.getByLabel('Filter opportunities')).toHaveValue('all');
   await page.getByLabel('Search opportunities').fill('nothing-matches');
   await expect(page.getByRole('button',{name:'Open QA Cedar',exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'Clear filters',exact:false}).click();
@@ -113,7 +118,6 @@ test('API rejects cross-origin writes and stale versions',async ({request}) => {
 
 test('search preferences start undecided and persist in the app, API and export', async ({page,request}) => {
   await page.goto('/');
-  await expect(page.getByText('What are you looking for?',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Search preferences',exact:true}).click();
   await expect(page.getByLabel('Roles and work you want',{exact:true})).toHaveValue('');
   await expect(page.getByLabel('Work arrangement',{exact:true})).toHaveValue('');
@@ -124,7 +128,6 @@ test('search preferences start undecided and persist in the app, API and export'
   await page.getByRole('button',{name:'Save preferences',exact:true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByText('Search preferences saved',{exact:true})).toBeVisible();
-  await expect(page.getByText('What are you looking for?',{exact:true})).toHaveCount(0);
   await page.reload();
   await page.getByRole('button',{name:'Search preferences',exact:true}).click();
   await expect(page.getByLabel('Roles and work you want',{exact:true})).toHaveValue('Museum education and public programmes');
@@ -216,7 +219,8 @@ test('mobile preferences can be edited, discarded and deliberately left undecide
   await page.getByRole('button',{name:'Save preferences',exact:true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.reload();
-  await expect(page.getByText('What are you looking for?',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Search preferences',exact:true}).click();
+  await expect(page.getByLabel('Roles and work you want',{exact:true})).toHaveValue('');
 });
 test('conflicting edits preserve the draft and reopening loads the other window’s version', async ({page,request}) => {
   await page.goto('/'); await add(page,'QA Conflict');
