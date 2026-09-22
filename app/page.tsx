@@ -9,6 +9,8 @@ import JobList from '@/components/job-list';
 import OpportunityEditor from '@/components/opportunity-editor';
 import SearchPreferences from '@/components/search-preferences';
 import AgentConnection from '@/components/agent-connection';
+import OnboardingWizard from '@/components/onboarding-wizard';
+import type { AgentState } from '@/lib/agent';
 import type { SearchProfile } from '@/lib/search-profile';
 import { blankDraft, request, stageInfo, STAGES, today, type Draft, type Opportunity, type StageId } from '@/lib/model';
 
@@ -35,6 +37,8 @@ export default function Home() {
   const [editor, setEditor] = useState<Editor>(null);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [agentOpen, setAgentOpen] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [agentState, setAgentState] = useState<AgentState|null>(null);
   const [profile, setProfile] = useState<SearchProfile | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const refreshVersion = useRef(0);
@@ -46,10 +50,19 @@ export default function Home() {
   }, []);
   useEffect(() => { void Promise.resolve().then(refresh); }, [refresh]);
   useEffect(() => {
-    const focus = () => { if (!busyRef.current && !editor && !preferencesOpen && !agentOpen && document.visibilityState === 'visible') void refresh(); };
+    const focus = () => { if (!busyRef.current && !editor && !preferencesOpen && !agentOpen && !setupOpen && document.visibilityState === 'visible') void refresh(); };
     const interval = window.setInterval(focus,15000);
     window.addEventListener('focus', focus); return () => { window.clearInterval(interval); window.removeEventListener('focus',focus); };
-  }, [editor,preferencesOpen,agentOpen,refresh]);
+  }, [editor,preferencesOpen,agentOpen,setupOpen,refresh]);
+  useEffect(() => {
+    let cancelled = false;
+    request<AgentState>('/api/agent').then(value => {
+      if (cancelled) return;
+      setAgentState(value);
+      if (value.onboarding.status === 'new') setSetupOpen(true);
+    }).catch(() => { /* Setup has its own retry UI. */ });
+    return () => { cancelled = true; };
+  },[]);
   useEffect(() => {
     const controller = new AbortController();
     const read = () => { request<{profile: SearchProfile}>('/api/profile').then(result => { if (!controller.signal.aborted) setProfile(current => current && current.version > result.profile.version ? current : result.profile); }).catch(() => { /* The preferences editor provides its own error and retry controls. */ }); };
@@ -58,14 +71,14 @@ export default function Home() {
   }, []);
   useEffect(() => {
     function key(event: KeyboardEvent) {
-      if (event.metaKey || event.ctrlKey || event.altKey || editor || preferencesOpen || agentOpen || loading || loadError) return;
+      if (event.metaKey || event.ctrlKey || event.altKey || editor || preferencesOpen || agentOpen || setupOpen || loading || loadError) return;
       const target = event.target as HTMLElement;
       if (['INPUT','TEXTAREA','SELECT'].includes(target.tagName) || target.isContentEditable || target.closest('[role="dialog"]')) return;
       if (event.key === '/') { event.preventDefault(); searchRef.current?.focus(); }
       if (event.key.toLowerCase() === 'n') { event.preventDefault(); setEditor({job:null,stage:'prospect'}); }
     }
     window.addEventListener('keydown',key); return () => window.removeEventListener('keydown',key);
-  }, [editor,preferencesOpen,agentOpen,loading,loadError]);
+  }, [editor,preferencesOpen,agentOpen,setupOpen,loading,loadError]);
   const mutate = useCallback(async (path: string, method: string, data: unknown) => {
     if (busyRef.current) throw new Error('Wait for the previous change to finish saving.');
     busyRef.current = true; setBusy(true); ++refreshVersion.current;
@@ -124,11 +137,12 @@ export default function Home() {
     setShowUninterested(next);
     try { localStorage.setItem('nextstep-show-uninterested',String(next)); } catch { /* Preferences are optional. */ }
   }
+  function openAgent() { if (agentState?.onboarding.connectedAt || agentState?.schedule.taskId) setAgentOpen(true); else setSetupOpen(true); }
   return <div className="app-shell">
     <Toaster richColors position="bottom-right" closeButton style={{ zIndex: 40 }}/>
-    <header className="app-header"><a className="brand" href="/"><span className="brand-icon"><Layers3 size={21}/></span>nextstep<span className="brand-divider"/><span className="workspace-name">Your workspace</span></a><div className="header-right"><output className={`local-badge ${loadError ? 'offline' : ''}`}><span/>{loading ? 'Connecting…' : loadError ? 'Connection interrupted' : busy ? 'Saving…' : 'Saved locally'}</output><button className="preferences-button" onClick={() => setAgentOpen(true)} aria-label="Search agent" title="Search agent"><Bot size={17}/><span>Search agent</span></button><button className="preferences-button" onClick={() => setPreferencesOpen(true)} aria-label="Search preferences" title="Search preferences"><SlidersHorizontal size={17}/><span>Search preferences</span></button></div></header>
+    <header className="app-header"><a className="brand" href="/"><span className="brand-icon"><Layers3 size={21}/></span>nextstep<span className="brand-divider"/><span className="workspace-name">Your workspace</span></a><div className="header-right"><output className={`local-badge ${loadError ? 'offline' : ''}`}><span/>{loading ? 'Connecting…' : loadError ? 'Connection interrupted' : busy ? 'Saving…' : 'Saved locally'}</output><button className="preferences-button" onClick={openAgent} aria-label="Search agent" title="Search agent"><Bot size={17}/><span>Search agent</span></button><button className="preferences-button" onClick={() => setPreferencesOpen(true)} aria-label="Search preferences" title="Search preferences"><SlidersHorizontal size={17}/><span>Search preferences</span></button></div></header>
     <main><div className="page-heading"><div><div className="eyebrow">YOUR NEXT CHAPTER</div><h1>Job pipeline<span className="title-dot">.</span></h1><p>A home for your prospects, conversations, and next steps.</p></div><button className="primary-button" onClick={() => add()} disabled={loading || Boolean(loadError)} title="New opportunity (N)"><Plus size={18}/>New opportunity</button></div>
-      {profile && !profile.roles.trim() && <div className="preferences-prompt"><div><strong>What are you looking for?</strong><p>Define your job preferences so your agent can find the right opportunities.</p></div><button className="secondary-button" onClick={() => setPreferencesOpen(true)}>Set up your search <ArrowUpRight size={15}/></button></div>}
+      {agentState && !agentState.onboarding.connectedAt && <div className="preferences-prompt"><div><strong>{profile?.roles.trim() ? 'Let your agent bring the opportunities to you.' : 'What are you looking for?'}</strong><p>{agentState.onboarding.configuredAt ? 'Your connection is ready. Send the setup request to your agent to start finding matches.' : 'A quick setup connects your search preferences, your agent, and this board.'}</p></div><button className="secondary-button" onClick={() => setSetupOpen(true)}>{agentState.onboarding.step > 0 ? 'Continue setup' : 'Set up your search'} <ArrowUpRight size={15}/></button></div>}
       <div className="pipeline-summary"><span><strong>{active.length}</strong> active opportunities</span><span><strong>{active.filter(job => ['screening','interview','final'].includes(job.stage)).length}</strong> in interviews</span><span><strong>{active.filter(job => job.stage === 'offer').length}</strong> offers</span><div className="summary-note"><CheckCheck size={14}/>{active.filter(job => job.followUp && job.followUp <= today()).length} follow-ups due</div></div>
       <div className="toolbar"><Tabs value={view} onValueChange={changeView}><TabsList className="view-tabs"><TabsTrigger value="board"><Columns3 size={16}/>Board</TabsTrigger><TabsTrigger value="list"><List size={17}/>List</TabsTrigger></TabsList></Tabs><div className="scope-switch" aria-label="Opportunity status"><button aria-pressed={scope==='active'} onClick={() => setScope('active')}>Active</button><button aria-pressed={scope==='closed'} onClick={() => setScope('closed')}>Closed<span>{closed.length}</span></button></div>{view === 'board' && scope === 'active' && <button className="column-visibility-button" onClick={toggleUninterested}>{showUninterested ? <EyeOff size={15}/> : <Eye size={15}/>}<span>{showUninterested ? 'Hide uninterested' : 'Show uninterested'}</span></button>}<div className="search-wrap"><Search size={16}/><input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Search opportunities…" aria-label="Search opportunities"/>{query && <button className="clear-search" onClick={() => setQuery('')} aria-label="Clear search"><X size={13}/></button>}</div><NativeSelect className="filter-select" aria-label="Filter opportunities" value={filter} onChange={e => setFilter(e.target.value)}><NativeSelectOption value="all">All priorities</NativeSelectOption><NativeSelectOption value="high">High priority</NativeSelectOption><NativeSelectOption value="due">Follow-ups due</NativeSelectOption></NativeSelect>{view === 'list' && <NativeSelect className="sort-select" aria-label="Sort opportunities" value={sort} onChange={e => setSort(e.target.value)}><NativeSelectOption value="manual">Pipeline order</NativeSelectOption><NativeSelectOption value="company">Company A–Z</NativeSelectOption><NativeSelectOption value="due">Follow-up date</NativeSelectOption><NativeSelectOption value="newest">Newest first</NativeSelectOption></NativeSelect>}<a className="export-button" href="/api/export" download title="Export a JSON backup" aria-label="Export a JSON backup"><ArrowDownToLine size={17}/></a></div>
       {loadError && <div className="connection-error" role="alert"><span>Couldn’t connect to your local database. Your saved opportunities are still on this device.</span><button className="secondary-button" onClick={() => { setLoading(true); void refresh(); }}><RefreshCw size={14}/>Retry</button></div>}
@@ -140,6 +154,7 @@ export default function Home() {
     </main>
     {editor && <OpportunityEditor key={editor.job?.id || `new-${editor.stage}`} opportunity={editor.job} stage={editor.stage} onClose={() => setEditor(null)} onSave={async (draft,existing) => { await save(draft,existing); }} onDelete={remove}/>}
     {preferencesOpen && <SearchPreferences onClose={() => setPreferencesOpen(false)} onSaved={saved => { setProfile(saved); toast.success('Search preferences saved'); }}/>}
-    {agentOpen && <AgentConnection onClose={() => setAgentOpen(false)}/>}
+    {agentOpen && <AgentConnection onClose={() => setAgentOpen(false)} onSetup={() => { setAgentOpen(false); setSetupOpen(true); }}/>}
+    {setupOpen && <OnboardingWizard onSavedProfile={setProfile} onClose={value => { setSetupOpen(false); if (value) setAgentState(value); void refresh(); }}/>}
   </div>;
 }

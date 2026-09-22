@@ -14,7 +14,7 @@ export function createNextstepMcp(database) {
   const store = openStore(database);
   const db = new DatabaseSync(database,{readOnly:true});
   db.exec('PRAGMA busy_timeout = 5000;');
-  const server = new McpServer({name:'nextstep',version:'0.2.0'},{instructions:researchInstructions});
+  const server = new McpServer({name:'nextstep',version:'0.3.0'},{instructions:researchInstructions});
   function tool(name,description,inputSchema,readOnly,handler) {
     server.registerTool(name,{description,inputSchema,annotations:{readOnlyHint:readOnly,destructiveHint:false,openWorldHint:false}},async input => {
       try { const value = await handler(input); return {content:[{type:'text',text:JSON.stringify(value)}],structuredContent:value}; }
@@ -28,7 +28,8 @@ export function createNextstepMcp(database) {
     return store.importProspects(input.opportunities,{dryRun:input.dryRun});
   });
   tool('nextstep_record_search','Save a completed search report and tentative search adjustments supported by opportunity IDs. Does not edit preferences or existing jobs. Reuse the run ID on retry.',{id:text(100),summary:text(),learning:text().default(''),evidenceIds:z.array(z.string()).max(100).default([]),importedIds:z.array(z.string()).max(100).default([])},false,input => store.recordSearchRun(input));
-  tool('nextstep_get_setup','Read the setup and scheduling handoff for the selected agent. The agent creates the task using its native scheduler.',{},true,() => ({instructions:setupInstructions(store.agentStatus().schedule)}));
+  tool('nextstep_get_setup','Read the setup and scheduling handoff for the selected agent. The agent creates the task using its native scheduler.',{},true,() => ({instructions:setupInstructions(store.agentStatus().schedule,store.agentStatus().onboarding,database)}));
+  tool('nextstep_confirm_connection','Confirm that this agent reached the database selected in the setup request. Use its exact connection token. Does not create a schedule or start a search.',{token:z.string().uuid()},false,input => ({onboarding:store.confirmConnection(input)}));
   tool('nextstep_register_schedule','Record the task ID returned after the native agent scheduler confirms creation or update. This does not create, verify, pause or delete a scheduled task.',{version:z.number().int().nonnegative(),taskId:text(200)},false,input => ({schedule:store.updateSchedule(input,{registration:true})}));
   let closed = false;
   return {server,close:async () => { if (closed) return; closed = true; await server.close(); db.close(); store.close(); }};

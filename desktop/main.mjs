@@ -1,9 +1,11 @@
-import { app, BrowserWindow, Menu, dialog, shell } from 'electron';
+import { app, BrowserWindow, Menu, dialog, shell, ipcMain } from 'electron';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { assertNextstepDatabase } from '../server/database-file.mjs';
 import { startServer } from '../server/http.mjs';
 import { startMcp, databaseArgument } from '../mcp/stdio.mjs';
+import { createAgentConnector } from './agent-connector.mjs';
+import { connectionConfig } from '../server/agent-instructions.mjs';
 
 app.setName('Nextstep');
 if (process.env.NEXTSTEP_USER_DATA) app.setPath('userData',resolve(process.env.NEXTSTEP_USER_DATA));
@@ -42,7 +44,7 @@ function external(url) {
 }
 async function showWindow() {
   if (window && !window.isDestroyed()) { window.show(); window.focus(); return; }
-  window = new BrowserWindow({width:1450,height:980,minWidth:750,minHeight:600,title:'Nextstep',backgroundColor:'#ffffff',webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  window = new BrowserWindow({width:1450,height:980,minWidth:750,minHeight:600,title:'Nextstep',backgroundColor:'#ffffff',webPreferences:{preload:resolve(import.meta.dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
   window.webContents.setWindowOpenHandler(({url}) => { external(url); return {action:'deny'}; });
   window.webContents.on('will-navigate',(event,url) => { if (new URL(url).origin !== service.url) { event.preventDefault(); external(url); } });
   const allowClipboard = (contents,permission) => {
@@ -80,6 +82,37 @@ function createService(database) {
   const args = app.isPackaged ? ['--mcp'] : [app.getAppPath(),'--mcp'];
   return startServer({port:0,database,dist:resolve(app.getAppPath(),'dist'),agentCommand:{command:process.execPath,args}});
 }
+function agentBridge() {
+  const testHome = process.env.NEXTSTEP_AGENT_CONFIG_HOME;
+  const connector = createAgentConnector({home:testHome || app.getPath('home'),env:testHome ? {...process.env,CODEX_HOME:resolve(testHome,'.codex'),CLAUDE_CONFIG_DIR:''} : process.env});
+  const validate = event => {
+    if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || new URL(event.senderFrame.url).origin !== service.url) throw new Error('This action is only available in the Nextstep window.');
+  };
+  let connecting = false;
+  ipcMain.handle('nextstep:agents',event => { validate(event); return connector.detect(); });
+  ipcMain.handle('nextstep:connect-agent',async (event,provider) => {
+    validate(event);
+    if (connecting) throw new Error('A connection is already being added.');
+    const active = service;
+    if (active.store.agentStatus().schedule.provider !== provider) throw new Error('Save your agent choice first.');
+    // Translocated apps cannot supply a durable executable path to another app.
+    if (app.isPackaged && (process.execPath.includes('/AppTranslocation/') || process.execPath.startsWith('/Volumes/'))) throw new Error('Move Nextstep to Applications and reopen it before connecting your agent.');
+    connecting = true;
+    try {
+      const args = app.isPackaged ? ['--mcp'] : [app.getAppPath(),'--mcp'];
+      const connection = connectionConfig({database:active.database,command:process.execPath,args}).mcpServers.nextstep;
+      await connector.connect(provider,connection);
+      if (service !== active) throw new Error('The open database changed. Reopen setup for the new database.');
+      active.store.markAgentConfigured(provider);
+      return {configured:true};
+    } finally { connecting = false; }
+  });
+  ipcMain.handle('nextstep:open-agent',async (event,provider) => {
+    validate(event);
+    const error = await shell.openPath(connector.appPath(provider));
+    if (error) throw new Error('Could not open your agent. Open it from Applications and paste the copied request.');
+  });
+}
 async function main() {
   if (mcpMode) {
     app.dock?.hide();
@@ -92,6 +125,7 @@ async function main() {
   await app.whenReady();
   const database = appDatabase();
   service = await createService(database); remember(database);
+  agentBridge();
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     ...(process.platform === 'darwin' ? [{label:'Nextstep',submenu:[{role:'about'},{type:'separator'},{role:'hide'},{role:'hideOthers'},{role:'unhide'},{type:'separator'},{role:'quit'}]}] : []),
     {label:'File',submenu:[{label:'Open database…',click:() => { void openDatabase(); }},{label:'Show database in folder',click:() => shell.showItemInFolder(service.database)},{type:'separator'},{role:process.platform === 'darwin' ? 'close' : 'quit'}]},

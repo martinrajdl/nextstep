@@ -1,4 +1,9 @@
 import { test, expect, type Page } from '@playwright/test';
+// These tests exercise the existing board. First-run onboarding has its own suite.
+test.beforeEach(async ({request}) => {
+  const {onboarding} = await (await request.get('/api/agent')).json();
+  if (onboarding.status === 'new') await request.patch('/api/onboarding',{data:{version:onboarding.version,step:0,status:'dismissed'}});
+});
 async function add(page: Page, company: string) {
   await page.getByRole('button',{name:'New opportunity',exact:true}).click();
   await page.getByLabel('Company',{exact:false}).first().fill(company);
@@ -109,7 +114,7 @@ test('API rejects cross-origin writes and stale versions',async ({request}) => {
 test('search preferences start undecided and persist in the app, API and export', async ({page,request}) => {
   await page.goto('/');
   await expect(page.getByText('What are you looking for?',{exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Set up your search',exact:false}).click();
+  await page.getByRole('button',{name:'Search preferences',exact:true}).click();
   await expect(page.getByLabel('Roles and work you want',{exact:true})).toHaveValue('');
   await expect(page.getByLabel('Work arrangement',{exact:true})).toHaveValue('');
   await page.getByLabel('Roles and work you want',{exact:true}).fill('Museum education and public programmes');
@@ -133,37 +138,42 @@ test('search preferences start undecided and persist in the app, API and export'
   await page.screenshot({path:'test-results/search-preferences-desktop.png',fullPage:true});
 });
 
-test('agent setup saves a handoff without claiming a schedule was created',async ({page,request}) => {
+test('guided agent setup saves a handoff without claiming a schedule was created',async ({page,request}) => {
   await page.goto('/'); await page.getByRole('button',{name:'Search agent',exact:true}).click();
-  await page.getByLabel('Choose your desktop agent').selectOption('claude-code');
-  await page.getByLabel('When should it search?').fill('Mondays at 10:00');
+  await page.getByRole('button',{name:'Continue',exact:true}).click();
+  await page.getByRole('button',{name:'Claude Code',exact:false}).click();
+  await page.getByLabel('When should it look for jobs?').selectOption('custom');
+  await page.getByLabel('Schedule',{exact:true}).fill('Mondays at 10:00');
   await page.getByLabel('Timezone',{exact:true}).fill('Europe/Prague');
-  await page.getByRole('button',{name:'Save setup choices'}).click();
-  await expect(page.getByText('Setup choices saved.',{exact:false})).toBeVisible();
-  await expect(page.getByText('No scheduled task has been reported yet.')).toBeVisible();
+  await page.getByRole('button',{name:'Continue',exact:true}).click();
+  await expect(page.getByText('Waiting for the agent to report its schedule')).toBeVisible();
   const state = await (await request.get('/api/agent')).json();
   expect(state.schedule.taskId).toBe(''); expect(state.schedule.reportedAt).toBeNull();
   expect(state.schedule.provider).toBe('claude-code');
   const setup = await (await request.get('/api/agent/setup')).json();
   expect(setup.instructions).toContain('Mondays at 10:00'); expect(setup.instructions).toContain('Claude Code Desktop');
   expect(setup.instructions).toContain('Never edit app code');
+  await page.getByRole('button',{name:'Go to my board'}).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.reload(); await page.getByRole('button',{name:'Search agent',exact:true}).click();
-  await expect(page.getByLabel('When should it search?')).toHaveValue('Mondays at 10:00');
-  await page.getByLabel('When should it search?').fill('An unsaved schedule');
-  await page.getByRole('button',{name:'Close',exact:true}).first().click();
+  // An unfinished agent connection resumes at the handoff, with saved choices intact.
+  await page.getByRole('button',{name:'Back',exact:true}).click();
+  await expect(page.getByLabel('Schedule',{exact:true})).toHaveValue('Mondays at 10:00');
+  await page.getByLabel('Schedule',{exact:true}).fill('An unsaved schedule');
+  await page.getByRole('button',{name:'Close setup',exact:true}).click();
   await expect(page.getByRole('alertdialog')).toBeVisible();
   await page.getByRole('button',{name:'Discard changes',exact:true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
-test('mobile agent setup preserves drafts when saving fails',async ({page}) => {
+test('mobile guided setup preserves drafts when saving fails',async ({page}) => {
   await page.setViewportSize({width:390,height:844}); await page.goto('/');
   await page.getByRole('button',{name:'Search agent',exact:true}).click();
-  await page.getByLabel('When should it search?').fill('Keep this schedule draft');
+  await page.getByLabel('Schedule',{exact:true}).fill('Keep this schedule draft');
   await page.route('**/api/agent/schedule',route => route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({error:'Simulated setup failure'})}));
-  await page.getByRole('button',{name:'Save setup choices'}).click();
+  await page.getByRole('button',{name:'Continue',exact:true}).click();
   await expect(page.getByRole('alert')).toHaveText('Simulated setup failure');
-  await expect(page.getByLabel('When should it search?')).toHaveValue('Keep this schedule draft');
+  await expect(page.getByLabel('Schedule',{exact:true})).toHaveValue('Keep this schedule draft');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
   await page.screenshot({path:'test-results/mobile-agent.png',fullPage:true});
 });

@@ -25,7 +25,7 @@ test('a real stdio client can collect using feedback without changing user decis
   try {
     await client.connect(transport);
     const tools = (await client.listTools()).tools.map(tool=>tool.name);
-    assert.equal(tools.length,6); assert.ok(!tools.some(name=>/move|delete|shell|execute/.test(name)));
+    assert.equal(tools.length,7); assert.ok(!tools.some(name=>/move|delete|shell|execute/.test(name)));
     const initial = (await client.callTool({name:'nextstep_get_context',arguments:{}})).structuredContent;
     assert.equal(initial.database,file); assert.equal(initial.byStage.uninterested[0].id,rejected.id);
     const jobs = [{company:'Rejected company',role:'New role',url:'https://example.com/jobs/rejected'},{company:'New company',role:'Example role',url:'https://example.com/jobs/new',notes:'Verified on a fictional test source'}];
@@ -39,6 +39,10 @@ test('a real stdio client can collect using feedback without changing user decis
     const report = await client.callTool({name:'nextstep_record_search',arguments:{id:'stdio-run-1',summary:'Saved one new verified example',learning:'Avoid the declined company.',evidenceIds:[rejected.id],importedIds:[imported.created[0].id]}}); assert.equal(report.isError,undefined);
     const schedule = store.updateSchedule({version:0,provider:'codex',cadence:'Daily at 10',timezone:'UTC'});
     assert.match((await client.callTool({name:'nextstep_get_setup',arguments:{}})).structuredContent.instructions,/Daily at 10/);
+    const token = store.agentStatus().onboarding.connectionToken;
+    const connected = await client.callTool({name:'nextstep_confirm_connection',arguments:{token}});
+    assert.ok(connected.structuredContent.onboarding.connectedAt);
+    assert.equal(store.agentStatus().onboarding.connectedProvider,'codex');
     const registration = await client.callTool({name:'nextstep_register_schedule',arguments:{version:schedule.version,taskId:'actual-test-task'}}); assert.equal(registration.structuredContent.schedule.taskId,'actual-test-task');
     const final = (await client.callTool({name:'nextstep_get_context',arguments:{}})).structuredContent;
     assert.equal(final.recentSearches.length,1); assert.equal(final.byStage.prospect[0].id,imported.created[0].id);
