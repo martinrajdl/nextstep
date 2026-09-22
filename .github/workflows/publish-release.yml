@@ -1,0 +1,87 @@
+name: Publish signed macOS release
+
+on:
+  push:
+    branches: [release-assets]
+    paths:
+      - release/**
+      - .github/workflows/publish-release.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-signed-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+          persist-credentials: false
+
+      - name: Verify installer and release metadata
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import re
+          import zipfile
+          from pathlib import Path
+
+          manifest = json.loads(Path('release/manifest.json').read_text())
+          assert re.fullmatch(r'v\d+\.\d+\.\d+', manifest['tag'])
+          assert re.fullmatch(r'[0-9a-f]{40}', manifest['targetCommit'])
+          assert re.fullmatch(r'[0-9a-f]{64}', manifest['sha256'])
+          expected_name = f"Nextstep-{manifest['tag'][1:]}-macOS-arm64-DMG.zip"
+          assert manifest['asset'] == expected_name
+          assert manifest['title'] and '\n' not in manifest['title'] and '\r' not in manifest['title']
+
+          asset = Path('release') / expected_name
+          assert asset.stat().st_size == manifest['bytes'], 'Installer size mismatch'
+          digest = hashlib.sha256()
+          with asset.open('rb') as stream:
+              for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+                  digest.update(chunk)
+          assert digest.hexdigest() == manifest['sha256'], 'Installer checksum mismatch'
+          with zipfile.ZipFile(asset) as archive:
+              assert archive.namelist() == [expected_name.replace('-DMG.zip', '.dmg')]
+              assert archive.testzip() is None, 'Installer archive is damaged'
+
+          Path(str(asset) + '.sha256').write_text(f"{digest.hexdigest()}  {asset.name}\n")
+          values = {
+              'RELEASE_TAG': manifest['tag'],
+              'RELEASE_COMMIT': manifest['targetCommit'],
+              'RELEASE_TITLE': manifest['title'],
+              'RELEASE_ASSET': str(asset),
+          }
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              for key, value in values.items():
+                  output.write(f'{key}={value}\n')
+          print(f'Verified {asset.name}: {digest.hexdigest()}')
+          PY
+
+      - name: Upload and publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,targetCommitish > "$RUNNER_TEMP/existing-release.json"; then
+            jq -e --arg commit "$RELEASE_COMMIT" '.isDraft == true and .targetCommitish == $commit' "$RUNNER_TEMP/existing-release.json" > /dev/null || {
+              echo 'Refusing to replace a published release or a draft for another commit.'
+              exit 1
+            }
+          else
+            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+              --target "$RELEASE_COMMIT" --title "$RELEASE_TITLE" \
+              --notes-file release/notes.md --draft
+          fi
+          gh release upload "$RELEASE_TAG" "$RELEASE_ASSET" "$RELEASE_ASSET.sha256" \
+            --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --title "$RELEASE_TITLE" --notes-file release/notes.md --draft=false --latest
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json url --jq .url >> "$GITHUB_STEP_SUMMARY"
