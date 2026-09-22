@@ -3,7 +3,7 @@ import { ArrowLeft, ArrowRight, Check, CheckCheck, Copy, ExternalLink, LoaderCir
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { profileDraft, profileFields, type SearchProfile, type SearchProfileDraft } from '@/lib/search-profile';
-import { agentLabel, connectionText, errorMessage, type AgentState, type DesktopAgent, type Provider } from '@/lib/agent';
+import { agentLabel, agentHandoffHint, connectionText, errorMessage, type AgentState, type DesktopAgent, type Provider } from '@/lib/agent';
 import { request } from '@/lib/model';
 import nextstepLogo from '@/desktop/icons/nextstep.png';
 
@@ -27,7 +27,7 @@ export default function OnboardingWizard({onClose,initialStep}:Props) {
   const [discard,setDiscard] = useState(false);
   const [attempt,setAttempt] = useState(0);
   const [setupText,setSetupText] = useState('');
-  const [copied,setCopied] = useState(false);
+  const [requestReady,setRequestReady] = useState(false);
   const [manualReady,setManualReady] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const effectiveCadence = frequency === 'demand' ? '' : frequency === 'custom' ? cadence : `${frequency === 'weekdays' ? 'Weekdays' : 'Every day'} at ${time}`;
@@ -85,7 +85,7 @@ export default function OnboardingWizard({onClose,initialStep}:Props) {
           setState(current);
         }
       }
-      await saveProgress(step+1,'started',current); setStep(step+1); setSetupText(''); setCopied(false); setManualReady(false);
+      await saveProgress(step+1,'started',current); setStep(step+1); setSetupText(''); setRequestReady(false); setManualReady(false);
     } catch (reason) { setError(errorMessage(reason)); }
     finally { setBusy(false); }
   }
@@ -100,24 +100,21 @@ export default function OnboardingWizard({onClose,initialStep}:Props) {
     finally { setBusy(false); }
   }
   function close() { if (!busy) { if (!state) onClose(); else if (dirty) setDiscard(true); else void finish('dismissed'); } }
-  async function connect() {
-    if (!provider || !window.nextstepDesktop || busy) return;
-    setBusy(true); setError(''); setNotice('');
-    try {
-      await window.nextstepDesktop.connectAgent(provider);
-      setState(await request<AgentState>('/api/agent'));
-      setNotice('Connection added. Next, send the setup request in a new local task in your agent.');
-    } catch (reason) { setError(errorMessage(reason)); }
-    finally { setBusy(false); }
-  }
   async function copySetup(openAgent=false) {
     if (busy) return;
     setBusy(true); setError(''); setNotice('');
     try {
       const result = await request<{instructions:string}>('/api/agent/setup'); setSetupText(result.instructions);
-      await navigator.clipboard.writeText(result.instructions); setCopied(true);
-      setNotice(`Copied. Paste into a new local task in ${agentLabel(provider)} and send it.`);
-      if (openAgent && provider && window.nextstepDesktop) await window.nextstepDesktop.openAgent(provider);
+      if (openAgent && provider && window.nextstepDesktop) {
+        const opened = await window.nextstepDesktop.openAgent(provider,'setup');
+        setSetupText(opened.instructions);
+        setState(await request<AgentState>('/api/agent'));
+        setNotice(agentHandoffHint(provider));
+      } else {
+        await navigator.clipboard.writeText(result.instructions);
+        setNotice(`Copied. Paste into a new local ${provider === 'claude-code' ? 'conversation in Claude Desktop’s Code tab' : 'Codex task'} and send it.`);
+      }
+      setRequestReady(true);
     } catch (reason) { setError(`Could not finish the handoff. ${errorMessage(reason)} You can copy the request below and open your agent yourself.`); }
     finally { setBusy(false); }
   }
@@ -140,7 +137,7 @@ export default function OnboardingWizard({onClose,initialStep}:Props) {
               <details className="setup-details"><summary>Add more about your search <span>Optional</span></summary><div>{profileFields.slice(3).map(({key,label:fieldLabel,hint,maxLength}) => <div className="field" key={key}><label htmlFor={`setup-${key}`}>{fieldLabel}</label><textarea id={`setup-${key}`} value={draft[key]} rows={2} maxLength={maxLength} placeholder={hint} onChange={event => setDraft({...draft,[key]:event.target.value})}/></div>)}</div></details>
             </>}
             {step === 1 && <>
-              <fieldset className="setup-agent-options" aria-label="Choose your desktop agent">{(['codex','claude-code'] as const).map(id => <button type="button" key={id} className={`setup-agent-option ${provider === id ? 'selected' : ''}`} aria-pressed={provider === id} onClick={() => setProvider(id)}><span className={`setup-provider-icon ${id}`}><Sparkles size={22}/></span><span><strong>{agentLabel(id)}</strong><small>{id === 'codex' ? 'A local task in the desktop app' : 'The Code tab in Claude Desktop'}</small>{apps.find(app => app.provider === id)?.installed && <em>Installed on this Mac</em>}</span><span className="setup-radio">{provider === id && <Check size={12}/>}</span></button>)}</fieldset>
+              <fieldset className="setup-agent-options" aria-label="Choose your desktop agent">{(['codex','claude-code'] as const).map(id => <button type="button" key={id} className={`setup-agent-option ${provider === id ? 'selected' : ''}`} aria-pressed={provider === id} onClick={() => setProvider(id)}><span className={`setup-provider-icon ${id}`}><Sparkles size={22}/></span><span><strong>{agentLabel(id)}</strong><small>{id === 'codex' ? 'In ChatGPT desktop or the Codex app' : 'The Code tab in Claude Desktop'}</small>{apps.find(app => app.provider === id)?.installed && <em>Installed on this Mac</em>}</span><span className="setup-radio">{provider === id && <Check size={12}/>}</span></button>)}</fieldset>
               <p className="setup-caption">Your agent needs a signed-in account. Cloud chats cannot reach this local board.</p>
               <div className="field"><label htmlFor="setup-frequency">When should it look for jobs?</label><select id="setup-frequency" value={frequency} onChange={event => setFrequency(event.target.value)}><option value="demand">Only when I ask</option><option value="weekdays">Every weekday</option><option value="daily">Every day</option><option value="custom">Choose my own schedule</option></select></div>
               {frequency !== 'demand' && <div className="field-row"><div className="field"><label htmlFor="setup-time">{frequency === 'custom' ? 'Schedule' : 'Time'}</label>{frequency === 'custom' ? <input id="setup-time" maxLength={300} value={cadence} placeholder="Mondays at 10:00" onChange={event => setCadence(event.target.value)}/> : <input id="setup-time" type="time" required value={time} onChange={event => setTime(event.target.value)}/>}</div><div className="field"><label htmlFor="setup-timezone">Timezone</label><input id="setup-timezone" maxLength={100} required value={timezone} onChange={event => setTimezone(event.target.value)}/></div></div>}
@@ -148,10 +145,10 @@ export default function OnboardingWizard({onClose,initialStep}:Props) {
               {state.schedule.taskId && <p className="setup-caption">Existing task: {state.schedule.taskId}. Changing the schedule asks the agent to update it. Pause and unlink it in Search agent before switching providers or to on-demand.</p>}
             </>}
             {step === 2 && <>
-              <div className="setup-connect-card"><div className={`setup-status-icon ${configured || confirmed ? 'done' : ''}`}>{configured || confirmed ? <Check size={20}/> : <Plug size={20}/>}</div><div><h3>{confirmed ? `${label} confirmed the connection` : configured ? `Connection added to ${label}` : `Connect ${label} to your board`}</h3><p>{confirmed ? 'The agent reached this exact database.' : configured ? 'Open a new local task so your agent can load the connection. Restart the agent if its tools are missing.' : 'Nextstep adds its connection to your agent settings. Your other connections stay in place.'}</p></div></div>
-              {!configured && !confirmed && <>{selectedApp?.canConnect ? <button className="primary-button setup-wide" type="button" onClick={() => { void connect(); }}><Plug size={16}/>Add connection to {label}</button> : <p className="setup-caption">{window.nextstepDesktop ? 'Install the desktop agent, then reopen Nextstep. You can also connect manually below.' : 'Using Nextstep in a browser? Add the connection manually below. The Mac app can do this for you.'} <a href={provider === 'codex' ? 'https://learn.chatgpt.com/docs/extend/mcp?surface=cli' : 'https://code.claude.com/docs/en/desktop'} target="_blank" rel="noreferrer">Agent setup guide <ExternalLink size={12}/></a></p>}</>}
-              <div className="setup-handoff"><h3>Give your agent the setup request</h3><p>Paste it into a <strong>new local task</strong>{provider === 'claude-code' ? ' in the Code tab' : ''} and send. It will use your preferences{state.schedule.cadence ? ', create the schedule,' : ''} and run your first search.</p><button type="button" className={configured || confirmed || manualReady ? 'primary-button setup-wide' : 'secondary-button setup-wide'} disabled={!configured && !confirmed && !manualReady} onClick={() => { void copySetup(Boolean(selectedApp?.installed)); }}>{copied ? <Check size={16}/> : <Copy size={16}/>}{selectedApp?.installed ? `Copy request & open ${label}` : 'Copy setup request'}</button>
-              {setupText && <details className="setup-details" open={!copied}><summary>View setup request</summary><textarea className="agent-setup-text" aria-label="Setup request" readOnly value={setupText} rows={8}/><button className="secondary-button" type="button" onClick={() => { void copySetup(); }}>Copy again</button></details>}</div>
+              <div className="setup-connect-card"><div className={`setup-status-icon ${configured || confirmed ? 'done' : ''}`}>{configured || confirmed ? <Check size={20}/> : <Plug size={20}/>}</div><div><h3>{confirmed ? `${label} confirmed the connection` : configured ? `Connection added to ${label}` : `Connect ${label} to your board`}</h3><p>{confirmed ? 'The agent reached this exact database.' : configured ? 'Your connection is saved. Open a new conversation below to start.' : selectedApp?.canConnect ? 'The button below adds the connection and opens your agent. Your other settings stay in place.' : 'Add the connection in Advanced connection below, then copy the setup request.'}</p></div></div>
+              {!selectedApp?.canConnect && !configured && !confirmed && <p className="setup-caption">{window.nextstepDesktop ? 'Install the desktop agent, then reopen Nextstep. You can also connect manually below.' : 'Using Nextstep in a browser? Add the connection manually below. The Mac app can do this for you.'} <a href={provider === 'codex' ? 'https://learn.chatgpt.com/docs/extend/mcp?surface=cli' : 'https://code.claude.com/docs/en/desktop'} target="_blank" rel="noreferrer">Agent setup guide <ExternalLink size={12}/></a></p>}
+              <div className="setup-handoff"><h3>Start your first search</h3><p>{selectedApp?.canConnect ? agentHandoffHint(provider) : `Paste the request into a new local ${provider === 'claude-code' ? 'conversation in Claude Desktop’s Code tab' : 'Codex task'} and send it.`} Your agent will use your preferences{state.schedule.cadence ? ', create the schedule,' : ''} and run your first search.</p><button type="button" className={selectedApp?.canConnect || configured || confirmed || manualReady ? 'primary-button setup-wide' : 'secondary-button setup-wide'} disabled={!selectedApp?.canConnect && !configured && !confirmed && !manualReady} onClick={() => { void copySetup(Boolean(selectedApp?.canConnect)); }}>{requestReady ? <Check size={16}/> : selectedApp?.canConnect ? <ExternalLink size={16}/> : <Copy size={16}/>}{selectedApp?.canConnect ? `Open setup in ${label}` : 'Copy setup request'}</button>
+              {setupText && <details className="setup-details" open={!requestReady}><summary>View setup request</summary><textarea className="agent-setup-text" aria-label="Setup request" readOnly value={setupText} rows={8}/><button className="secondary-button" type="button" onClick={() => { void copySetup(); }}>Copy request</button></details>}</div>
               <div className="setup-checklist" aria-label="Agent setup status" aria-live="polite"><div><span className={confirmed ? 'done' : ''}>{confirmed ? <Check size={14}/> : <span/>}</span>{confirmed ? 'Agent connection confirmed' : 'Waiting for your agent to connect'}</div>{state.schedule.cadence && <div><span className={state.schedule.reportedAt ? 'done' : ''}>{state.schedule.reportedAt ? <Check size={14}/> : <span/>}</span>{state.schedule.reportedAt ? 'Agent reported the scheduled task' : 'Waiting for the agent to report its schedule'}</div>}<div><span className={state.runs.length ? 'done' : ''}>{state.runs.length ? <Check size={14}/> : <span/>}</span>{state.runs.length ? `Latest search: ${state.runs[0].importedIds.length} new matches saved` : 'First search will appear on your board'}</div></div>
               <details className="setup-details"><summary>Advanced connection</summary><p className="setup-caption">{provider === 'codex' ? 'Merge this into ~/.codex/config.toml, or add the server in Codex MCP settings.' : 'Merge this server into ~/.claude.json for Claude Code. Preserve your existing settings.'} Then restart your agent or open a new local task.</p><pre className="agent-config">{connectionText(state)}</pre><button className="secondary-button" type="button" onClick={() => { navigator.clipboard.writeText(connectionText(state)).then(() => setNotice('Connection settings copied.')).catch(() => setError('Select and copy the connection settings above.')); }}>Copy connection settings</button><label className="setup-checkbox"><input type="checkbox" checked={manualReady} onChange={event => setManualReady(event.target.checked)}/>I added the connection in my agent</label><p className="setup-caption">Database: {state.database}</p></details>
               <div className="setup-note"><Sparkles size={18}/><p>Move matches to <strong>Interested</strong> or <strong>Uninterested</strong>. Your agent uses those choices to improve its next search. It won’t apply for you.</p></div>

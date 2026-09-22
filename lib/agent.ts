@@ -9,11 +9,14 @@ declare global {
     nextstepDesktop?: {
       getAgents:() => Promise<DesktopAgent[]>;
       connectAgent:(provider:Provider) => Promise<{configured:boolean}>;
-      openAgent:(provider:Provider) => Promise<void>;
+      openAgent:(provider:Provider,purpose:'setup'|'search') => Promise<{instructions:string}>;
     };
   }
 }
 export const agentLabel = (provider:string) => provider === 'claude-code' ? 'Claude Code' : 'Codex';
+export const agentHandoffHint = (provider:string) => provider === 'claude-code'
+  ? 'Claude opens a new Code conversation with your request filled in. Confirm the Research folder if asked, keep Local selected, then send the request.'
+  : 'A new local Codex task opens with your request filled in. Review it and press Send.';
 export function connectionText(state:AgentState) {
   const connection = state.connection.mcpServers.nextstep;
   return state.schedule.provider === 'codex'
