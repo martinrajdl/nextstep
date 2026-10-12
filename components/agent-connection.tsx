@@ -4,6 +4,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { request } from '@/lib/model';
 import { agentLabel, agentHandoffHint, errorMessage, type Provider } from '@/lib/agent';
+import { useAppPreferences } from '@/components/app-settings';
 
 type Schedule = {provider:string;cadence:string;timezone:string;taskId:string;reportedAt:string|null;version:number};
 type Run = {id:string;summary:string;learning:string;createdAt:string;importedIds:string[]};
@@ -11,6 +12,8 @@ type AgentState = {schedule:Schedule;runs:Run[];database:string;connection:{mcpS
 type Props = {onClose:() => void;onSetup:() => void};
 
 export default function AgentConnection({onClose,onSetup}: Props) {
+  const {backendUrl} = useAppPreferences();
+  const localDesktop = Boolean(window.nextstepDesktop && !backendUrl);
   const [state,setState] = useState<AgentState|null>(null);
   const [draft,setDraft] = useState({provider:'',cadence:'',timezone:''});
   const [error,setError] = useState('');
@@ -65,7 +68,7 @@ export default function AgentConnection({onClose,onSetup}: Props) {
     setBusy(true); setError(''); setNotice('');
     try {
       const result = await request<{instructions:string}>('/api/agent/search'); setSetupText(result.instructions);
-      if (window.nextstepDesktop) {
+      if (window.nextstepDesktop && localDesktop) {
         const opened = await window.nextstepDesktop.openAgent(state.schedule.provider as Provider,'search');
         setSetupText(opened.instructions);
         setNotice(agentHandoffHint(state.schedule.provider));
@@ -91,7 +94,7 @@ export default function AgentConnection({onClose,onSetup}: Props) {
     <SheetHeader className="editor-header"><div className="editor-eyebrow">RESEARCH THAT ADAPTS</div><div className="editor-heading"><span className="editor-icon"><Bot size={21}/></span><SheetTitle>Search agent</SheetTitle></div><SheetDescription>Your agent finds jobs using your preferences and learns from Interested and Uninterested choices.</SheetDescription></SheetHeader>
     <div className="editor-form"><div className="editor-scroll">
       {!state ? <output>{error ? 'Could not load agent setup.' : 'Loading agent setup…'}</output> : <>
-        <button className="primary-button" disabled={busy || dirty || !state.schedule.provider} onClick={() => { void findMatches(); }}><Bot size={15}/>{window.nextstepDesktop ? `Find matches with ${agentLabel(state.schedule.provider)}` : 'Copy search request'}</button><p className="agent-hint">{window.nextstepDesktop ? 'Opens a new local conversation with your search request ready to send.' : 'Paste into a new local Code/Codex conversation and send.'} Your current preferences and board guide every search.</p><button className="secondary-button" disabled={busy || dirty} onClick={onSetup}>Guided setup</button>
+        <button className="primary-button" disabled={busy || dirty || !state.schedule.provider} onClick={() => { void findMatches(); }}><Bot size={15}/>{localDesktop ? `Find matches with ${agentLabel(state.schedule.provider)}` : 'Copy search request'}</button><p className="agent-hint">{localDesktop ? 'Opens a new local conversation with your search request ready to send.' : 'Paste into a new local Code/Codex conversation and send.'} Your current preferences and board guide every search.</p><button className="secondary-button" disabled={busy || dirty} onClick={onSetup}>Guided setup</button>
         {setupText && <details open><summary>Agent request</summary><textarea className="agent-setup-text" aria-label="Agent request" readOnly value={setupText} rows={8}/></details>}<details className="agent-advanced"><summary>Advanced settings</summary><form onSubmit={save} aria-label="Agent setup"><fieldset disabled={busy}>
           <div className="field"><label htmlFor="agent-provider">Choose your desktop agent</label><select id="agent-provider" required value={draft.provider} onChange={event => setDraft({...draft,provider:event.target.value})}><option value="">Choose an agent</option><option value="codex">Codex desktop</option><option value="claude-code">Claude Code Desktop</option></select><p className="agent-hint">Use a local desktop task so it can reach your SQLite database.</p></div>
           <div className="field"><label htmlFor="agent-cadence">When should it search?</label><input id="agent-cadence" maxLength={300} value={draft.cadence} placeholder="Leave blank for on-demand searches" onChange={event => setDraft({...draft,cadence:event.target.value})}/></div>

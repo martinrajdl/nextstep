@@ -61,3 +61,22 @@ test('a conflicting Claude Desktop connection takes precedence and is left untou
   await assert.rejects(connector.connect('claude-code',connection));
   assert.equal(readFileSync(desktop,'utf8'),original); assert.equal(readFileSync(path,'utf8'),'{}');
 });
+
+test('reconnecting preserves an existing headless helper for the same database',async t => {
+  const {home,path} = fixture(t);
+  const helper = join(home,'source/mcp/stdio.mjs');
+  mkdirSync(join(home,'source/mcp'),{recursive:true}); writeFileSync(helper,'');
+  const saved = {type:'stdio',command:process.execPath,args:[helper,'--database',connection.args.at(-1)]};
+  const contents = JSON.stringify({mcpServers:{nextstep:saved}});
+  writeFileSync(path,contents);
+  const calls=[];
+  const run=async (_command,args) => { calls.push(args); return {stdout:JSON.stringify([{name:'nextstep',enabled:true,transport:saved}])}; };
+  const connector = createAgentConnector({home,platform:'darwin',env:{},run});
+  await connector.connect('codex',connection);
+  await connector.connect('claude-code',connection);
+  assert.deepEqual(calls,[['mcp','list','--json']]);
+  assert.equal(readFileSync(path,'utf8'),contents);
+  assert.equal(readdirSync(home).filter(name=>name.includes('nextstep-backup')).length,0);
+  saved.args[2]='/tmp/another.sqlite';
+  await assert.rejects(connector.connect('codex',connection),/points somewhere else/);
+});

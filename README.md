@@ -1,6 +1,20 @@
 # Nextstep
 
-A personal job-search CRM that runs on your computer. Move opportunities through a Kanban board, switch to a searchable list, and let your coding agent collect verified jobs into the same local database.
+A local-first Electron CRM operated by agents and reviewed by people. Give your agent a direction: it sources contacts and information, shapes collections and relationships, and keeps records moving. Follow its progress in **Agent flows**, review proposed changes, and keep your information in SQLite on your computer or your own backend.
+
+Nextstep 0.4 brings composable collections and agent flows to the workspace at `/`. The existing job tracker remains at `/jobs`, preserving its pipeline, preferences, history and bounded job-research connector.
+
+## A workspace for any structured information
+
+- **Compose:** start with an empty template or define your own collection and typed fields. Link records across collections.
+- **Review:** agents prepare and preview atomic change sets, then submit them for approval. Stale proposals cannot overwrite newer decisions.
+- **Work:** table and board views, search, filters, sorting, saved views, archive/restore, and record history.
+- **Connect:** a separate general-purpose MCP interface and JSON workbench. Trusted connections can explicitly opt into direct writes. No built-in model or hosted account.
+- **Follow:** agent-reported sourcing, shaping and progress alongside verified proposal outcomes and applied changes.
+- **Personalize:** white with light gray accents by default, with green, blue, violet, rose, slate or a custom accent in Settings and the native View → Appearance menu. The generated app icon keeps its neutral colors.
+- **Own:** MIT source, complete generic workspace JSON export, local SQLite persistence, and [private self-hosting through SSH](docs/self-hosting.md).
+
+Read [the composable CRM guide](docs/composable-crm.md) for the model, operations, MCP tools and migration contract. The public marketing website is maintained in a separate Git repository; this checkout only contains the CRM.
 
 React + TypeScript, a small Node HTTP server, and SQLite, with an optional Electron desktop app and local MCP connection. No database account, cloud service, API key, or separate database daemon is needed to use the app. Agent-assisted research uses your own agent and its browsing access.
 
@@ -10,9 +24,9 @@ React + TypeScript, a small Node HTTP server, and SQLite, with an optional Elect
 
 ## Desktop app
 
-**[Download Nextstep for macOS (Apple silicon, ZIP)](https://github.com/martinrajdl/nextstep/releases/download/v0.3.2/Nextstep-0.3.2-macOS-arm64-DMG.zip)** · [All releases](https://github.com/martinrajdl/nextstep/releases)
+**[Download Nextstep for macOS (Apple silicon, ZIP)](https://github.com/martinrajdl/nextstep/releases/download/v0.4.0/Nextstep-0.4.0-macOS-arm64.zip)** · [All releases](https://github.com/martinrajdl/nextstep/releases)
 
-For Macs with an M1 chip or later. Unzip the download, open the DMG, and drag Nextstep into **Applications**. Both the app and installer are signed with Developer ID and notarized by Apple. Open Nextstep to follow the setup wizard; no developer tools are needed.
+For Macs with an M1 chip or later. Unzip the download and drag **Nextstep.app** into **Applications**. The app is signed with Developer ID and notarized by Apple. Open Nextstep to follow the setup wizard; no developer tools are needed.
 
 To build from source, clone the repository, install dependencies, then run:
 
@@ -26,7 +40,7 @@ pnpm desktop:package
 
 The packaged app includes SQLite and its runtime. New desktop installations start empty; **File → Open database…** connects an existing Nextstep database without copying it. `desktop:package` produces an unsigned development build. For a signed and notarized macOS release, configure your [Apple signing identity and Keychain profile](docs/macos-signing.md), then run `pnpm desktop:release`.
 
-A three-step **onboarding wizard** helps you describe the work you want, choose Codex or Claude Code, and connect your agent. On macOS, **Open setup in Claude Code / Codex** adds the connection and opens a new local conversation with the request already filled in. Claude opens its **Code** tab; Codex opens a local task in ChatGPT desktop or the Codex app. Confirm the Research folder if asked, review the request, and send it. Search on demand, or let the agent set up a recurring search with its native scheduler. You can skip setup and use the board manually, then resume from **Search agent**. Every run reads current preferences and uses **Interested / Uninterested** feedback to refine search and ranking. It preserves existing cards and never edits the app's code or interface.
+In **Job search**, a three-step **onboarding wizard** helps you describe the work you want, choose Codex or Claude Code, and connect your agent. On macOS, **Open setup in Claude Code / Codex** adds the connection and opens a new local conversation with the request already filled in. Claude opens its **Code** tab; Codex opens a local task in ChatGPT desktop or the Codex app. Confirm the Research folder if asked, review the request, and send it. Search on demand, or let the agent set up a recurring search with its native scheduler. You can skip setup and use the board manually, then resume from **Search agent**. Every run reads current preferences and uses **Interested / Uninterested** feedback to refine search and ranking. It preserves existing cards and never edits the app's code or interface.
 
 Saving setup choices does not activate a task. The computer must be awake and the local agent app running for scheduled work; the Nextstep window can be closed. See **[desktop setup and limitations](docs/desktop.md)** for connection steps, packaging, and checks.
 
@@ -43,7 +57,7 @@ pnpm build
 pnpm background:start
 ```
 
-Open **[localhost:4317](http://127.0.0.1:4317)**. The board starts empty, with no job type or search criteria selected. Setup creates `data/nextstep.sqlite`; running it again preserves your jobs and saved preferences. Follow the onboarding wizard, open **Search preferences**, or use the setup-agent prompt below to define what you want.
+Open **[localhost:4317](http://127.0.0.1:4317)** for the composable workspace. Choose **Job search** to open the preserved pipeline at `/jobs`. Both start empty on a new installation; the job board has no job type or search criteria selected. Setup creates `data/nextstep.sqlite`; running it again preserves your jobs and saved preferences. Follow the onboarding wizard, open **Search preferences**, or use the setup-agent prompt below to define what you want.
 
 ```sh
 pnpm background:status
@@ -57,7 +71,7 @@ The background process survives closing the terminal. It does not install a logi
 
 - **Board and list:** drag between stages, reorder cards, search, filter follow-ups, or change stages from the list/editor. Keyboard dragging uses Space, arrows, and Space to drop.
 - **Stages:** Uninterested → Prospects → Interested → Applied → Screening → Interview → Final round → Offer. Hide Uninterested when you want more room; its records remain in the list.
-- **Closed:** Accepted, Not moving forward, and Withdrawn. Move a record back to an active stage to reopen it.
+- **Closed:** Accepted, Rejected, and Withdrawn. When an employer rejects you, drag the card onto **Rejected**, which appears at the bottom of the active board during a drag. The card is saved under **Closed → Rejected**. For keyboard dragging, Arrow Down after the last card reaches this target; Arrow Up returns to your card and Escape cancels. Change the stage in the list/editor to reopen a closed record.
 - **Company-first prospecting:** only a company name is required when adding manually. Fill in the role, job URL, salary, contact, notes, priority, and follow-up later.
 - **Local history:** activity tracking, soft deletion with Undo, JSON export, and conflict protection when two windows edit the same job.
 - **Shortcuts:** `N` creates an opportunity and `/` focuses search outside editable fields.
@@ -103,7 +117,7 @@ The importer checks again inside a SQLite transaction, skips duplicates and prev
 
 `data/` contains your SQLite database (including Search preferences), research, and any local résumé you choose to add. It is ignored by Git, along with logs, browser test artifacts, local environment files, and database files. Keep personal additions under `data/`; check staged files before publishing your own fork.
 
-The app serves only on `127.0.0.1`, with Host/Origin checks. It has no accounts or authentication and is intended for one person's local computer. Public source code does not make your running app or job database public. Do not expose the server to the internet.
+The app serves only on `127.0.0.1`, with Host/Origin checks. It has no shared accounts and is intended for one owner. Run it locally, or on your own server with a [private SSH tunnel](docs/self-hosting.md). Public source code does not make your running app or database public. Do not expose its unauthenticated HTTP port to the internet.
 
 Agent prompts ask for public employer information and keep research local. Your chosen agent provider may still process the profile and board context it reads; Nextstep does not add a model or telemetry service of its own.
 

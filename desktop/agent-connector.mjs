@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, rmSync, lstatSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, basename, isAbsolute } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 const execute = promisify(execFile);
@@ -19,6 +19,9 @@ function existingConnection(existing, connection) {
     throw new Error('An existing “nextstep” connection points somewhere else. Keep it safe: use Advanced connection below to review the settings in your agent.');
   }
   if (existing.enabled === false) throw new Error('Nextstep is disabled in your agent settings. Enable it there, then try again.');
+  // Keep a working source-checkout helper for this database. Replacing it with
+  // Electron would start extra desktop processes whenever the agent connects.
+  if (typeof value.command === 'string' && isAbsolute(value.command) && basename(value.command) === 'node' && existsSync(value.command) && args.length === 3 && typeof args[0] === 'string' && isAbsolute(args[0]) && basename(args[0]) === 'stdio.mjs' && basename(dirname(args[0])) === 'mcp' && existsSync(args[0])) return true;
   return value.command === connection.command && JSON.stringify(args) === JSON.stringify(connection.args);
 }
 

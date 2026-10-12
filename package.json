@@ -1,8 +1,8 @@
 {
   "name": "nextstep-local-crm",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "private": true,
-  "description": "A local job-search CRM with a Kanban board, SQLite and reusable agent prompts.",
+  "description": "A local, composable CRM shaped by agents and reviewed by people.",
   "license": "MIT",
   "packageManager": "pnpm@11.19.0",
   "engines": {
@@ -19,16 +19,18 @@
     "background:stop": "node scripts/background.mjs stop",
     "background:restart": "node scripts/background.mjs restart",
     "background:status": "node scripts/background.mjs status",
-    "test": "node --test tests/store.test.mjs tests/setup.test.mjs tests/agent.test.mjs tests/mcp.test.mjs tests/macos-release.test.mjs tests/onboarding.test.mjs tests/agent-connector.test.mjs tests/agent-handoff.test.mjs",
+    "test": "node --test tests/store.test.mjs tests/setup.test.mjs tests/agent.test.mjs tests/mcp.test.mjs tests/macos-release.test.mjs tests/onboarding.test.mjs tests/agent-connector.test.mjs tests/agent-handoff.test.mjs tests/composable.test.mjs tests/crm-mcp.test.mjs tests/backend.test.mjs tests/flows.test.mjs",
     "test:e2e": "playwright test",
-    "lint": "oxlint app components/job-board.tsx components/job-list.tsx components/opportunity-editor.tsx components/search-preferences.tsx components/agent-connection.tsx components/onboarding-wizard.tsx lib/model.ts lib/search-profile.ts lib/agent.ts",
+    "lint": "oxlint app components/job-board.tsx components/job-list.tsx components/opportunity-editor.tsx components/search-preferences.tsx components/agent-connection.tsx components/onboarding-wizard.tsx lib/model.ts lib/search-profile.ts lib/agent.ts components/crm lib/crm.ts components/app-settings.tsx",
     "format": "oxfmt",
     "desktop": "electron .",
     "desktop:icon": "node scripts/build-macos-icon.mjs",
     "desktop:package": "pnpm build && node scripts/package-desktop.mjs",
     "desktop:release": "pnpm build && node scripts/package-desktop.mjs darwin --release",
     "mcp": "node mcp/stdio.mjs",
-    "test:desktop": "node scripts/test-desktop.mjs"
+    "test:desktop": "node scripts/test-desktop.mjs && node scripts/test-desktop-settings.mjs",
+    "crm": "node scripts/crm.mjs",
+    "mcp:crm": "node mcp/crm-stdio.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",
@@ -63,7 +65,7 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
-    "agent-browser": "^0.38.1",
+    "agent-browser": "0.38.1",
     "electron": "44.4.3",
     "esbuild": "0.28.2",
     "oxfmt": "0.61.0",

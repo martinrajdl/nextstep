@@ -1,6 +1,6 @@
 # Desktop app and local agent connection
 
-Nextstep bundles its interface, HTTP server, SQLite runtime, and a local MCP server in an Electron app. Your agent connects to Nextstep, researches jobs with its own browsing tools, and adds verified prospects. There is no model API key or external database service to configure in Nextstep.
+Nextstep is primarily a local-first Electron app. It bundles its interface, HTTP server, SQLite runtime, and local MCP connectors. Your agent runs the workflow: sourcing information, shaping collections, proposing changes and moving records. You follow progress in Agent flows and review decisions. The Jobs workspace preserves its separate bounded research connector. No model key or external database service is needed for local use.
 
 ## Build and run
 
@@ -25,7 +25,15 @@ macOS packages use the custom Nextstep icon in `desktop/icons/nextstep.icns`. It
 
 To choose another target after building the interface, run `node scripts/package-desktop.mjs <platform> <arch>`. Supported values are `darwin`, `win32`, or `linux`, and `arm64` or `x64`. The manual **Desktop builds** GitHub workflow builds on each operating system. Only macOS Apple silicon has been exercised with the full desktop smoke test so far.
 
-`desktop:package` and the manual Desktop builds workflow produce unsigned development builds. For a Developer ID-signed and notarized macOS app, use `pnpm desktop:release` after completing the [Apple signing setup](macos-signing.md). A release ZIP is created only after its signature, notarization ticket, and Gatekeeper acceptance pass verification. Published macOS releases include a zipped DMG installer. Updates are manual: replace the app in Applications; the separate database is preserved. Move the app to its permanent location before connecting your agent: the connection contains the executable's absolute path.
+`desktop:package` and the manual Desktop builds workflow produce unsigned development builds. For a Developer ID-signed and notarized macOS app, use `pnpm desktop:release` after completing the [Apple signing setup](macos-signing.md). A release ZIP is created only after its signature, notarization ticket, and Gatekeeper acceptance pass verification. The macOS download is a ZIP containing Nextstep.app. Unzip it and drag the app into Applications. Updates are manual: replace the app in Applications; the separate database is preserved. Move the app to its permanent location before connecting your agent: the connection contains the executable's absolute path.
+
+## Appearance and backend settings
+
+Open **Nextstep → Settings…** (Command-comma on macOS), **View → Settings…**, or **Settings** in the workspace sidebar. **View → Appearance** offers Neutral (the white and light gray default), Green, Blue, Violet, Rose and Slate; the Settings panel also has a custom accent picker. Preferences persist in the desktop settings directory across restarts and backend changes. The generated app icon keeps its neutral colors. Browser appearance preferences are stored for that origin only.
+
+Local SQLite is the default. To use a backend on your own server, start a private SSH tunnel and enter its loopback address under **Settings → Data & backend**. Electron continues to serve its bundled interface locally and proxies API requests through the tunnel. It never loads a remote renderer or grants native privileges to server code. No local shadow database is opened in this mode. A failed connection shows an error; it does not fall back to writing locally. **Use local database** returns to the existing selected file without copying, merging or deleting records. See [self-hosting.md](self-hosting.md).
+
+Automatic Jobs agent installation is available only for a local database. Self-hosted agents must connect over SSH on the server, using the server's exact database path. The generic Agent connection panel can generate an SSH configuration from a host or alias you provide.
 
 ## Your database
 
@@ -39,7 +47,7 @@ For a full backup, stop the app and any connected MCP helpers, then copy the dat
 
 ## First-run setup
 
-The first launch opens a three-step wizard. Existing databases keep their jobs and preferences and can start or resume the wizard from **Search agent** in the compact header, without an interrupting modal.
+The first launch opens the composable workspace. Open **Agent connection** to connect a general CRM agent. Choosing **Job search** opens the preserved jobs workspace, whose first use offers a three-step search wizard. Existing job databases keep their preferences and can resume it from **Search agent**.
 
 1. **Your search:** describe the work you want and optionally your location and work arrangement. More preferences are tucked under an optional section. No profession, region, or company type is assumed.
 2. **Your agent:** choose Codex or Claude Code Desktop. Search only when asked, or choose weekdays, daily, or a custom schedule. The timezone starts from your computer's setting.
@@ -118,6 +126,7 @@ pnpm build
 pnpm test:e2e
 pnpm test:desktop
 node scripts/test-desktop.mjs "/absolute/path/to/Nextstep.app/Contents/MacOS/Nextstep"
+node scripts/test-desktop-settings.mjs "/absolute/path/to/Nextstep.app/Contents/MacOS/Nextstep"
 ```
 
 Tests use temporary databases and agent configurations. Run `node scripts/test-desktop.mjs --source claude-code` and `node scripts/test-desktop.mjs --source codex` to exercise both installed providers; replace `--source` with a packaged executable path to test the release. The check goes through onboarding, installs the connection into isolated settings, verifies the exact new-conversation URL, full prompt, and local folder, and checks that a blocked clipboard cannot prevent opening. It then confirms the connection through a real MCP client, imports a fictional match, verifies live board refresh, and reads the database after closing the window. `NEXTSTEP_AGENT_CONFIG_HOME` overrides the agent settings home for these tests; it is read only by the native main process. OS link dispatch is stubbed, and no message is sent to an agent. Separately open an unsent test draft in each installed agent to confirm the destination is a new local Code/Codex conversation. Provider-native scheduling must be checked during connection setup.

@@ -1,6 +1,6 @@
 # Working in Nextstep
 
-Nextstep is a local job-search CRM. Read `README.md` before changing or running it. For job collection or imports, follow `JOB-FINDER.md` and the relevant file in `prompts/`.
+Nextstep is a local composable CRM with a preserved job-search workspace. Read `README.md` before changing or running it. For job collection or imports, follow `JOB-FINDER.md` and the relevant file in `prompts/`.
 
 ## Protect the user's workspace
 
@@ -10,6 +10,16 @@ Nextstep is a local job-search CRM. Read `README.md` before changing or running 
 - Search preferences live in SQLite and are returned by `context` and `profile get`. Ask the user what kind of job they want during setup, then save their answers with `profile set`. There are no default job types or search criteria. Do not keep the only copy in a chat or Markdown file. Use the app's Search preferences panel for user edits.
 - Do not infer permission to apply or contact employers from a request to research or import jobs.
 - Scheduled research refines search terms and ranking from Interested/Uninterested decisions. Explicit preferences take precedence. Keep inferred adjustments tentative in search reports with evidence IDs; never silently rewrite preferences or change app code, UI, existing notes, stages, priorities, or ordering.
+
+## Composable workspace
+
+- Generic collections, records, views, proposals and history live in additive `crm_*` tables in the same SQLite file. `server/crm-store.mjs` owns validation and atomic change sets.
+- `app/workspace.tsx`, `app/workspace.css`, `components/crm/` and `lib/crm.ts` implement the generic workspace. Jobs remain at `/jobs`.
+- `mcp/crm-stdio.mjs` is the general CRM connector. It proposes by default; direct writes require explicit `--allow-writes`. Keep the original Jobs connector bounded.
+- `server/crm-flows.mjs` records agent-reported progress and derives applied counts from real change sets. Progress reporting must never approve proposals or mutate records.
+- Electron remains the primary app. `desktop/preferences.mjs` preserves appearance and backend selection; self-hosted mode serves the bundled renderer and proxies JSON API requests through a loopback SSH tunnel without opening a local shadow database.
+- Read `docs/composable-crm.md` before changing the generic model, and `docs/self-hosting.md` for private server deployment. Do not weaken loopback or Host/Origin restrictions.
+- The public website has its own Git repository. Do not add marketing build tooling or public deployment configuration here.
 
 ## Architecture and commands
 

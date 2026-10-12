@@ -30,6 +30,8 @@ try {
   // Do not let Playwright race that handler with an automatic dialog response.
   page.on('dialog',() => {});
   const errors = []; page.on('pageerror',error => errors.push(error.message));
+  await expect(page.getByRole('heading',{name:/Make room for/})).toBeVisible();
+  await page.getByRole('link',{name:'Job search',exact:true}).click();
   await expect(page.getByRole('heading',{name:'What would you love to do next?'})).toBeVisible();
   await expect(page.getByLabel('Roles and work you want')).toHaveValue('User-selected work');
   await page.getByRole('button',{name:'Continue',exact:true}).click();
@@ -125,14 +127,32 @@ try {
   }
   await page.getByRole('button',{name:'Close',exact:true}).first().click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  const card = page.getByRole('button',{name:'Open QA MCP Match',exact:true});
+  await card.scrollIntoViewIfNeeded();
+  const source = await card.boundingBox();
+  if (!source) throw new Error('Imported card is not visible');
+  await page.mouse.move(source.x+55,source.y+35); await page.mouse.down();
+  await page.mouse.move(source.x+65,source.y+35,{steps:3});
+  const drop = page.getByRole('region',{name:'Rejected drop target',exact:true});
+  await expect(drop).toBeVisible();
+  const target = await drop.boundingBox();
+  if (!target) throw new Error('Rejected target is not visible');
+  await page.mouse.move(target.x+target.width/2,target.y+target.height/2,{steps:20});
+  await expect(drop).toHaveClass(/drop-over/);
+  await page.mouse.up();
+  await expect(page.getByText('QA MCP Match moved to Rejected',{exact:true})).toBeVisible();
+  await page.reload();
+  await page.getByRole('button',{name:/^Closed/}).click();
+  await expect(page.getByRole('region',{name:'Rejected stage',exact:true}).getByRole('button',{name:'Open QA MCP Match',exact:true})).toBeVisible();
+  await page.screenshot({path:resolve(root,'test-results/desktop-rejected.png')});
   if (copiedRequest !== undefined) await app.evaluate(({clipboard},{before,copied}) => { if (clipboard.readText() === copied) clipboard.writeText(before); },{before:clipboardBefore,copied:copiedRequest});
   await app.close(); app = null;
   const context = (await client.callTool({name:'nextstep_get_context',arguments:{}})).structuredContent;
-  expect(context.byStage.prospect[0].company).toBe('QA MCP Match');
+  expect(context.byStage.rejected[0].company).toBe('QA MCP Match');
   expect(context.recentSearches[0].id).toBe('desktop-check-1');
   expect(store.get(choice.id)).toEqual(before);
   expect(errors).toEqual([]);
-  console.log(`Desktop check passed for ${label}: guided onboarding, isolated configuration, new coding conversation with the complete request and local folder, clipboard-independent handoff, real MCP confirmation/import, schedule reporting, live board refresh, preserved decisions, and MCP access with the window closed.`);
+  console.log(`Desktop check passed for ${label}: guided onboarding, isolated configuration, new coding conversation with the complete request and local folder, clipboard-independent handoff, real MCP confirmation/import, schedule reporting, live board refresh, drag to Rejected persisted after reload, preserved decisions, and MCP access with the window closed.`);
 } finally {
   if (connected) await client.close();
   if (app) {

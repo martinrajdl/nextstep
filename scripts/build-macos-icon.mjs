@@ -29,6 +29,7 @@ try {
   const result = resolve(directory,'nextstep.icns');
   run('/usr/bin/iconutil',['--convert','icns','--output',result,iconset]);
   copyFileSync(result,output);
+  run('/usr/bin/sips',['-z','256','256',source,'--out',resolve(root,'desktop/icons/nextstep-ui.png')]);
   console.log(`macOS icon ready: ${output} (16–1024 px, standard and Retina sizes)`);
 } finally {
   rmSync(directory,{recursive:true,force:true});

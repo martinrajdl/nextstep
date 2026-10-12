@@ -11,7 +11,8 @@ import SearchPreferences from '@/components/search-preferences';
 import AgentConnection from '@/components/agent-connection';
 import OnboardingWizard from '@/components/onboarding-wizard';
 import type { AgentState } from '@/lib/agent';
-import nextstepLogo from '@/desktop/icons/nextstep.png';
+import nextstepLogo from '@/desktop/icons/nextstep-ui.png';
+import { useAppPreferences } from '@/components/app-settings';
 import { blankDraft, request, stageInfo, STAGES, today, type Draft, type Opportunity, type StageId } from '@/lib/model';
 
 type Result = { opportunities: Opportunity[]; opportunity?: Opportunity };
@@ -21,6 +22,7 @@ declare global { interface Document { modelContext?: { registerTool: (tool: WebT
 function message(error: unknown) { return error instanceof Error ? error.message : 'Could not reach the local app. Try again.'; }
 
 export default function Home() {
+  const {backendUrl,openSettings} = useAppPreferences();
   const [jobs, setJobs] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -137,7 +139,8 @@ export default function Home() {
     <header className="app-header">
       <a className="brand" href="/" aria-label="Nextstep home"><img className="brand-logo" src={nextstepLogo} alt="" width={40} height={40}/>nextstep</a>
       <div className="header-right">
-        <output className={`local-badge ${loadError ? 'offline' : ''}`} title={loading ? 'Connecting…' : loadError ? 'Connection interrupted' : busy ? 'Saving…' : 'Saved locally'}><span className="local-dot" aria-hidden="true"/><span className="local-status-label">{loading ? 'Connecting…' : loadError ? 'Connection interrupted' : busy ? 'Saving…' : 'Saved locally'}</span></output>
+        <button className="preferences-button" onClick={openSettings} aria-label="App settings" title="Appearance and backend"><SlidersHorizontal size={16}/></button>
+        <output className={`local-badge ${loadError ? 'offline' : ''}`} title={loading ? 'Connecting…' : loadError ? 'Connection interrupted' : busy ? 'Saving…' : (backendUrl ? 'Saved on your server' : 'Saved locally')}><span className="local-dot" aria-hidden="true"/><span className="local-status-label">{loading ? 'Connecting…' : loadError ? 'Connection interrupted' : busy ? 'Saving…' : (backendUrl ? 'Saved on your server' : 'Saved locally')}</span></output>
         <button className="preferences-button agent-button" onClick={openAgent} aria-label="Search agent" title={agentState && !agentState.onboarding.connectedAt ? 'Set up or continue connecting your search agent' : 'Search agent'}><Bot size={16}/><span>Search agent</span>{agentState && !agentState.onboarding.connectedAt && <i className="setup-indicator" aria-label="Setup available"/>}</button>
         <button className="preferences-button" onClick={() => setPreferencesOpen(true)} aria-label="Search preferences" title="Search preferences"><SlidersHorizontal size={16}/><span>Preferences</span></button>
         <button className="primary-button header-new" onClick={() => add()} disabled={loading || Boolean(loadError)} aria-label="New opportunity" title="New opportunity (N)"><Plus size={16}/><span className="new-label">New opportunity</span><span className="new-label-short" aria-hidden="true">New</span></button>

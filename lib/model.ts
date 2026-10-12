@@ -8,7 +8,7 @@ export const STAGES = [
   { id: 'final', name: 'Final round', color: '#d37499', hint: 'The home stretch', closed: false },
   { id: 'offer', name: 'Offer', color: '#45987b', hint: 'Your next opportunity', closed: false },
   { id: 'accepted', name: 'Accepted', color: '#45987b', hint: 'A new chapter', closed: true },
-  { id: 'rejected', name: 'Not moving forward', color: '#b87985', hint: 'Room for something better', closed: true },
+  { id: 'rejected', name: 'Rejected', color: '#b87985', hint: 'Room for something better', closed: true },
   { id: 'withdrawn', name: 'Withdrawn', color: '#8a91a1', hint: 'A different direction', closed: true },
 ] as const;
 export type StageId = typeof STAGES[number]['id'];
