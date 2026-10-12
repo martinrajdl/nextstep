@@ -10,6 +10,11 @@ declare global {
       getAgents:() => Promise<DesktopAgent[]>;
       connectAgent:(provider:Provider) => Promise<{configured:boolean}>;
       openAgent:(provider:Provider,purpose:'setup'|'search') => Promise<{instructions:string}>;
+      getPreferences:() => Promise<{accent:string;backendUrl:string|null}>;
+      setAppearance:(color:string) => Promise<string>;
+      setBackend:(url:string|null) => Promise<{accent:string;backendUrl:string|null}>;
+      onAppearanceChanged:(callback:(color:string) => void) => () => void;
+      onOpenSettings:(callback:() => void) => () => void;
     };
   }
 }

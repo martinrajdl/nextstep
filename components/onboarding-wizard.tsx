@@ -5,7 +5,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { profileDraft, profileFields, type SearchProfile, type SearchProfileDraft } from '@/lib/search-profile';
 import { agentLabel, agentHandoffHint, connectionText, errorMessage, type AgentState, type DesktopAgent, type Provider } from '@/lib/agent';
 import { request } from '@/lib/model';
-import nextstepLogo from '@/desktop/icons/nextstep.png';
+import nextstepLogo from '@/desktop/icons/nextstep-ui.png';
 
 type Props = {onClose:(state?:AgentState) => void;initialStep?:number};
 const stepNames = ['Your search','Your agent','Ready to go'];

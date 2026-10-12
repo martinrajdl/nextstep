@@ -1,23 +1,13 @@
-# Nextstep macOS icon
+# Nextstep app icon
 
-`nextstep.png` is the transparent 1024 × 1024 master. `nextstep.icns` contains the standard and Retina representations from 16 to 1024 pixels. Both files are used under this repository's MIT license.
+`nextstep.png` is the transparent 1024 × 1024 master. `nextstep.icns` contains the standard and Retina representations from 16 to 1024 pixels. `nextstep-ui.png` is the 256-pixel interface asset. All three use this repository's MIT license.
 
-The artwork was generated with the built-in imagegen tool. The selected square output was resized to 1024 pixels using macOS `sips`, preserving transparency. Its indigo tile and three raised cards develop the existing indigo and stacked-layer identity.
+Generated with the built-in Imagegen tool, preserving the original folded-ribbon N. The high-contrast charcoal mark sits on a porcelain-white tile with a transparent perimeter. It stays neutral when users select a colorful workspace theme. PNG sizes are derived with macOS `sips`, preserving transparency. The separate marketing repository uses copies of the same artwork.
 
-On macOS, rebuild the ICNS from the PNG with:
+Rebuild the ICNS and interface PNG on macOS with `pnpm desktop:icon`. The packaging script embeds the ICNS before code signing and includes the PNG for Electron's Dock icon. An artwork change requires a new signed and notarized app for distribution.
 
-```sh
-pnpm desktop:icon
-```
+## Final edit prompt
 
-The packaging script embeds the ICNS before code signing. A change to the artwork requires a new signed and notarized app build.
+Mode: built-in Imagegen, transparent background. Edit target: the generated neutral folded-ribbon N icon.
 
-## Generation prompt
-
-Use case: logo-brand.
-Asset type: production macOS application icon for Nextstep, a local job-search Kanban CRM.
-Primary request: Create one polished, distinctive Mac Dock icon, ready to convert to .icns. The existing brand uses indigo #4a57d7 and a white three-layer stack symbol. Evolve that into three simple, substantial ivory-white cards or layers stepping upward and forward, with a subtle sense of momentum and progress. Keep the mark exceptionally clear and balanced at 32 pixels. Use a simple centered sculpted stack, not a chart or a literal screenshot.
-Scene/backdrop: A single indigo rounded-square macOS app tile with continuous smooth corners, occupying approximately the central 82 percent of a square canvas. The area outside the tile must be genuinely transparent alpha, including all four corners. A very restrained soft shadow is okay. No background surface, backdrop, cast floor, or checkerboard.
-Style/medium: Refined contemporary native Mac icon, vector-clean edges with restrained dimensional depth. A subtly luminous indigo surface, white/ivory raised stacked cards, soft controlled highlights and minimal shadows. Quiet, focused, useful, premium productivity app aesthetic.
-Composition: one icon only, centered straight-on, symmetrical outer tile, generous consistent transparent margin around it. The cards form a concise coherent abstract mark. No mockup sheet, no app window, no frame, no scene, no devices. Square output at high resolution suitable for a 1024x1024 master.
-Constraints: no text, no letters, no numbers, no watermark, no briefcase, no robot, no sparkle, no checkmark, no glossy glass clutter. Preserve the existing indigo and white identity. Actual transparent background required.
+Use case: precise-object-edit. Asset: production macOS app icon and website brand mark. Keep the exact recognizable folded-ribbon N shape, composition, rounded-square silhouette, central positioning, and transparent surrounding margin. Change only the neutral tonal treatment to greatly increase contrast: make the front faces of the N deep charcoal near #25282D, the inner folds near black #101215, with restrained silver edge highlights that describe its sculpted curves; keep most of the N very dark so the entire N reads clearly at 24 pixels. Make the tile a clean flat porcelain-white #F4F4F3 with a precise thin medium-gray perimeter. Neutral grayscale only, no colors. The N must contrast strongly against the pale tile at every fold. Output one pristine 1024x1024 PNG icon with transparent outside corners and surrounding margin, no shadow outside the tile, no flecks, no text, no mockup. Preserve the rounded-square framing and generous 10 percent transparent outer margin.

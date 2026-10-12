@@ -1,23 +1,30 @@
 import { app, BrowserWindow, Menu, dialog, shell, ipcMain } from 'electron';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { assertNextstepDatabase } from '../server/database-file.mjs';
 import { startServer } from '../server/http.mjs';
 import { startMcp, databaseArgument } from '../mcp/stdio.mjs';
+import { startCrmMcp } from '../mcp/crm-stdio.mjs';
 import { createAgentConnector } from './agent-connector.mjs';
 import { connectionConfig, setupInstructions, searchInstructions } from '../server/agent-instructions.mjs';
 import { agentHandoffUrl } from './agent-handoff.mjs';
+import { APPEARANCES, accentColor, readPreferences, writePreferences } from './preferences.mjs';
+import { backendOrigin } from '../server/backend.mjs';
 
 app.setName('Nextstep');
 if (process.env.NEXTSTEP_USER_DATA) app.setPath('userData',resolve(process.env.NEXTSTEP_USER_DATA));
-const mcpMode = process.argv.includes('--mcp');
+const crmMcpMode = process.argv.includes('--crm-mcp');
+const mcpMode = process.argv.includes('--mcp') || crmMcpMode;
 let service;
 let window;
 
+function iconPath() {
+  return resolve(app.getAppPath(),app.isPackaged ? 'nextstep.png' : 'desktop/icons/nextstep.png');
+}
+
 function savedDatabase() {
-  const settings = resolve(app.getPath('userData'),'settings.json');
-  if (!existsSync(settings)) return null;
-  const value = JSON.parse(readFileSync(settings,'utf8'));
+  const value = readPreferences(app.getPath('userData'));
+  if (!Object.hasOwn(value,'database')) return null;
   if (typeof value.database !== 'string' || !value.database) throw new Error('The saved database setting is invalid.');
   if (!existsSync(value.database)) throw new Error(`Your selected database is unavailable: ${value.database}. No replacement database was created.`);
   return value.database;
@@ -37,15 +44,42 @@ function appDatabase() {
   return path;
 }
 function remember(database) {
-  mkdirSync(app.getPath('userData'),{recursive:true});
-  writeFileSync(resolve(app.getPath('userData'),'settings.json'),JSON.stringify({database},null,2));
+  writePreferences(app.getPath('userData'),{database,backendUrl:null});
+}
+function preferences() {
+  const saved = readPreferences(app.getPath('userData'));
+  return {accent:saved.accent || APPEARANCES[0].color,backendUrl:service?.backendUrl || null};
+}
+function validateSender(event) {
+  if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || new URL(event.senderFrame.url).origin !== service.url) throw new Error('This action is only available in the Nextstep window.');
+}
+function setAppearance(color) {
+  const accent = accentColor(color);
+  writePreferences(app.getPath('userData'),{accent});
+  window?.webContents.send('nextstep:appearance-changed',accent);
+  buildMenu();
+  return accent;
+}
+async function showSettings() {
+  await showWindow();
+  window.webContents.send('nextstep:open-settings');
+}
+function buildMenu() {
+  const {accent,backendUrl} = preferences();
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    ...(process.platform === 'darwin' ? [{label:'Nextstep',submenu:[{role:'about'},{label:'Settings…',accelerator:'CmdOrCtrl+,',click:() => { void showSettings(); }},{type:'separator'},{role:'hide'},{role:'hideOthers'},{role:'unhide'},{type:'separator'},{role:'quit'}]}] : []),
+    {label:'File',submenu:[{label:'Open database…',click:() => { void openDatabase(); }},{label:'Show database in folder',enabled:!backendUrl,click:() => shell.showItemInFolder(service.database)},{label:'Backend connection…',click:() => { void showSettings(); }},{type:'separator'},{role:process.platform === 'darwin' ? 'close' : 'quit'}]},
+    {label:'Edit',submenu:[{role:'undo'},{role:'redo'},{type:'separator'},{role:'cut'},{role:'copy'},{role:'paste'},{role:'selectAll'}]},
+    {label:'View',submenu:[{label:'Appearance',submenu:[...APPEARANCES.map(({name,color}) => ({id:`appearance-${name.toLowerCase()}`,label:name,type:'radio',checked:accent === color,click:() => setAppearance(color)})),{label:'Custom color…',click:() => { void showSettings(); }}]},{label:'Settings…',accelerator:process.platform === 'darwin' ? undefined : 'CmdOrCtrl+,',click:() => { void showSettings(); }},{type:'separator'},{role:'reload'},{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'},{role:'togglefullscreen'}]},
+    {label:'Window',submenu:[{role:'minimize'},{role:'zoom'}]}
+  ]));
 }
 function external(url) {
   try { const parsed = new URL(url); if (['http:','https:'].includes(parsed.protocol) && !parsed.username && !parsed.password) void shell.openExternal(parsed.href); } catch { /* Ignore unsupported links. */ }
 }
 async function showWindow() {
   if (window && !window.isDestroyed()) { window.show(); window.focus(); return; }
-  window = new BrowserWindow({width:1450,height:980,minWidth:750,minHeight:600,title:'Nextstep',backgroundColor:'#ffffff',webPreferences:{preload:resolve(import.meta.dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  window = new BrowserWindow({width:1450,height:980,minWidth:750,minHeight:600,title:'Nextstep',icon:iconPath(),backgroundColor:'#ffffff',webPreferences:{preload:resolve(import.meta.dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
   window.webContents.setWindowOpenHandler(({url}) => { external(url); return {action:'deny'}; });
   window.webContents.on('will-navigate',(event,url) => { if (new URL(url).origin !== service.url) { event.preventDefault(); external(url); } });
   const allowClipboard = (contents,permission) => {
@@ -76,22 +110,21 @@ async function openDatabase() {
     if (error.code !== 'ERR_ABORTED') dialog.showErrorBox('Could not open database',error.message);
     return;
   }
-  remember(database); await previous.close();
+  remember(database); buildMenu(); await previous.close();
 }
 function createService(database) {
   if (existsSync(database)) assertNextstepDatabase(database);
   const args = app.isPackaged ? ['--mcp'] : [app.getAppPath(),'--mcp'];
-  return startServer({port:0,database,dist:resolve(app.getAppPath(),'dist'),agentCommand:{command:process.execPath,args}});
+  return startServer({port:0,database,dist:resolve(app.getAppPath(),'dist'),agentCommand:{command:process.execPath,args},crmAgentCommand:{command:process.execPath,args:app.isPackaged ? ['--crm-mcp'] : [app.getAppPath(),'--crm-mcp']}});
 }
 function agentBridge() {
   const testHome = process.env.NEXTSTEP_AGENT_CONFIG_HOME;
   const connector = createAgentConnector({home:testHome || app.getPath('home'),env:testHome ? {...process.env,CODEX_HOME:resolve(testHome,'.codex'),CLAUDE_CONFIG_DIR:''} : process.env});
-  const validate = event => {
-    if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || new URL(event.senderFrame.url).origin !== service.url) throw new Error('This action is only available in the Nextstep window.');
-  };
+  const validate = validateSender;
   let connecting = false;
-  ipcMain.handle('nextstep:agents',event => { validate(event); return connector.detect(); });
+  ipcMain.handle('nextstep:agents',event => { validate(event); return service.backendUrl ? [] : connector.detect(); });
   async function configureAgent(provider) {
+    if (service.backendUrl) throw new Error('Connect your agent to the self-hosted backend over SSH. Automatic local database configuration is unavailable in this mode.');
     if (connecting) throw new Error('A connection is already being added.');
     const active = service;
     if (active.store.agentStatus().schedule.provider !== provider) throw new Error('Save your agent choice first.');
@@ -127,26 +160,64 @@ function agentBridge() {
     return {instructions};
   });
 }
+function settingsBridge() {
+  ipcMain.handle('nextstep:preferences',event => { validateSender(event); return preferences(); });
+  ipcMain.handle('nextstep:set-appearance',(event,color) => { validateSender(event); return setAppearance(color); });
+  let switching = false;
+  ipcMain.handle('nextstep:set-backend',async (event,value) => {
+    validateSender(event);
+    if (switching) throw new Error('A backend connection is already being changed.');
+    const backendUrl = value === null ? null : backendOrigin(value);
+    if (backendUrl === service.url) throw new Error('This is the desktop app itself. Enter the address of your separate backend.');
+    if (backendUrl === service.backendUrl) return preferences();
+    switching = true;
+    let replacement;
+    const previous = service;
+    try {
+      replacement = backendUrl ? await startServer({port:0,backendUrl,dist:resolve(app.getAppPath(),'dist')}) : await createService(appDatabase());
+      service = replacement;
+      await window.loadURL(service.url);
+      if (backendUrl) writePreferences(app.getPath('userData'),{backendUrl});
+      else remember(service.database);
+      buildMenu();
+      await previous.close();
+      return preferences();
+    } catch (error) {
+      service = previous;
+      if (replacement && window.webContents.getURL().startsWith(replacement.url)) await window.loadURL(previous.url);
+      if (replacement) await replacement.close();
+      throw error;
+    } finally { switching = false; }
+  });
+}
 async function main() {
   if (mcpMode) {
     app.dock?.hide();
     await app.whenReady();
-    await startMcp(appDatabase(),() => app.quit());
+    if (crmMcpMode) await startCrmMcp(appDatabase(),{allowWrites:process.argv.includes('--allow-writes'),onClose:() => app.quit()});
+    else await startMcp(appDatabase(),() => app.quit());
     return;
   }
   if (!app.requestSingleInstanceLock()) { app.quit(); return; }
   app.on('second-instance',() => { if (service) void showWindow(); });
   await app.whenReady();
-  const database = appDatabase();
-  service = await createService(database); remember(database);
+  const selected = readPreferences(app.getPath('userData')).backendUrl;
+  if (process.platform === 'darwin') {
+    app.dock?.setIcon(iconPath());
+  }
+  if (selected && !process.argv.includes('--database') && !process.env.NEXTSTEP_DB_PATH && !process.env.DB_PATH) {
+    while (!service) {
+      try { service = await startServer({port:0,backendUrl:selected,dist:resolve(app.getAppPath(),'dist')}); }
+      catch (error) {
+        const choice = dialog.showMessageBoxSync({type:'error',title:'Backend unavailable',message:error.message,buttons:['Retry','Open local database','Quit'],defaultId:0,cancelId:2});
+        if (choice === 2) { app.quit(); return; }
+        if (choice === 1) { const database = appDatabase(); service = await createService(database); remember(database); }
+      }
+    }
+  } else { const database = appDatabase(); service = await createService(database); remember(database); }
   agentBridge();
-  Menu.setApplicationMenu(Menu.buildFromTemplate([
-    ...(process.platform === 'darwin' ? [{label:'Nextstep',submenu:[{role:'about'},{type:'separator'},{role:'hide'},{role:'hideOthers'},{role:'unhide'},{type:'separator'},{role:'quit'}]}] : []),
-    {label:'File',submenu:[{label:'Open database…',click:() => { void openDatabase(); }},{label:'Show database in folder',click:() => shell.showItemInFolder(service.database)},{type:'separator'},{role:process.platform === 'darwin' ? 'close' : 'quit'}]},
-    {label:'Edit',submenu:[{role:'undo'},{role:'redo'},{type:'separator'},{role:'cut'},{role:'copy'},{role:'paste'},{role:'selectAll'}]},
-    {label:'View',submenu:[{role:'reload'},{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'},{role:'togglefullscreen'}]},
-    {label:'Window',submenu:[{role:'minimize'},{role:'zoom'}]}
-  ]));
+  settingsBridge();
+  buildMenu();
   await showWindow();
   app.on('activate',() => { void showWindow(); });
   app.on('window-all-closed',() => { if (process.platform !== 'darwin') app.quit(); });
@@ -154,7 +225,7 @@ async function main() {
   // waiting on asynchronous HTTP teardown here can stall Electron's shutdown.
   app.on('will-quit',() => {
     service.server.closeAllConnections();
-    service.store.close();
+    service.store?.close();
   });
 }
 main().catch(error => {

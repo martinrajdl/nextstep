@@ -3,6 +3,9 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { companyKey, opportunityKeys } from './job-identity.mjs';
+import { AppError } from './errors.mjs';
+import { createComposableStore } from './crm-store.mjs';
+export { AppError } from './errors.mjs';
 
 export const STAGES = ['uninterested', 'prospect', 'interested', 'applied', 'screening', 'interview', 'final', 'offer', 'accepted', 'rejected', 'withdrawn'];
 const opportunityColumns = `
@@ -10,9 +13,6 @@ const opportunityColumns = `
   position INTEGER NOT NULL, version INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
 `;
-export class AppError extends Error {
-  constructor(message, status = 400) { super(message); this.status = status; }
-}
 const profileLimits = { roles: 2000, locations: 2000, workStyle: 1000, employmentType: 1000, compensation: 1000, experience: 8000, preferences: 4000, exclusions: 4000 };
 export function readSearchProfile(db) {
   const blank = { ...Object.fromEntries(Object.keys(profileLimits).map(key => [key, ''])), version: 0, updatedAt: null };
@@ -145,6 +145,7 @@ export function openStore(filename) {
     return get(id);
   };
   return {
+    crm: createComposableStore(db),
     list, get, activity,
     agentStatus() { return {schedule:schedule(),runs:runs(),onboarding:readOnboarding(db)}; },
     updateOnboarding(input) {

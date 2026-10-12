@@ -8,7 +8,7 @@ test.beforeEach(async ({request}) => {
   await request.patch('/api/onboarding',{data:{version:onboarding.version,status:'new',step:0}});
 });
 test('first launch is generic, can be skipped, stays skipped, and can be resumed',async ({page,request}) => {
-  await page.goto('/');
+  await page.goto('/jobs');
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByLabel('Roles and work you want')).toHaveValue('');
   await expect(page.getByLabel('Location and work eligibility')).toHaveValue('');
@@ -32,7 +32,7 @@ test('first launch is generic, can be skipped, stays skipped, and can be resumed
   const {profile} = await (await request.get('/api/profile')).json(); expect(profile.roles).toBe('Museum education and public programmes');
 });
 test('manual browser connection and on-demand handoff are honest and contain the exact database',async ({page,request}) => {
-  await page.goto('/');
+  await page.goto('/jobs');
   await page.getByLabel('Roles and work you want').fill('Restoration work');
   await page.getByRole('button',{name:'Continue',exact:true}).click();
   await page.getByRole('button',{name:'Codex',exact:false}).click();
@@ -52,7 +52,7 @@ test('manual browser connection and on-demand handoff are honest and contain the
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 test('mobile setup keeps profile drafts on conflict and has no horizontal overflow',async ({page,request}) => {
-  await page.setViewportSize({width:390,height:844}); await page.goto('/');
+  await page.setViewportSize({width:390,height:844}); await page.goto('/jobs');
   await page.getByLabel('Roles and work you want').fill('My unsaved search');
   const {profile} = await (await request.get('/api/profile')).json();
   await request.patch('/api/profile',{data:{version:profile.version,roles:'Another confirmed preference'}});
@@ -71,6 +71,11 @@ for (const provider of ['claude-code','codex'] as const) {
     await page.addInitScript(provider => {
       Object.defineProperty(navigator,'clipboard',{value:{writeText:async () => { throw new Error('Clipboard blocked'); }}});
       window.nextstepDesktop = {
+      getPreferences:async () => ({accent:'#777777',backendUrl:null}),
+      setAppearance:async color => color,
+      setBackend:async url => ({accent:'#777777',backendUrl:url}),
+      onAppearanceChanged:() => () => {},
+      onOpenSettings:() => () => {},
         getAgents:async () => [{provider,label:provider,installed:true,canConnect:true}],
         connectAgent:async () => { throw new Error('Opening must perform connection setup in the main process'); },
         openAgent:async (selected,purpose) => {
@@ -79,7 +84,7 @@ for (const provider of ['claude-code','codex'] as const) {
         },
       };
     },provider);
-    await page.goto('/');
+    await page.goto('/jobs');
     await page.getByLabel('Roles and work you want').fill('Fictional research preferences');
     await page.getByRole('button',{name:'Continue',exact:true}).click();
     const label = provider === 'claude-code' ? 'Claude Code' : 'Codex';
@@ -100,12 +105,17 @@ for (const provider of ['claude-code','codex'] as const) {
 test('a failed desktop launch keeps the request available without claiming a connection',async ({page}) => {
   await page.addInitScript(() => {
     window.nextstepDesktop = {
+      getPreferences:async () => ({accent:'#777777',backendUrl:null}),
+      setAppearance:async color => color,
+      setBackend:async url => ({accent:'#777777',backendUrl:url}),
+      onAppearanceChanged:() => () => {},
+      onOpenSettings:() => () => {},
       getAgents:async () => [{provider:'claude-code',label:'Claude Code',installed:true,canConnect:true}],
       connectAgent:async () => ({configured:true}),
       openAgent:async () => { throw new Error('Could not open a new Claude Code conversation'); },
     };
   });
-  await page.goto('/');
+  await page.goto('/jobs');
   await page.getByLabel('Roles and work you want').fill('Fictional research preferences');
   await page.getByRole('button',{name:'Continue',exact:true}).click();
   await page.getByRole('button',{name:'Claude Code',exact:false}).click();

@@ -2,11 +2,13 @@ import { useState, type CSSProperties } from 'react';
 import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, closestCorners, pointerWithin, useDroppable, useSensor, useSensors, type DragEndEvent, type CollisionDetection, type KeyboardCoordinateGetter } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { CalendarDays, GripVertical, MapPin, Plus, Star } from 'lucide-react';
+import { CalendarDays, CircleX, GripVertical, MapPin, Plus, Star } from 'lucide-react';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
 import { companyColor, dateLabel, initials, STAGES, today, type Opportunity, type StageId } from '@/lib/model';
 
 type Props = { jobs: Opportunity[]; allJobs: Opportunity[]; stages: typeof STAGES[number][]; busy: boolean; filtered: boolean; onOpen: (job: Opportunity) => void; onAdd: (stage: StageId) => void; onMove: (job: Opportunity, stage: StageId, beforeId: string | null) => void };
+const REJECT_DROP_ID = 'reject-drop-target';
+const dragInstructions = 'To pick up a card, press Space. Use the arrow keys to move it. To mark it as rejected, press Arrow Down after the last card in a column. Press Space to drop, or Escape to cancel.';
 export function CompanyMark({ company, small = false }: { company: string; small?: boolean }) {
   const color = companyColor(company);
   return <span className={`company-mark ${small ? 'small' : ''}`} style={{ color, background: `${color}15` }}>{initials(company)}</span>;
@@ -30,17 +32,30 @@ function Column({ stage, jobs, busy, filtered, onAdd, onOpen }: { stage: typeof 
     <button className="add-card" onClick={() => onAdd(stage.id)}><Plus size={15}/>Add opportunity</button>
   </div></section>;
 }
+function RejectedDropTarget({ visible }: { visible: boolean }) {
+  const { setNodeRef, isOver } = useDroppable({ id: REJECT_DROP_ID, data: { stage: 'rejected' }, disabled: !visible });
+  if (!visible) return null;
+  return <section ref={setNodeRef} aria-label="Rejected drop target" className={`rejected-drop-target ${isOver ? 'drop-over' : ''}`}><CircleX size={24} aria-hidden="true"/><div><strong>Rejected</strong><span>{isOver ? 'Release to mark as rejected' : 'Drop here · saved in Closed'}</span></div></section>;
+}
 const collision: CollisionDetection = args => {
   const pointerCoordinates = args.pointerCoordinates || { x: args.collisionRect.left + args.collisionRect.width / 2, y: args.collisionRect.top + args.collisionRect.height / 2 };
   const hits = pointerWithin({ ...args, pointerCoordinates });
+  const rejectedHit = hits.find(hit => hit.id === REJECT_DROP_ID);
+  if (rejectedHit) return [rejectedHit];
   const cardHits = hits.filter(hit => !STAGES.some(stage => stage.id === hit.id));
-  return cardHits.length ? cardHits : hits.length ? hits : closestCorners(args);
+  // A missed drop must never select Rejected just because it is nearby.
+  return cardHits.length ? cardHits : hits.length ? hits : closestCorners({ ...args, droppableContainers: args.droppableContainers.filter(item => item.id !== REJECT_DROP_ID) });
 };
 const keyboardCoordinates: KeyboardCoordinateGetter = (event, { context }) => {
   if (!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.code)) return;
   event.preventDefault();
-  const { active, over, droppableContainers, droppableRects } = context;
+  const { active, over, droppableContainers, droppableRects, collisionRect } = context;
   if (!active) return;
+  if (over?.id === REJECT_DROP_ID) {
+    const rect = droppableRects.get(active.id);
+    if (event.code === 'ArrowUp' && rect) return { x: rect.left, y: rect.top };
+    return;
+  }
   const current = droppableContainers.get(over?.id || active.id);
   const stage = current?.data.current?.stage || active.data.current?.stage;
   if (event.code === 'ArrowLeft' || event.code === 'ArrowRight') {
@@ -50,11 +65,13 @@ const keyboardCoordinates: KeyboardCoordinateGetter = (event, { context }) => {
     const rect = next && droppableRects.get(next.id);
     if (rect) return { x: rect.left + 10, y: rect.top + 10 };
   } else {
-    const cards = droppableContainers.getEnabled().filter(item => item.data.current?.stage === stage && !STAGES.some(stage => stage.id === item.id)).sort((a,b) => (droppableRects.get(a.id)?.top || 0) - (droppableRects.get(b.id)?.top || 0));
+    const cards = droppableContainers.getEnabled().filter(item => item.id !== REJECT_DROP_ID && item.data.current?.stage === stage && !STAGES.some(stage => stage.id === item.id)).sort((a,b) => (droppableRects.get(a.id)?.top || 0) - (droppableRects.get(b.id)?.top || 0));
     const index = cards.findIndex(item => item.id === (over?.id || active.id));
     const next = cards[index < 0 ? (event.code === 'ArrowDown' ? 0 : cards.length-1) : index + (event.code === 'ArrowDown' ? 1 : -1)];
     const rect = next && droppableRects.get(next.id);
     if (rect) return { x: rect.left, y: rect.top };
+    const rejected = droppableRects.get(REJECT_DROP_ID);
+    if (event.code === 'ArrowDown' && !next && rejected && collisionRect) return { x: rejected.left + (rejected.width - collisionRect.width) / 2, y: rejected.top + (rejected.height - collisionRect.height) / 2 };
   }
 };
 export default function JobBoard({ jobs, allJobs, stages, busy, filtered, onOpen, onAdd, onMove }: Props) {
@@ -65,7 +82,7 @@ export default function JobBoard({ jobs, allJobs, stages, busy, filtered, onOpen
     if (!over || dragged.id === over.id) return;
     const job = allJobs.find(item => item.id === dragged.id); if (!job) return;
     const targetJob = allJobs.find(item => item.id === over.id);
-    const stage = targetJob?.stage || STAGES.find(stage => stage.id === over.id)?.id;
+    const stage = over.id === REJECT_DROP_ID ? 'rejected' : targetJob?.stage || STAGES.find(stage => stage.id === over.id)?.id;
     if (!stage) return;
     const targetJobs = allJobs.filter(item => item.stage === stage && item.id !== job.id);
     let beforeId: string | null = null;
@@ -77,5 +94,6 @@ export default function JobBoard({ jobs, allJobs, stages, busy, filtered, onOpen
     }
     onMove(job, stage, beforeId);
   }
-  return <DndContext sensors={sensors} collisionDetection={collision} onDragStart={({ active }) => setActive(allJobs.find(job => job.id === active.id) || null)} onDragCancel={() => setActive(null)} onDragEnd={end}><div className="board" aria-label="Opportunity board">{stages.map(stage => <Column key={stage.id} stage={stage} jobs={jobs.filter(job => job.stage === stage.id)} busy={busy} filtered={filtered} onAdd={onAdd} onOpen={onOpen}/>)}</div><DragOverlay dropAnimation={null} style={{pointerEvents:'none'}}>{active && <div className="job-card drag-preview"><CardContent job={active}/></div>}</DragOverlay></DndContext>;
+  const canReject = Boolean(active && !STAGES.find(stage => stage.id === active.stage)?.closed && !stages.some(stage => stage.id === 'rejected'));
+  return <DndContext sensors={sensors} collisionDetection={collision} accessibility={{ screenReaderInstructions: { draggable: dragInstructions } }} onDragStart={({ active }) => setActive(allJobs.find(job => job.id === active.id) || null)} onDragCancel={() => setActive(null)} onDragEnd={end}><div className="board" aria-label="Opportunity board">{stages.map(stage => <Column key={stage.id} stage={stage} jobs={jobs.filter(job => job.stage === stage.id)} busy={busy} filtered={filtered} onAdd={onAdd} onOpen={onOpen}/>)}</div><RejectedDropTarget visible={canReject}/><DragOverlay dropAnimation={null} style={{pointerEvents:'none'}}>{active && <div className="job-card drag-preview"><CardContent job={active}/></div>}</DragOverlay></DndContext>;
 }
