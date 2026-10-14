@@ -1,6 +1,6 @@
 # Desktop app and local agent connection
 
-Nextstep is primarily a local-first Electron app. It bundles its interface, HTTP server, SQLite runtime, and local MCP connectors. Your agent runs the workflow: sourcing information, shaping collections, proposing changes and moving records. You follow progress in Agent flows and review decisions. The Jobs workspace preserves its separate bounded research connector. No model key or external database service is needed for local use.
+Nextstep is primarily a local-first Electron app. It bundles its interface, HTTP server, SQLite runtime, and local MCP connectors. Your agent runs the workflow: sourcing information, shaping collections, proposing changes and moving records. You follow progress in Agent progress and review decisions. The Jobs workspace preserves its separate bounded research connector. No model key or external database service is needed for local use.
 
 ## Build and run
 
@@ -29,11 +29,11 @@ To choose another target after building the interface, run `node scripts/package
 
 ## Appearance and backend settings
 
-Open **Nextstep → Settings…** (Command-comma on macOS), **View → Settings…**, or **Settings** in the workspace sidebar. **View → Appearance** offers Neutral (the white and light gray default), Green, Blue, Violet, Rose and Slate; the Settings panel also has a custom accent picker. Preferences persist in the desktop settings directory across restarts and backend changes. The generated app icon keeps its neutral colors. Browser appearance preferences are stored for that origin only.
+Open **Nextstep → Settings…** (Command-comma on macOS), **View → Settings…**, or **Settings** in the workspace sidebar. **View → Appearance** offers Light, Dark and System modes, followed by Neutral (the white and light gray default), Green, Blue, Violet, Rose and Slate accents. The Settings panel also has a custom accent picker. The title bar follows the chosen mode; the interface has a separate draggable strip for macOS window controls. Preferences persist in the desktop settings directory across restarts and backend changes. The generated app icon keeps its neutral colors. Browser appearance preferences are stored for that origin only.
 
 Local SQLite is the default. To use a backend on your own server, start a private SSH tunnel and enter its loopback address under **Settings → Data & backend**. Electron continues to serve its bundled interface locally and proxies API requests through the tunnel. It never loads a remote renderer or grants native privileges to server code. No local shadow database is opened in this mode. A failed connection shows an error; it does not fall back to writing locally. **Use local database** returns to the existing selected file without copying, merging or deleting records. See [self-hosting.md](self-hosting.md).
 
-Automatic Jobs agent installation is available only for a local database. Self-hosted agents must connect over SSH on the server, using the server's exact database path. The generic Agent connection panel can generate an SSH configuration from a host or alias you provide.
+Automatic agent installation is available only for a local database. Self-hosted agents must connect over SSH on the server, using the server's exact database path. The generic Your agent panel can generate an SSH configuration from a host or alias you provide.
 
 ## Your database
 
@@ -47,7 +47,17 @@ For a full backup, stop the app and any connected MCP helpers, then copy the dat
 
 ## First-run setup
 
-The first launch opens the composable workspace. Open **Agent connection** to connect a general CRM agent. Choosing **Job search** opens the preserved jobs workspace, whose first use offers a three-step search wizard. Existing job databases keep their preferences and can resume it from **Search agent**.
+The first launch asks you to **Connect your agent**. Choose **Connect Codex** or **Connect Claude Code**. Nextstep adds a separate `nextstep-crm` MCP connection for the selected database and opens a new local conversation with the setup request prefilled. Review and send it in your agent; Nextstep does not send automatically.
+
+The agent asks what you want to track, proposes collections, typed fields, relationships, views and known records, and reports its progress. Click **Review proposed changes** in Nextstep, inspect the proposal and approve it. The first accepted collection opens automatically. The agent can discover and query that same schema through MCP. Manual schema and JSON tools are under **Other agents & advanced setup** on the empty workspace, and **Manual tools** on the populated home page.
+
+The CRM handoff uses a `Workspace` folder in Nextstep's application-data directory. It preserves the separate `nextstep` Jobs connection and its permissions. Existing conflicting agent configurations are never silently replaced. Other agents and self-hosted workspaces can copy the exact configuration and setup request under **Other agents & advanced setup**. The general connector proposes by default; trusted direct writes require explicitly adding `--allow-writes`.
+
+**Workspace home** in the top bar returns to the main workspace from any collection or from Job search. The current collection or workspace stays visible in the header.
+
+### Job search setup
+
+Choosing **Job search** opens the preserved jobs workspace, whose first use offers a three-step search wizard. Existing job databases keep their preferences and can resume it from **Search agent**.
 
 1. **Your search:** describe the work you want and optionally your location and work arrangement. More preferences are tucked under an optional section. No profession, region, or company type is assumed.
 2. **Your agent:** choose Codex or Claude Code Desktop. Search only when asked, or choose weekdays, daily, or a custom schedule. The timezone starts from your computer's setting.
@@ -101,7 +111,7 @@ Explicit preferences always take precedence. Inferred adjustments stay tentative
 
 The research agent must never edit app code, the interface, existing notes, stages, priorities, or card order. It only imports verified new jobs at the top of Prospects and records search reports. Applied, Interested, Uninterested, other stages, and removed records all participate in duplicate checks. It does not submit applications or contact employers.
 
-Your chosen agent provider processes the context it reads. Nextstep itself does not add a model or telemetry service.
+Your chosen agent provider processes the context it reads. Nextstep does not add a model. Optional usage counts are off by default under **Settings → Privacy**. Opting in sends one daily check-in with app version, OS family and an identifier that changes each day; it never sends CRM or agent content. See [privacy.md](privacy.md) for the payload, retention and infrastructure details.
 
 ## MCP tools
 
@@ -127,6 +137,9 @@ pnpm test:e2e
 pnpm test:desktop
 node scripts/test-desktop.mjs "/absolute/path/to/Nextstep.app/Contents/MacOS/Nextstep"
 node scripts/test-desktop-settings.mjs "/absolute/path/to/Nextstep.app/Contents/MacOS/Nextstep"
+node scripts/test-desktop-crm.mjs "/absolute/path/to/Nextstep.app/Contents/MacOS/Nextstep"
 ```
 
 Tests use temporary databases and agent configurations. Run `node scripts/test-desktop.mjs --source claude-code` and `node scripts/test-desktop.mjs --source codex` to exercise both installed providers; replace `--source` with a packaged executable path to test the release. The check goes through onboarding, installs the connection into isolated settings, verifies the exact new-conversation URL, full prompt, and local folder, and checks that a blocked clipboard cannot prevent opening. It then confirms the connection through a real MCP client, imports a fictional match, verifies live board refresh, and reads the database after closing the window. `NEXTSTEP_AGENT_CONFIG_HOME` overrides the agent settings home for these tests; it is read only by the native main process. OS link dispatch is stubbed, and no message is sent to an agent. Separately open an unsent test draft in each installed agent to confirm the destination is a new local Code/Codex conversation. Provider-native scheduling must be checked during connection setup.
+
+The CRM desktop check also exercises a real MCP session: first-launch connection, agent-reported progress, a proposed schema and board view, human approval, automatic collection display, and unchanged Jobs records. The external agent URL is captured without opening or sending a real conversation.

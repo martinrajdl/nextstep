@@ -150,7 +150,7 @@ export default function Review({
     <>
       <div className="crm-page-heading">
         <div className="crm-eyebrow">HUMAN IN THE LOOP</div>
-        <h1>Review inbox</h1>
+        <h1>Review changes</h1>
         <p>Your agents do the groundwork. You make the call.</p>
       </div>
       <div className="crm-view-tabs">

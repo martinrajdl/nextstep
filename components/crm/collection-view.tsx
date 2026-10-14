@@ -345,7 +345,7 @@ export default function CollectionView({
         <div className="crm-heading-actions">
           <button className="crm-button" onClick={onSchema}>
             <Settings2 size={16} />
-            Shape
+            Edit fields
           </button>
           <button className="crm-button crm-button-primary" onClick={onNew}>
             <Plus size={16} />

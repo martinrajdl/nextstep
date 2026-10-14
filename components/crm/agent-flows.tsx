@@ -14,10 +14,10 @@ import { dateTime, errorMessage, type AgentFlow } from '@/lib/crm';
 import Modal from './modal';
 
 const stages = [
-  ['sourcing', 'Source', Search],
-  ['shaping', 'Shape', Shapes],
-  ['review', 'Review', ShieldCheck],
-  ['updating', 'Move & enrich', GitBranch],
+  ['sourcing', 'Find information', Search],
+  ['shaping', 'Organize it', Shapes],
+  ['review', 'Review changes', ShieldCheck],
+  ['updating', 'Keep it up to date', GitBranch],
   ['complete', 'Complete', Check],
 ] as const;
 export function FlowLifecycle() {
@@ -43,9 +43,9 @@ export function flowLabel(flow: AgentFlow) {
       ? 'Changes rejected'
       : 'Changes applied · ready to continue';
   return {
-    sourcing: 'Sourcing information',
-    shaping: 'Shaping the workspace',
-    updating: 'Moving & enriching records',
+    sourcing: 'Finding information',
+    shaping: 'Organizing information',
+    updating: 'Updating saved information',
     complete: 'Agent reported complete',
     blocked: 'Needs attention',
   }[flow.stage];
@@ -138,10 +138,10 @@ export default function AgentFlows({
         <div className="crm-eyebrow">
           AGENTS DO THE WORK. YOU SEE IT HAPPEN.
         </div>
-        <h1>Your agents, in motion.</h1>
+        <h1>Agent progress</h1>
         <p>
-          Follow the work from a first source to a living workspace. Agents
-          report their progress; Nextstep verifies which changes were applied.
+          See what your agent is finding, organizing, or updating. Agents report
+          their progress here; Nextstep shows which changes were saved.
         </p>
       </div>
       <FlowLifecycle />

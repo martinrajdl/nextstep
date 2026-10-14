@@ -16,7 +16,7 @@ The initial workspace is empty. People, Companies, Projects, Research and Deals 
 
 ## Shape data with an agent
 
-Open **Agent connection** for a config targeting the exact running database. Copy it into your agent's MCP settings. It uses a separate `nextstep-crm` connection; the existing `nextstep` Jobs research connector retains its original seven bounded tools.
+On first launch, choose **Connect Codex** or **Connect Claude Code**. Nextstep adds the connection and opens a prepared conversation; review and send it in your agent. Describe your goal there, let the agent propose the schema, and approve it in Nextstep. The accepted collection opens automatically. **Your agent → Other agents & advanced setup** exposes a copyable config and request for other clients, targeting the exact running database. It uses a separate `nextstep-crm` connection; the existing `nextstep` Jobs research connector retains its original seven bounded tools.
 
 From a source checkout:
 
@@ -40,13 +40,13 @@ Tools:
 
 The default connection exposes no approval or direct-write tool. To trust a particular connection with direct writes, explicitly start it with `--allow-writes`. That adds `nextstep_crm_apply`. It still validates data, checks versions and records history. Actor names are provenance labels, not authenticated identities. A process with filesystem access to the SQLite file is already trusted at the operating-system boundary.
 
-Packaged desktop connections use the application executable with `--crm-mcp --database …`. The app's Agent connection panel generates the correct packaged or source command. The existing Jobs setup continues using `--mcp`.
+Packaged desktop connections use the application executable with `--crm-mcp --database …`. The app's Your agent panel generates the correct packaged or source command. The existing Jobs setup continues using `--mcp`.
 
 There is no model runner, hidden AI service or model API key inside Nextstep. Your chosen agent performs interpretation and research; Nextstep provides deterministic shaping, storage and review. Record content is untrusted data, not instructions for an agent. Your agent provider may process the context it reads.
 
 ## The agent lifecycle
 
-1. **Direction:** the user gives their connected agent an outcome. The Agent connection panel prepares a brief with the workflow contract.
+1. **Direction:** the user gives their connected agent an outcome. The setup conversation contains a brief with the workflow contract.
 2. **Source:** the agent reads context, searches with its own authorized tools, and records a flow at stage `sourcing`, including source links and uncertainties.
 3. **Shape:** the agent designs collections, relations and views, or updates existing records. It reports stage `shaping` and previews a typed change set.
 4. **Review:** the agent submits proposals and reports stage `review` with real `changeIds`. Pending records remain unchanged. The user approves or rejects the exact diff; explicitly trusted agents can apply directly.
@@ -54,7 +54,7 @@ There is no model runner, hidden AI service or model API key inside Nextstep. Yo
 
 Start a flow with a stable `id`, a unique `reportId`, `version: 0`, `goal`, `actor`, `stage` and `message`. Later reports use the current flow version and a new report ID. Identical retries are idempotent. Each report can add up to 50 `{label,url}` sources and 100 `changeIds`; a flow retains at most 200 distinct sources and change IDs. IDs link existing proposals or applied change sets. Pending or rejected changes prevent a completed report. Rejected work can be marked blocked and a revised goal started in a new flow.
 
-**Agent flows** refreshes every four seconds while visible and shows the last report time. Progress is agent-reported, not proof that an external process is still running. Applied-operation counts and proposal outcomes are derived from Nextstep's own history. Reports never grant approval or modify CRM records. The export retains the full report timeline. Nextstep does not execute, schedule, or automatically wake agents after review; the connected agent must read the review outcome to continue.
+**Agent progress** refreshes every four seconds while visible and shows the last report time. Progress is agent-reported, not proof that an external process is still running. Applied-operation counts and proposal outcomes are derived from Nextstep's own history. Reports never grant approval or modify CRM records. The export retains the full report timeline. Nextstep does not execute, schedule, or automatically wake agents after review; the connected agent must read the review outcome to continue.
 
 History without `after` returns recent events newest first. With `after > 0`, it returns the oldest unseen events first; advance the cursor to the last returned ID to avoid missing events across pages.
 

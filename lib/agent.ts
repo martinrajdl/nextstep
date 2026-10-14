@@ -4,16 +4,22 @@ export type SearchRun = {id:string;summary:string;learning:string;createdAt:stri
 export type Onboarding = {status:'new'|'started'|'dismissed'|'complete';step:number;connectionToken:string;configuredProvider:string;configuredAt:string|null;connectedProvider:string;connectedAt:string|null;version:number};
 export type AgentState = {schedule:Schedule;runs:SearchRun[];onboarding:Onboarding;database:string;connection:{mcpServers:{nextstep:{command:string;args:string[]}}}};
 export type DesktopAgent = {provider:Provider;label:string;installed:boolean;canConnect:boolean};
+export type ThemePreference = 'light'|'dark'|'system';
 declare global {
   interface Window {
     nextstepDesktop?: {
+      platform: string;
       getAgents:() => Promise<DesktopAgent[]>;
       connectAgent:(provider:Provider) => Promise<{configured:boolean}>;
       openAgent:(provider:Provider,purpose:'setup'|'search') => Promise<{instructions:string}>;
-      getPreferences:() => Promise<{accent:string;backendUrl:string|null}>;
+      openCrmAgent:(provider:Provider) => Promise<{configured:boolean;instructions:string}>;
+      getPreferences:() => Promise<{accent:string;theme:ThemePreference;backendUrl:string|null;usageEnabled:boolean}>;
       setAppearance:(color:string) => Promise<string>;
+      setTheme:(theme:ThemePreference) => Promise<ThemePreference>;
+      setUsageEnabled:(enabled:boolean) => Promise<boolean>;
       setBackend:(url:string|null) => Promise<{accent:string;backendUrl:string|null}>;
       onAppearanceChanged:(callback:(color:string) => void) => () => void;
+      onThemeChanged:(callback:(theme:ThemePreference) => void) => () => void;
       onOpenSettings:(callback:() => void) => () => void;
     };
   }

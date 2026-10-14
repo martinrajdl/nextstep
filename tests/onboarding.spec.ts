@@ -71,7 +71,12 @@ for (const provider of ['claude-code','codex'] as const) {
     await page.addInitScript(provider => {
       Object.defineProperty(navigator,'clipboard',{value:{writeText:async () => { throw new Error('Clipboard blocked'); }}});
       window.nextstepDesktop = {
-      getPreferences:async () => ({accent:'#777777',backendUrl:null}),
+      platform:'browser',
+      openCrmAgent:async () => ({configured:true,instructions:'Example setup request'}),
+      getPreferences:async () => ({accent:'#777777',theme:'light',backendUrl:null,usageEnabled:false}),
+      setTheme:async (theme) => theme,
+      onThemeChanged:() => () => {},
+      setUsageEnabled:async value => value,
       setAppearance:async color => color,
       setBackend:async url => ({accent:'#777777',backendUrl:url}),
       onAppearanceChanged:() => () => {},
@@ -105,7 +110,12 @@ for (const provider of ['claude-code','codex'] as const) {
 test('a failed desktop launch keeps the request available without claiming a connection',async ({page}) => {
   await page.addInitScript(() => {
     window.nextstepDesktop = {
-      getPreferences:async () => ({accent:'#777777',backendUrl:null}),
+      platform:'browser',
+      openCrmAgent:async () => ({configured:true,instructions:'Example setup request'}),
+      getPreferences:async () => ({accent:'#777777',theme:'light',backendUrl:null,usageEnabled:false}),
+      setTheme:async (theme) => theme,
+      onThemeChanged:() => () => {},
+      setUsageEnabled:async value => value,
       setAppearance:async color => color,
       setBackend:async url => ({accent:'#777777',backendUrl:url}),
       onAppearanceChanged:() => () => {},

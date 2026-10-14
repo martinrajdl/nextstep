@@ -43,12 +43,13 @@ test('workspace starts without records and supports a custom schema, persistent 
 }) => {
   await page.goto('/');
   await expect(
-    page.getByRole('heading', { name: /Make room for/ }),
+    page.getByRole('heading', { name: /Connect your agent.|Your workspace/ }),
   ).toBeVisible();
   await page.screenshot({
     path: 'test-results/composable-overview.png',
     fullPage: true,
   });
+  await page.getByText('Other agents & advanced setup',{exact:true}).click();
   await page
     .getByRole('button', { name: 'Create a collection', exact: true })
     .click();
@@ -133,7 +134,7 @@ test('JSON import stays a proposal until reviewed; before/after diff is inspecta
     .getByRole('button', { name: 'Send to review', exact: true })
     .click();
   await expect(
-    page.getByRole('heading', { name: 'Review inbox', exact: true }),
+    page.getByRole('heading', { name: 'Review changes', exact: true }),
   ).toBeVisible();
   const before = await (
     await request.post('/api/crm/query', {
@@ -295,7 +296,7 @@ test('stale edits preserve the draft, and stale agent approvals never partially 
       },
     ]),
   });
-  await page.getByRole('link', { name: /Review inbox/ }).click();
+  await page.getByRole('link', { name: /Review changes/ }).click();
   await page.getByRole('button', { name: /Stale example proposal/ }).click();
   await page
     .getByRole('button', { name: 'Approve change', exact: true })
@@ -322,7 +323,7 @@ test('mobile workspace and agent setup are usable, expose exact connection paths
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await expect(
-    page.getByRole('heading', { name: /Make room for/ }),
+    page.getByRole('heading', { name: /Connect your agent.|Your workspace/ }),
   ).toBeVisible();
   expect(
     await page.evaluate(
@@ -337,11 +338,12 @@ test('mobile workspace and agent setup are usable, expose exact connection paths
     .getByRole('button', { name: 'Open navigation', exact: true })
     .click();
   await page
-    .getByRole('link', { name: 'Agent connection', exact: true })
+    .getByRole('link', { name: 'Your agent', exact: true })
     .click();
   await expect(
-    page.getByRole('heading', { name: 'A shared language for your data.' }),
+    page.getByRole('heading', { name: 'Connect your agent.' }),
   ).toBeVisible();
+  await page.getByText('Other agents & advanced setup',{exact:true}).click();
   const context = await (await request.get('/api/crm/context')).json();
   await expect(page.locator('pre')).toContainText(
     context.connection.mcpServers['nextstep-crm'].args.at(-1),
@@ -462,7 +464,7 @@ test('agent progress links real proposals and reports applied work after human r
   await page
     .getByRole('button', { name: 'Approve change', exact: true })
     .click();
-  await page.getByRole('link', { name: 'Agent flows', exact: true }).click();
+  await page.getByRole('link', { name: 'Agent progress', exact: true }).click();
   await page
     .getByRole('button', { name: /Find fictional studio contacts/ })
     .click();
@@ -474,4 +476,38 @@ test('agent progress links real proposals and reports applied work after human r
   const flow = await (await request.get('/api/crm/flows/' + flowId)).json();
   expect(flow.appliedCount).toBe(1);
   expect(flow.pendingCount).toBe(0);
+});
+
+test('light, dark and system modes persist across Jobs and collections without changing data', async ({page,request}) => {
+  await page.emulateMedia({colorScheme:'dark'});
+  await page.goto('/');
+  await expect(page).toHaveTitle('Workspace home · Nextstep');
+  await expect(page.locator('html')).toHaveAttribute('data-theme','light');
+  const before = await (await request.get('/api/opportunities')).json();
+  await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await page.getByRole('button',{name:'Dark mode',exact:true}).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
+  await expect(page.locator('body')).toHaveCSS('background-color','rgb(23, 25, 30)');
+  await page.getByRole('button',{name:'Blue accent',exact:true}).click();
+  await expect(page.locator('html')).toHaveAttribute('data-accent','#4473cf');
+  await page.screenshot({path:'test-results/settings-dark.png'});
+  await page.getByRole('button',{name:'Done',exact:true}).click();
+  const {onboarding} = await (await request.get('/api/agent')).json();
+  if (onboarding.status === 'new') await request.patch('/api/onboarding',{data:{version:onboarding.version,step:0,status:'dismissed'}});
+  await page.getByRole('link',{name:'Job search',exact:true}).click();
+  const setup = page.getByRole('dialog');
+  if (await setup.isVisible()) await page.getByRole('button',{name:'Close setup',exact:true}).click();
+  await expect(page).toHaveTitle('Job search · Nextstep');
+  await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
+  await page.getByRole('button',{name:'App settings',exact:true}).click();
+  await page.getByRole('button',{name:'System mode',exact:true}).click();
+  await page.emulateMedia({colorScheme:'light'});
+  await expect(page.locator('html')).toHaveAttribute('data-theme','light');
+  await page.emulateMedia({colorScheme:'dark'});
+  await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
+  await page.getByRole('button',{name:'Light mode',exact:true}).click();
+  await page.getByRole('button',{name:'Done',exact:true}).click();
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme','light');
+  expect(await (await request.get('/api/opportunities')).json()).toEqual(before);
 });

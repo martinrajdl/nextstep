@@ -5,9 +5,9 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Check, Database, Palette, Server } from 'lucide-react';
+import { Check, Database, Monitor, Moon, Palette, Server, Sun, ShieldCheck } from 'lucide-react';
 import Modal from './crm/modal';
-import { errorMessage } from '@/lib/agent';
+import { errorMessage, type ThemePreference } from '@/lib/agent';
 import '../app/appearance.css';
 
 const presets = [
@@ -19,6 +19,14 @@ const presets = [
   ['Slate', '#657486'],
 ] as const;
 const preferenceKey = 'nextstep-appearance-v1';
+const themeKey = 'nextstep-theme-v1';
+const themes = [{value:'light',label:'Light',icon:Sun},{value:'dark',label:'Dark',icon:Moon},{value:'system',label:'System',icon:Monitor}] as const;
+const validTheme = (value: unknown): value is ThemePreference => themes.some(theme => theme.value === value);
+function initialTheme(): ThemePreference {
+  try { const value = localStorage.getItem(themeKey); if (validTheme(value)) return value; }
+  catch { /* Appearance also works without browser storage. */ }
+  return 'light';
+}
 const validColor = (value: unknown): value is string =>
   typeof value === 'string' && /^#[a-f\d]{6}$/i.test(value);
 function initialAccent() {
@@ -48,16 +56,22 @@ function colorCoordinates(hex: string) {
         : ((r - g) / delta + 4) * 60;
   return { hue, saturation: Math.min(1.6, saturation / 0.35) };
 }
-type Preferences = { backendUrl: string | null; openSettings: () => void };
+type Preferences = { backendUrl: string | null; resolvedTheme: 'light'|'dark'; openSettings: () => void };
 const PreferencesContext = createContext<Preferences>({
   backendUrl: null,
+  resolvedTheme: 'light',
   openSettings: () => {},
 });
 export const useAppPreferences = () => useContext(PreferencesContext);
 
 export default function AppSettings({ children }: { children: ReactNode }) {
   const [accent, setAccent] = useState(initialAccent);
+  const [theme, setTheme] = useState<ThemePreference>(initialTheme);
+  const [systemDark, setSystemDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches);
+  const resolvedTheme = theme === 'system' ? (systemDark ? 'dark' : 'light') : theme;
   const [backendUrl, setBackendUrl] = useState<string | null>(null);
+  const [usageEnabled, setUsageEnabled] = useState(false);
+  const [savingUsage, setSavingUsage] = useState(false);
   const [open, setOpen] = useState(false);
   const [connection, setConnection] = useState('');
   const [error, setError] = useState('');
@@ -67,6 +81,18 @@ export default function AppSettings({ children }: { children: ReactNode }) {
     setConnection(backendUrl || 'http://127.0.0.1:4319');
     setOpen(true);
   };
+  useEffect(() => {
+    const system = matchMedia('(prefers-color-scheme: dark)');
+    const update = () => setSystemDark(system.matches);
+    system.addEventListener('change', update);
+    return () => system.removeEventListener('change', update);
+  }, []);
+  useEffect(() => {
+    document.documentElement.dataset.theme = resolvedTheme;
+    document.documentElement.classList.toggle('dark', resolvedTheme === 'dark');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolvedTheme === 'dark' ? '#17191e' : '#ffffff');
+    try { localStorage.setItem(themeKey, theme); } catch { /* Native settings are independent. */ }
+  }, [theme, resolvedTheme]);
   useEffect(() => {
     const { hue, saturation } = colorCoordinates(accent);
     document.documentElement.style.setProperty('--accent-hue', hue.toFixed(2));
@@ -90,6 +116,8 @@ export default function AppSettings({ children }: { children: ReactNode }) {
       .then((value) => {
         if (cancelled) return;
         if (validColor(value.accent)) setAccent(value.accent);
+        if (validTheme(value.theme)) setTheme(value.theme);
+        setUsageEnabled(value.usageEnabled === true);
         setBackendUrl(value.backendUrl);
         setConnection(value.backendUrl || 'http://127.0.0.1:4319');
       })
@@ -99,6 +127,9 @@ export default function AppSettings({ children }: { children: ReactNode }) {
     const appearance = desktop.onAppearanceChanged((color) => {
       if (validColor(color)) setAccent(color);
     });
+    const themeChanged = desktop.onThemeChanged((value) => {
+      if (validTheme(value)) setTheme(value);
+    });
     const settings = desktop.onOpenSettings(() => {
       setOpen(true);
       setError('');
@@ -106,9 +137,24 @@ export default function AppSettings({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
       appearance();
+      themeChanged();
       settings();
     };
   }, []);
+  async function chooseTheme(value: ThemePreference) {
+    try {
+      if (window.nextstepDesktop) await window.nextstepDesktop.setTheme(value);
+      setTheme(value);
+      setError('');
+    } catch (e) { setError(errorMessage(e)); }
+  }
+  async function chooseUsage(enabled: boolean) {
+    if (!window.nextstepDesktop) return;
+    setSavingUsage(true);
+    try { setUsageEnabled(await window.nextstepDesktop.setUsageEnabled(enabled)); setError(''); }
+    catch (e) { setError(errorMessage(e)); }
+    finally { setSavingUsage(false); }
+  }
   async function chooseColor(color: string) {
     try {
       if (!validColor(color)) return;
@@ -133,7 +179,8 @@ export default function AppSettings({ children }: { children: ReactNode }) {
     }
   }
   return (
-    <PreferencesContext value={{ backendUrl, openSettings }}>
+    <PreferencesContext value={{ backendUrl, resolvedTheme, openSettings }}>
+      {window.nextstepDesktop?.platform === 'darwin' && <div className="desktop-titlebar" aria-hidden="true">Nextstep</div>}
       {children}
       {open && (
         <Modal
@@ -149,9 +196,12 @@ export default function AppSettings({ children }: { children: ReactNode }) {
                 <Palette size={18} /> Appearance
               </h3>
               <p>
-                Choose the accent used across your workspace. The app icon
-                always keeps its neutral colors.
+                Choose a light or dark workspace, or follow your device.
               </p>
+              <fieldset className="appearance-modes" aria-label="Color mode">
+                {themes.map(({value,label,icon:Icon}) => <button key={value} type="button" aria-label={`${label} mode`} aria-pressed={theme === value} onClick={() => void chooseTheme(value)}><Icon size={18}/><span>{label}</span>{theme === value && <Check size={14}/>}</button>)}
+              </fieldset>
+              <p className="crm-hint">Accent colors work in either mode. The app icon keeps its neutral colors.</p>
               <div className="appearance-presets" aria-label="Accent colors">
                 {presets.map(([name, color]) => (
                   <button
@@ -271,6 +321,13 @@ export default function AppSettings({ children }: { children: ReactNode }) {
                 </p>
               )}
             </section>
+            {window.nextstepDesktop && <section>
+              <h3><ShieldCheck size={18}/>Privacy</h3>
+              <label className="usage-consent"><input type="checkbox" checked={usageEnabled} disabled={savingUsage} onChange={event => void chooseUsage(event.target.checked)}/><span>Share anonymous usage</span></label>
+              <p>Optional and off by default. Send one daily check-in while using the app, with its version, operating system and a random identifier that changes each day. This helps us count active installations.</p>
+              <p>No records, contacts, prompts, database paths or agent activity. Turning this off stops reporting and removes the local identifier.</p>
+              <a href="https://github.com/martinrajdl/nextstep/blob/main/docs/privacy.md" target="_blank" rel="noreferrer">Exactly what is shared ↗</a>
+            </section>}
             {error && (
               <p role="alert" className="crm-error">
                 {error}

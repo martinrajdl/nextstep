@@ -11,7 +11,7 @@ const REJECT_DROP_ID = 'reject-drop-target';
 const dragInstructions = 'To pick up a card, press Space. Use the arrow keys to move it. To mark it as rejected, press Arrow Down after the last card in a column. Press Space to drop, or Escape to cancel.';
 export function CompanyMark({ company, small = false }: { company: string; small?: boolean }) {
   const color = companyColor(company);
-  return <span className={`company-mark ${small ? 'small' : ''}`} style={{ color, background: `${color}15` }}>{initials(company)}</span>;
+  return <span className={`company-mark ${small ? 'small' : ''}`} style={{ '--company-color':color } as CSSProperties}>{initials(company)}</span>;
 }
 function CardContent({ job }: { job: Opportunity }) {
   return <><div className="card-company"><CompanyMark company={job.company}/><span>{job.company}</span>{job.priority === 'high' && <Star size={13} className="priority-star" fill="currentColor"/>}</div><div className={`card-role ${job.role ? '' : 'no-role'}`}>{job.role || 'Role to explore'}</div>{job.location && <div className="card-location"><MapPin size={12}/>{job.location}</div>}{job.nextStep && <div className="card-next-step">{job.nextStep}</div>}{(job.followUp || job.salary) && <div className="card-bottom">{job.followUp && <span className={`due-date ${job.followUp < today() ? 'overdue' : job.followUp === today() ? 'due-today' : ''}`}><CalendarDays size={12}/>{dateLabel(job.followUp)}{job.followUp < today() ? ' · overdue' : ''}</span>}{job.salary && <span className="card-salary">{job.salary}</span>}</div>}</>;

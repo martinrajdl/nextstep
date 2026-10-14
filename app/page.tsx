@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowDownToLine, ArrowUpRight, Bot, CalendarDays, Columns3, Eye, EyeOff, List, Plus, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowLeft, ArrowUpRight, Bot, BriefcaseBusiness, CalendarDays, Columns3, Eye, EyeOff, List, Plus, RefreshCw, Search, Settings2, SlidersHorizontal, X } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
@@ -22,7 +22,8 @@ declare global { interface Document { modelContext?: { registerTool: (tool: WebT
 function message(error: unknown) { return error instanceof Error ? error.message : 'Could not reach the local app. Try again.'; }
 
 export default function Home() {
-  const {backendUrl,openSettings} = useAppPreferences();
+  const {backendUrl,resolvedTheme,openSettings} = useAppPreferences();
+  useEffect(() => { document.title = 'Job search · Nextstep'; }, []);
   const [jobs, setJobs] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -135,11 +136,11 @@ export default function Home() {
   }
   function openAgent() { if (agentState?.onboarding.connectedAt || agentState?.schedule.taskId) setAgentOpen(true); else setSetupOpen(true); }
   return <div className="app-shell">
-    <Toaster richColors position="bottom-right" closeButton style={{ zIndex: 40 }}/>
+    <Toaster theme={resolvedTheme} richColors position="bottom-right" closeButton style={{ zIndex: 40 }}/>
     <header className="app-header">
       <a className="brand" href="/" aria-label="Nextstep home"><img className="brand-logo" src={nextstepLogo} alt="" width={40} height={40}/>nextstep</a>
       <div className="header-right">
-        <button className="preferences-button" onClick={openSettings} aria-label="App settings" title="Appearance and backend"><SlidersHorizontal size={16}/></button>
+        <button className="preferences-button" onClick={openSettings} aria-label="App settings" title="App settings"><Settings2 size={16}/></button>
         <output className={`local-badge ${loadError ? 'offline' : ''}`} title={loading ? 'Connecting…' : loadError ? 'Connection interrupted' : busy ? 'Saving…' : (backendUrl ? 'Saved on your server' : 'Saved locally')}><span className="local-dot" aria-hidden="true"/><span className="local-status-label">{loading ? 'Connecting…' : loadError ? 'Connection interrupted' : busy ? 'Saving…' : (backendUrl ? 'Saved on your server' : 'Saved locally')}</span></output>
         <button className="preferences-button agent-button" onClick={openAgent} aria-label="Search agent" title={agentState && !agentState.onboarding.connectedAt ? 'Set up or continue connecting your search agent' : 'Search agent'}><Bot size={16}/><span>Search agent</span>{agentState && !agentState.onboarding.connectedAt && <i className="setup-indicator" aria-label="Setup available"/>}</button>
         <button className="preferences-button" onClick={() => setPreferencesOpen(true)} aria-label="Search preferences" title="Search preferences"><SlidersHorizontal size={16}/><span>Preferences</span></button>
@@ -147,7 +148,13 @@ export default function Home() {
       </div>
     </header>
     <main>
-      <h1 className="sr-only">Job pipeline</h1>
+      <nav className="workspace-location" aria-label="Workspace navigation">
+        <a className="workspace-home-link" href="/#/overview"><ArrowLeft size={15} aria-hidden="true"/>Workspace home</a>
+        <div className="workspace-current" aria-current="page">
+          <span className="workspace-current-icon"><BriefcaseBusiness size={19} aria-hidden="true"/></span>
+          <div><span className="workspace-current-label">Current workspace</span><h1>Job search</h1></div>
+        </div>
+      </nav>
       <div className="toolbar">
         <Tabs value={view} onValueChange={changeView}><TabsList className="view-tabs"><TabsTrigger value="board"><Columns3 size={15}/>Board</TabsTrigger><TabsTrigger value="list"><List size={16}/>List</TabsTrigger></TabsList></Tabs>
         <div className="scope-switch" aria-label="Opportunity status"><button aria-pressed={scope==='active'} onClick={() => setScope('active')}>Active<span>{active.length}</span></button><button aria-pressed={scope==='closed'} onClick={() => setScope('closed')}>Closed<span>{closed.length}</span></button></div>
