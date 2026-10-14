@@ -1,13 +1,16 @@
 :root {
-  --crm-ink: #292929;
-  --crm-muted: #666666;
-  --crm-line: #e5e5e5;
-  --crm-surface: #fafafa;
-  --crm-accent: hsl(
+  --crm-ink: light-dark(#292929, #ededed);
+  --crm-muted: light-dark(#666666, #cfcfcf);
+  --crm-line: light-dark(#e5e5e5, #404040);
+  --crm-surface: light-dark(#fafafa, #1d1f25);
+  --crm-accent: light-dark(hsl(
     var(--accent-hue) calc(50% * var(--accent-saturation))
       calc(94% - 16% * min(1, var(--accent-saturation)))
-  );
-  --crm-strong: hsl(var(--accent-hue) calc(25% * var(--accent-saturation)) 31%);
+  ), hsl(
+    var(--accent-hue) calc(50% * var(--accent-saturation))
+      calc(23% + 8% * min(1, var(--accent-saturation)))
+  ));
+  --crm-strong: light-dark(hsl(var(--accent-hue) calc(25% * var(--accent-saturation)) 31%), hsl(var(--accent-hue) calc(25% * var(--accent-saturation)) 86.4%));
   --accent-hue: 0;
   --accent-saturation: 0;
   --primary: hsl(var(--accent-hue) calc(35% * var(--accent-saturation)) 32%);
@@ -16,9 +19,11 @@
   display: grid;
   gap: 28px;
 }
+.app-settings .usage-consent { display:flex;flex-direction:row;align-items:center;gap:10px;font-size:14px;cursor:pointer; }
+.app-settings .usage-consent input { width:18px;height:18px;accent-color:var(--primary); }
 .app-settings section + section {
   border-top: 1px solid
-    hsl(var(--accent-hue) calc(9.4% * var(--accent-saturation)) 89.6%);
+    light-dark(hsl(var(--accent-hue) calc(9.4% * var(--accent-saturation)) 89.6%), hsl(var(--accent-hue) calc(9.4% * var(--accent-saturation)) 25.0%));
   padding-top: 24px;
 }
 .app-settings h3 {
@@ -31,7 +36,7 @@
 .app-settings p {
   font-size: 13px;
   line-height: 1.6;
-  color: hsl(var(--accent-hue) calc(7.7% * var(--accent-saturation)) 40.8%);
+  color: light-dark(hsl(var(--accent-hue) calc(7.7% * var(--accent-saturation)) 40.8%), hsl(var(--accent-hue) calc(7.7% * var(--accent-saturation)) 80.5%));
   margin: 8px 0 16px;
 }
 .appearance-presets {
@@ -42,19 +47,19 @@
 }
 .appearance-presets button {
   border: 1px solid
-    hsl(var(--accent-hue) calc(17.5% * var(--accent-saturation)) 87.6%);
+    light-dark(hsl(var(--accent-hue) calc(17.5% * var(--accent-saturation)) 87.6%), hsl(var(--accent-hue) calc(17.5% * var(--accent-saturation)) 25.0%));
   border-radius: 9px;
   padding: 10px 14px;
   display: grid;
   gap: 7px;
   justify-items: center;
-  background: white;
+  background: light-dark(white, #1d1f25);
   font-size: 12px;
-  color: hsl(var(--accent-hue) calc(14.3% * var(--accent-saturation)) 20.6%);
+  color: light-dark(hsl(var(--accent-hue) calc(14.3% * var(--accent-saturation)) 20.6%), hsl(var(--accent-hue) calc(14.3% * var(--accent-saturation)) 92.6%));
 }
 .appearance-presets button[aria-pressed='true'] {
   border-color: var(--primary);
-  background: hsl(var(--accent-hue) calc(25% * var(--accent-saturation)) 95%);
+  background: light-dark(hsl(var(--accent-hue) calc(25% * var(--accent-saturation)) 95%), hsl(var(--accent-hue) calc(25% * var(--accent-saturation)) 17.0%));
 }
 .appearance-presets button > span {
   height: 30px;
@@ -78,19 +83,19 @@
 }
 .custom-accent code {
   font-size: 12px;
-  color: hsl(var(--accent-hue) calc(7.7% * var(--accent-saturation)) 40.8%);
+  color: light-dark(hsl(var(--accent-hue) calc(7.7% * var(--accent-saturation)) 40.8%), hsl(var(--accent-hue) calc(7.7% * var(--accent-saturation)) 80.5%));
 }
 .backend-status {
   display: grid;
   gap: 4px;
   padding: 14px;
-  background: hsl(var(--accent-hue) calc(20% * var(--accent-saturation)) 96%);
+  background: light-dark(hsl(var(--accent-hue) calc(20% * var(--accent-saturation)) 96%), hsl(var(--accent-hue) calc(20% * var(--accent-saturation)) 16.4%));
   border-radius: 8px;
   font-size: 13px;
   overflow-wrap: anywhere;
 }
 .backend-status small {
-  color: hsl(var(--accent-hue) calc(7.7% * var(--accent-saturation)) 40.8%);
+  color: light-dark(hsl(var(--accent-hue) calc(7.7% * var(--accent-saturation)) 40.8%), hsl(var(--accent-hue) calc(7.7% * var(--accent-saturation)) 80.5%));
   font-size: 12px;
 }
 .backend-actions {
@@ -104,9 +109,11 @@
   overflow-wrap: anywhere;
   font-size: 12px;
   padding: 12px;
-  background: hsl(
+  background: light-dark(hsl(
     var(--accent-hue) calc(23.1% * var(--accent-saturation)) 94.9%
-  );
+  ), hsl(
+    var(--accent-hue) calc(23.1% * var(--accent-saturation)) 17.1%
+  ));
   border-radius: 6px;
 }
 .crm-settings-button {
@@ -122,5 +129,22 @@
   margin-bottom: 12px;
 }
 .crm-settings-button:hover {
-  background: hsl(var(--accent-hue) calc(20% * var(--accent-saturation)) 92%);
+  background: light-dark(hsl(var(--accent-hue) calc(20% * var(--accent-saturation)) 92%), hsl(var(--accent-hue) calc(20% * var(--accent-saturation)) 18.8%));
 }
+
+/* The selected scheme is shared by native controls, both workspaces and portals. */
+:root { color-scheme:light; }
+:root[data-theme='dark'] { color-scheme:dark; --background:#17191e; --card:#1d1f25; }
+:root[data-theme='dark'] .crm-shell { background:#17191e; }
+.appearance-modes { display:flex;gap:8px;margin:18px 0;border:0;padding:0; }
+.appearance-modes button { display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;flex:1;padding:10px;border:1px solid var(--crm-line);border-radius:8px;background:var(--card);color:var(--crm-ink);font-size:13px; }
+.appearance-modes button[aria-pressed='true'] { border-color:var(--crm-strong);background:var(--crm-accent); }
+.desktop-titlebar { position:sticky;top:0;z-index:45;display:flex;align-items:center;justify-content:center;height:36px;background:var(--background);color:var(--muted-foreground);font-size:11px;font-weight:500;letter-spacing:.1px;-webkit-app-region:drag;user-select:none; }
+html[data-desktop='darwin'] .crm-shell { min-height:calc(100vh - 36px); }
+html[data-desktop='darwin'] .crm-sidebar { top:36px;height:calc(100vh - 36px); }
+[data-theme='dark'] .job-card,[data-theme='dark'] .crm-board article { box-shadow:0 1px 3px #0004; }
+[data-theme='dark'] .drag-handle { background:#1d1f25ed; }
+.company-mark { color:light-dark(var(--company-color),color-mix(in srgb,var(--company-color) 65%,white));background:color-mix(in srgb,var(--company-color) 10%,transparent); }
+[data-theme='dark'] { --primary:hsl(var(--accent-hue) calc(45% * var(--accent-saturation)) 76%);--color-primary-foreground:#17191e; }
+[data-theme='dark'] .primary-button { color:#17191e; }
+[data-theme='dark'] .primary-button:hover { background:color-mix(in srgb,var(--primary) 88%,white); }

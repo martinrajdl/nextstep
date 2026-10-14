@@ -5,6 +5,23 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createAgentConnector } from '../desktop/agent-connector.mjs';
 const connection = {command:'/Applications/Fictional Nextstep.app/Contents/MacOS/Nextstep',args:['--mcp','--database','/tmp/fictional board.sqlite']};
+test('Codex detection supports the current ChatGPT CLI bundle and uses its exact executable',async t => {
+  const home = mkdtempSync(join(tmpdir(),'nextstep-codex-detection-'));
+  t.after(() => rmSync(home,{recursive:true,force:true}));
+  const path = join(home,'Applications/ChatGPT.app');
+  const command = join(path,'Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex');
+  mkdirSync(join(command,'..'),{recursive:true});
+  writeFileSync(command,'');
+  const commands=[];
+  const connector=createAgentConnector({home,platform:'darwin',env:{},appRoots:[join(home,'Applications')],run:async executable => {
+    commands.push(executable);
+    return {stdout:JSON.stringify([{name:'nextstep',enabled:true,transport:{type:'stdio',...connection}}])};
+  }});
+  assert.equal(connector.detect().find(agent=>agent.provider==='codex').canConnect,true);
+  assert.equal(connector.appPath('codex'),path);
+  await connector.connect('codex',connection);
+  assert.deepEqual(commands,[command]);
+});
 function fixture(t) {
   const home = mkdtempSync(join(tmpdir(),'nextstep-connector-'));
   mkdirSync(join(home,'Applications/Codex.app/Contents/Resources'),{recursive:true});
@@ -79,4 +96,39 @@ test('reconnecting preserves an existing headless helper for the same database',
   assert.equal(readdirSync(home).filter(name=>name.includes('nextstep-backup')).length,0);
   saved.args[2]='/tmp/another.sqlite';
   await assert.rejects(connector.connect('codex',connection),/points somewhere else/);
+});
+
+test('the general CRM connection is separate from the bounded Jobs connection',async t => {
+  const {home,path} = fixture(t);
+  const original = {mcpServers:{nextstep:connection,other:{command:'preserved'}}};
+  writeFileSync(path,JSON.stringify(original));
+  const connector = createAgentConnector({home,platform:'darwin',env:{}});
+  const crm = {...connection,args:['--crm-mcp','--database',connection.args.at(-1)]};
+  await connector.connect('claude-code',crm,'nextstep-crm');
+  const result=JSON.parse(readFileSync(path,'utf8'));
+  assert.deepEqual(result.mcpServers.nextstep,connection);
+  assert.deepEqual(result.mcpServers.other,original.mcpServers.other);
+  assert.deepEqual(result.mcpServers['nextstep-crm'],{type:'stdio',...crm});
+  assert.equal(result.mcpServers['nextstep-crm'].args.includes('--allow-writes'),false);
+  await connector.connect('claude-code',crm,'nextstep-crm');
+  assert.deepEqual(JSON.parse(readFileSync(path,'utf8')),result);
+  await assert.rejects(connector.connect('claude-code',crm,'unexpected'));
+});
+
+test('Codex registers nextstep-crm under its own name without replacing Jobs',async t => {
+  const {home} = fixture(t);const calls=[];
+  const jobs={name:'nextstep',enabled:true,transport:connection};
+  const list=[jobs];
+  const run=async (_command,args) => {
+    calls.push(args);
+    if(args[1]==='add') {list.push({name:args[2],enabled:true,transport:{type:'stdio',command:args[4],args:args.slice(5)}});return {stdout:''};}
+    return {stdout:JSON.stringify(list)};
+  };
+  const connector=createAgentConnector({home,platform:'darwin',env:{},run});
+  const crm={...connection,args:['--crm-mcp','--database',connection.args.at(-1)]};
+  await connector.connect('codex',crm,'nextstep-crm');
+  assert.deepEqual(list[0],jobs);
+  assert.equal(calls.find(args=>args[1]==='add')[2],'nextstep-crm');
+  await connector.connect('codex',crm,'nextstep-crm');
+  assert.equal(calls.filter(args=>args[1]==='add').length,1);
 });

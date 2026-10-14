@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, dialog, shell, ipcMain } from 'electron';
+import { app, BrowserWindow, Menu, dialog, shell, ipcMain, nativeTheme } from 'electron';
 import { existsSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { assertNextstepDatabase } from '../server/database-file.mjs';
@@ -8,8 +8,10 @@ import { startCrmMcp } from '../mcp/crm-stdio.mjs';
 import { createAgentConnector } from './agent-connector.mjs';
 import { connectionConfig, setupInstructions, searchInstructions } from '../server/agent-instructions.mjs';
 import { agentHandoffUrl } from './agent-handoff.mjs';
-import { APPEARANCES, accentColor, readPreferences, writePreferences } from './preferences.mjs';
+import { APPEARANCES, THEMES, accentColor, themePreference, readPreferences, writePreferences } from './preferences.mjs';
 import { backendOrigin } from '../server/backend.mjs';
+import { crmAgentRequest } from '../lib/crm-agent-request.ts';
+import { createUsageReporter } from './usage.mjs';
 
 app.setName('Nextstep');
 if (process.env.NEXTSTEP_USER_DATA) app.setPath('userData',resolve(process.env.NEXTSTEP_USER_DATA));
@@ -17,6 +19,7 @@ const crmMcpMode = process.argv.includes('--crm-mcp');
 const mcpMode = process.argv.includes('--mcp') || crmMcpMode;
 let service;
 let window;
+let usage;
 
 function iconPath() {
   return resolve(app.getAppPath(),app.isPackaged ? 'nextstep.png' : 'desktop/icons/nextstep.png');
@@ -48,7 +51,7 @@ function remember(database) {
 }
 function preferences() {
   const saved = readPreferences(app.getPath('userData'));
-  return {accent:saved.accent || APPEARANCES[0].color,backendUrl:service?.backendUrl || null};
+  return {accent:saved.accent || APPEARANCES[0].color,theme:THEMES.includes(saved.theme) ? saved.theme : 'light',backendUrl:service?.backendUrl || null,usageEnabled:saved.usageAnalytics?.enabled === true};
 }
 function validateSender(event) {
   if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || new URL(event.senderFrame.url).origin !== service.url) throw new Error('This action is only available in the Nextstep window.');
@@ -60,17 +63,25 @@ function setAppearance(color) {
   buildMenu();
   return accent;
 }
+function setTheme(value) {
+  const theme = themePreference(value);
+  writePreferences(app.getPath('userData'),{theme});
+  nativeTheme.themeSource = theme;
+  window?.webContents.send('nextstep:theme-changed',theme);
+  buildMenu();
+  return theme;
+}
 async function showSettings() {
   await showWindow();
   window.webContents.send('nextstep:open-settings');
 }
 function buildMenu() {
-  const {accent,backendUrl} = preferences();
+  const {accent,theme,backendUrl} = preferences();
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     ...(process.platform === 'darwin' ? [{label:'Nextstep',submenu:[{role:'about'},{label:'Settings…',accelerator:'CmdOrCtrl+,',click:() => { void showSettings(); }},{type:'separator'},{role:'hide'},{role:'hideOthers'},{role:'unhide'},{type:'separator'},{role:'quit'}]}] : []),
     {label:'File',submenu:[{label:'Open database…',click:() => { void openDatabase(); }},{label:'Show database in folder',enabled:!backendUrl,click:() => shell.showItemInFolder(service.database)},{label:'Backend connection…',click:() => { void showSettings(); }},{type:'separator'},{role:process.platform === 'darwin' ? 'close' : 'quit'}]},
     {label:'Edit',submenu:[{role:'undo'},{role:'redo'},{type:'separator'},{role:'cut'},{role:'copy'},{role:'paste'},{role:'selectAll'}]},
-    {label:'View',submenu:[{label:'Appearance',submenu:[...APPEARANCES.map(({name,color}) => ({id:`appearance-${name.toLowerCase()}`,label:name,type:'radio',checked:accent === color,click:() => setAppearance(color)})),{label:'Custom color…',click:() => { void showSettings(); }}]},{label:'Settings…',accelerator:process.platform === 'darwin' ? undefined : 'CmdOrCtrl+,',click:() => { void showSettings(); }},{type:'separator'},{role:'reload'},{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'},{role:'togglefullscreen'}]},
+    {label:'View',submenu:[{label:'Appearance',submenu:[...THEMES.map(value => ({id:`theme-${value}`,label:value[0].toUpperCase()+value.slice(1),type:'radio',checked:theme === value,click:() => setTheme(value)})),{type:'separator'},...APPEARANCES.map(({name,color}) => ({id:`appearance-${name.toLowerCase()}`,label:`${name} accent`,type:'radio',checked:accent === color,click:() => setAppearance(color)})),{label:'Custom color…',click:() => { void showSettings(); }}]},{label:'Settings…',accelerator:process.platform === 'darwin' ? undefined : 'CmdOrCtrl+,',click:() => { void showSettings(); }},{type:'separator'},{role:'reload'},{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'},{role:'togglefullscreen'}]},
     {label:'Window',submenu:[{role:'minimize'},{role:'zoom'}]}
   ]));
 }
@@ -79,7 +90,8 @@ function external(url) {
 }
 async function showWindow() {
   if (window && !window.isDestroyed()) { window.show(); window.focus(); return; }
-  window = new BrowserWindow({width:1450,height:980,minWidth:750,minHeight:600,title:'Nextstep',icon:iconPath(),backgroundColor:'#ffffff',webPreferences:{preload:resolve(import.meta.dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  window = new BrowserWindow({width:1450,height:980,minWidth:750,minHeight:600,title:'Nextstep',icon:iconPath(),backgroundColor:nativeTheme.shouldUseDarkColors ? '#17191e' : '#ffffff',...(process.platform === 'darwin' ? {titleBarStyle:'hiddenInset',trafficLightPosition:{x:14,y:11}} : {}),webPreferences:{preload:resolve(import.meta.dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  window.on('focus',() => { void usage?.checkIn().catch(() => {}); });
   window.webContents.setWindowOpenHandler(({url}) => { external(url); return {action:'deny'}; });
   window.webContents.on('will-navigate',(event,url) => { if (new URL(url).origin !== service.url) { event.preventDefault(); external(url); } });
   const allowClipboard = (contents,permission) => {
@@ -123,6 +135,24 @@ function agentBridge() {
   const validate = validateSender;
   let connecting = false;
   ipcMain.handle('nextstep:agents',event => { validate(event); return service.backendUrl ? [] : connector.detect(); });
+  ipcMain.handle('nextstep:open-crm-agent',async (event,provider) => {
+    validate(event);
+    if (service.backendUrl) throw new Error('Use the SSH connection under Other agents & advanced setup for your server.');
+    if (connecting) throw new Error('An agent connection is already being added.');
+    if (app.isPackaged && (process.execPath.includes('/AppTranslocation/') || process.execPath.startsWith('/Volumes/'))) throw new Error('Move Nextstep to Applications and reopen it before connecting your agent.');
+    connector.appPath(provider);
+    const active = service;
+    connecting = true;
+    try {
+      const args = app.isPackaged ? ['--crm-mcp'] : [app.getAppPath(),'--crm-mcp'];
+      await connector.connect(provider,{command:process.execPath,args:[...args,'--database',active.database]},'nextstep-crm');
+      if (active !== service) throw new Error('The open database changed. Reopen setup for the new workspace.');
+      const workspace = resolve(app.getPath('userData'),'Workspace');
+      mkdirSync(workspace,{recursive:true});
+      await shell.openExternal(agentHandoffUrl(provider,crmAgentRequest,workspace));
+      return {configured:true,instructions:crmAgentRequest};
+    } finally { connecting = false; }
+  });
   async function configureAgent(provider) {
     if (service.backendUrl) throw new Error('Connect your agent to the self-hosted backend over SSH. Automatic local database configuration is unavailable in this mode.');
     if (connecting) throw new Error('A connection is already being added.');
@@ -163,6 +193,13 @@ function agentBridge() {
 function settingsBridge() {
   ipcMain.handle('nextstep:preferences',event => { validateSender(event); return preferences(); });
   ipcMain.handle('nextstep:set-appearance',(event,color) => { validateSender(event); return setAppearance(color); });
+  ipcMain.handle('nextstep:set-theme',(event,theme) => { validateSender(event); return setTheme(theme); });
+  ipcMain.handle('nextstep:set-usage',(event,enabled) => {
+    validateSender(event);
+    const value = usage.setEnabled(enabled);
+    if (value) void usage.checkIn().catch(() => {});
+    return value;
+  });
   let switching = false;
   ipcMain.handle('nextstep:set-backend',async (event,value) => {
     validateSender(event);
@@ -201,6 +238,11 @@ async function main() {
   if (!app.requestSingleInstanceLock()) { app.quit(); return; }
   app.on('second-instance',() => { if (service) void showWindow(); });
   await app.whenReady();
+  usage = createUsageReporter({read:() => readPreferences(app.getPath('userData')),write:patch => writePreferences(app.getPath('userData'),patch),version:app.getVersion(),platform:process.platform,send:(...args) => fetch(...args),eligible:() => app.isPackaged && process.env.NEXTSTEP_DISABLE_USAGE !== '1' && Boolean(window && !window.isDestroyed() && window.isFocused())});
+  const usageTimer = setInterval(() => { void usage.checkIn().catch(() => {}); },60*60*1000);
+  usageTimer.unref();
+  nativeTheme.themeSource = preferences().theme;
+  nativeTheme.on('updated',() => window?.setBackgroundColor(nativeTheme.shouldUseDarkColors ? '#17191e' : '#ffffff'));
   const selected = readPreferences(app.getPath('userData')).backendUrl;
   if (process.platform === 'darwin') {
     app.dock?.setIcon(iconPath());
@@ -224,6 +266,8 @@ async function main() {
   // SQLite writes are synchronous. Close it after unsaved-edit prompts are resolved;
   // waiting on asynchronous HTTP teardown here can stall Electron's shutdown.
   app.on('will-quit',() => {
+    clearInterval(usageTimer);
+    usage.stop();
     service.server.closeAllConnections();
     service.store?.close();
   });

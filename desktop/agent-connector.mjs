@@ -10,27 +10,31 @@ function validProvider(provider) {
   if (!providers.includes(provider)) throw new Error('Choose a supported desktop agent.');
 }
 function object(value) { return value && typeof value === 'object' && !Array.isArray(value); }
-function existingConnection(existing, connection) {
+function existingConnection(existing, connection, name = 'nextstep') {
   if (!existing) return false;
   const value = existing.transport || existing;
   const args = value.args;
   const database = connection.args.at(-1);
   if (value.type && value.type !== 'stdio' || !Array.isArray(args) || args.at(-2) !== '--database' || args.at(-1) !== database) {
-    throw new Error('An existing “nextstep” connection points somewhere else. Keep it safe: use Advanced connection below to review the settings in your agent.');
+    throw new Error(`An existing “${name}” connection points somewhere else. Keep it safe: use Advanced connection below to review the settings in your agent.`);
   }
   if (existing.enabled === false) throw new Error('Nextstep is disabled in your agent settings. Enable it there, then try again.');
   // Keep a working source-checkout helper for this database. Replacing it with
   // Electron would start extra desktop processes whenever the agent connects.
-  if (typeof value.command === 'string' && isAbsolute(value.command) && basename(value.command) === 'node' && existsSync(value.command) && args.length === 3 && typeof args[0] === 'string' && isAbsolute(args[0]) && basename(args[0]) === 'stdio.mjs' && basename(dirname(args[0])) === 'mcp' && existsSync(args[0])) return true;
+  if (typeof value.command === 'string' && isAbsolute(value.command) && basename(value.command) === 'node' && existsSync(value.command) && args.length === 3 && typeof args[0] === 'string' && isAbsolute(args[0]) && basename(args[0]) === (name === 'nextstep-crm' ? 'crm-stdio.mjs' : 'stdio.mjs') && basename(dirname(args[0])) === 'mcp' && existsSync(args[0])) return true;
   return value.command === connection.command && JSON.stringify(args) === JSON.stringify(connection.args);
 }
 
 // Receives only main-process paths. Nothing from the renderer can select a file or command.
-export function createAgentConnector({home,platform=process.platform,env=process.env,run=execute} = {}) {
-  const appRoots = ['/Applications',join(home,'Applications')];
-  const codexApp = appRoots.flatMap(root => ['Codex.app','ChatGPT.app'].map(name => join(root,name))).find(path => existsSync(join(path,'Contents/Resources/codex')));
+export function createAgentConnector({home,platform=process.platform,env=process.env,run=execute,appRoots=['/Applications',join(home,'Applications')]} = {}) {
+  const codexInstallation = appRoots.flatMap(root => ['Codex.app','ChatGPT.app'].map(name => {
+    const path = join(root,name);
+    const command = ['Contents/Resources/codex','Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex'].map(relative => join(path,relative)).find(existsSync);
+    return {path,command};
+  })).find(candidate => candidate.command);
+  const codexApp = codexInstallation?.path;
   const claudeApp = appRoots.map(root => join(root,'Claude.app')).find(existsSync);
-  const codex = codexApp && join(codexApp,'Contents/Resources/codex');
+  const codex = codexInstallation?.command;
   const apps = {codex:codexApp,'claude-code':claudeApp};
   // Tests use a separate home and never write the user's agent settings.
   const codexHome = env.CODEX_HOME || join(home,'.codex');
@@ -41,7 +45,8 @@ export function createAgentConnector({home,platform=process.platform,env=process
   return {
     detect() { return providers.map(provider => ({provider,installed:platform === 'darwin' && Boolean(apps[provider]),canConnect:platform === 'darwin' && Boolean(apps[provider]),label:provider === 'codex' ? 'Codex' : 'Claude Code'})); },
     appPath(provider) { validProvider(provider); if (platform !== 'darwin' || !apps[provider]) throw new Error('Install the desktop agent first, then reopen Nextstep.'); return apps[provider]; },
-    async connect(provider,connection) {
+    async connect(provider,connection,name = 'nextstep') {
+      if (!['nextstep','nextstep-crm'].includes(name)) throw new Error('Choose a supported Nextstep connection.');
       validProvider(provider);
       if (platform !== 'darwin' || !apps[provider]) throw new Error('Install the desktop agent first, then reopen Nextstep. Advanced connection is also available below.');
       if (provider === 'codex') {
@@ -50,14 +55,14 @@ export function createAgentConnector({home,platform=process.platform,env=process
           const result = await cli(['mcp','list','--json']);
           let list; try { list = JSON.parse(result.stdout); } catch { throw new Error('Codex returned unexpected connection settings. Use Advanced connection.'); }
           if (!Array.isArray(list)) throw new Error('Codex returned unexpected connection settings. Use Advanced connection.');
-          return list.find(server => server.name === 'nextstep');
+          return list.find(server => server.name === name);
         };
         const current = await read();
-        if (!existingConnection(current,connection)) {
+        if (!existingConnection(current,connection,name)) {
           // Check again immediately before writing. The official CLI preserves other settings.
           if (JSON.stringify(await read()) !== JSON.stringify(current)) throw new Error('Codex settings changed while connecting. Please try again.');
-          await cli(['mcp','add','nextstep','--',connection.command,...connection.args]);
-          if (!existingConnection(await read(),connection)) throw new Error('Codex did not retain the connection. Use Advanced connection.');
+          await cli(['mcp','add',name,'--',connection.command,...connection.args]);
+          if (!existingConnection(await read(),connection,name)) throw new Error('Codex did not retain the connection. Use Advanced connection.');
         }
       } else {
         if (env.CLAUDE_CONFIG_DIR) throw new Error('Claude uses a custom settings folder. Use Advanced connection to add Nextstep there.');
@@ -66,7 +71,7 @@ export function createAgentConnector({home,platform=process.platform,env=process
         if (existsSync(desktopConfig)) {
           let desktop;
           try { desktop = JSON.parse(readFileSync(desktopConfig,'utf8')); } catch { throw new Error('Claude Desktop settings could not be read. Use Advanced connection.'); }
-          if (desktop?.mcpServers?.nextstep && !existingConnection(desktop.mcpServers.nextstep,connection)) throw new Error('Nextstep is already configured in Claude Desktop settings. Update that existing connection using Advanced connection below.');
+          if (desktop?.mcpServers?.[name] && !existingConnection(desktop.mcpServers[name],connection,name)) throw new Error('Nextstep is already configured in Claude Desktop settings. Update that existing connection using Advanced connection below.');
         }
         const path = join(home,'.claude.json');
         if (existsSync(path) && (!lstatSync(path).isFile() || lstatSync(path).isSymbolicLink())) throw new Error('Claude settings use a linked or unsupported file. Use Advanced connection.');
@@ -74,8 +79,8 @@ export function createAgentConnector({home,platform=process.platform,env=process
         let config;
         try { config = before === null ? {} : JSON.parse(before); } catch { throw new Error('Claude settings could not be read. Repair them in Claude or use Advanced connection.'); }
         if (!object(config) || config.mcpServers !== undefined && !object(config.mcpServers)) throw new Error('Claude settings have an unexpected format. Use Advanced connection.');
-        if (!existingConnection(config.mcpServers?.nextstep,connection)) {
-          const updated = {...config,mcpServers:{...config.mcpServers,nextstep:{type:'stdio',...connection}}};
+        if (!existingConnection(config.mcpServers?.[name],connection,name)) {
+          const updated = {...config,mcpServers:{...config.mcpServers,[name]:{type:'stdio',...connection}}};
           mkdirSync(dirname(path),{recursive:true});
           const temporary = `${path}.nextstep-${randomUUID()}.tmp`;
           try {

@@ -11,6 +11,7 @@ import {
   readPreferences,
   writePreferences,
   accentColor,
+  themePreference,
 } from '../desktop/preferences.mjs';
 
 test('desktop backend selection allows only an explicit loopback tunnel origin', () => {
@@ -109,10 +110,14 @@ test('appearance changes preserve database and backend preferences across restar
     backendUrl: 'http://127.0.0.1:4319',
   });
   writePreferences(directory, { accent: accentColor('#4473CF') });
+  writePreferences(directory, { theme: themePreference('dark') });
   assert.deepEqual(readPreferences(directory), {
     database: join(directory, 'existing.sqlite'),
     backendUrl: 'http://127.0.0.1:4319',
     accent: '#4473cf',
+    theme: 'dark',
   });
   assert.throws(() => accentColor('url(https://example.com)'));
+  assert.throws(() => themePreference('unknown'));
+  assert.equal(themePreference('system'), 'system');
 });

@@ -16,6 +16,31 @@ async function add(page: Page, company: string) {
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('button',{name:`Open ${company}`,exact:true})).toBeVisible();
 }
+test('workspace navigation identifies Jobs and returns home without changing saved decisions', async ({page,request}) => {
+  await page.goto('/jobs');
+  await add(page,'QA Navigation Studio');
+  await page.getByRole('button',{name:'Open QA Navigation Studio',exact:true}).click();
+  await page.getByLabel('Stage',{exact:true}).selectOption('interested');
+  await page.getByLabel('Notes',{exact:true}).fill('Keep this decision when changing workspaces.');
+  await page.getByRole('button',{name:'Save changes',exact:true}).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  const before = await (await request.get('/api/opportunities')).json();
+  for (const width of [1280,390,320]) {
+    await page.setViewportSize({width,height:900});
+    const navigation = page.getByRole('navigation',{name:'Workspace navigation'});
+    await expect(navigation.getByRole('heading',{name:'Job search',exact:true})).toBeVisible();
+    const home = navigation.getByRole('link',{name:'Workspace home',exact:true});
+    await expect(home).toBeInViewport();
+    await page.screenshot({path:`test-results/workspace-navigation-${width}.png`});
+    await home.click();
+    await expect(page).toHaveURL(/\/#\/overview$/);
+    await expect(page.locator('.crm-topbar').getByRole('link',{name:'Workspace home',exact:true})).toBeVisible();
+    if (width < 900) await page.getByRole('button',{name:'Open navigation',exact:true}).click();
+    await page.getByRole('link',{name:'Job search',exact:true}).click();
+    await expect(page).toHaveURL(/\/jobs$/);
+  }
+  expect(await (await request.get('/api/opportunities')).json()).toEqual(before);
+});
 test('create, edit, search, list stage change, reload, close, remove, undo, and export', async ({page,request}) => {
   const errors: string[] = []; page.on('pageerror',error => errors.push(error.message));
   await page.goto('/jobs'); await expect(page.getByText('Saved locally')).toBeVisible();

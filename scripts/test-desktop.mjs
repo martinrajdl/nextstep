@@ -30,7 +30,7 @@ try {
   // Do not let Playwright race that handler with an automatic dialog response.
   page.on('dialog',() => {});
   const errors = []; page.on('pageerror',error => errors.push(error.message));
-  await expect(page.getByRole('heading',{name:/Make room for/})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Connect your agent.'})).toBeVisible();
   await page.getByRole('link',{name:'Job search',exact:true}).click();
   await expect(page.getByRole('heading',{name:'What would you love to do next?'})).toBeVisible();
   await expect(page.getByLabel('Roles and work you want')).toHaveValue('User-selected work');
@@ -106,6 +106,8 @@ try {
   await expect(page.getByText('Agent connection confirmed',{exact:true})).toBeVisible({timeout:10000});
   const registration = await client.callTool({name:'nextstep_register_schedule',arguments:{version:store.agentStatus().schedule.version,taskId:'desktop-test-schedule'}});
   expect(registration.isError).toBeUndefined();
+  // Return from the agent/helper to the app, as a person reviewing its work does.
+  await app.evaluate(({app,BrowserWindow}) => { app.focus({steal:true}); BrowserWindow.getAllWindows()[0].focus(); });
   await expect(page.getByText('Agent reported the scheduled task',{exact:true})).toBeVisible({timeout:10000});
   await page.screenshot({path:resolve(root,'test-results/desktop-onboarding-confirmed.png')});
   await page.getByRole('button',{name:'Go to my board',exact:true}).click();

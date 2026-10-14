@@ -50,19 +50,23 @@ async function launch(initial = false) {
   });
   const page = await app.firstWindow();
   await expect(
-    page.getByRole('heading', { name: /Make room for/ }),
+    page.getByRole('heading', { name: 'Your workspace', exact:true }),
   ).toBeVisible();
   return page;
 }
 try {
   let page = await launch(true);
   await expect(page.locator('html')).toHaveAttribute('data-accent', '#777777');
-  await expect(page.locator('.crm-button-primary').first()).toHaveCSS('background-color', 'rgb(240, 240, 240)');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   const icon = await page.locator('.crm-brand img').getAttribute('src');
   await app.evaluate(({ Menu }) =>
     Menu.getApplicationMenu().getMenuItemById('appearance-blue').click(),
   );
   await expect(page.locator('html')).toHaveAttribute('data-accent', '#4473cf');
+  await app.evaluate(({ Menu }) => Menu.getApplicationMenu().getMenuItemById('theme-dark').click());
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  expect(await app.evaluate(({ nativeTheme }) => nativeTheme.themeSource)).toBe('dark');
+  await expect(page.locator('.desktop-titlebar')).toBeVisible();
   await expect(page.locator('.crm-brand img')).toHaveAttribute('src', icon);
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByLabel('Backend tunnel address').fill(upstream.url);
@@ -103,6 +107,7 @@ try {
     }),
   ).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-accent', '#4473cf');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await upstream.close();
   await page
     .getByRole('button', { name: 'Refresh workspace', exact: true })
@@ -130,17 +135,64 @@ try {
     database,
     backendUrl: null,
     accent: '#4473cf',
+    theme: 'dark',
   });
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  const consent = page.getByRole('checkbox', { name: 'Share anonymous usage' });
+  await expect(consent).not.toBeChecked();
+  const isPackaged = await app.evaluate(({ app }) => app.isPackaged);
+  // Exercise the packaged transport without ever contacting the real collector.
+  await app.evaluate(({ BrowserWindow }) => {
+    const originalFetch = globalThis.fetch;
+    globalThis.usageTestRequests = [];
+    globalThis.fetch = (url, options) => {
+      if (url === 'https://nextstep-website-lemon.vercel.app/api/usage') {
+        globalThis.usageTestRequests.push(JSON.parse(options.body));
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+      return originalFetch(url, options);
+    };
+    // Control foreground state without taking focus from a person's other apps.
+    globalThis.usageTestFocused = false;
+    BrowserWindow.getAllWindows()[0].isFocused = () => globalThis.usageTestFocused;
+  });
+  await consent.click();
+  await expect(consent).toBeChecked();
+  const optedIn = JSON.parse(readFileSync(join(userData, 'settings.json'), 'utf8'));
+  expect(optedIn.usageAnalytics.enabled).toBe(true);
+  expect(optedIn.usageAnalytics.seed).toMatch(/^[a-f0-9]{64}$/);
+  expect(await app.evaluate(() => globalThis.usageTestRequests)).toEqual([]);
+  await app.evaluate(({ BrowserWindow }) => {
+    globalThis.usageTestFocused = true;
+    BrowserWindow.getAllWindows()[0].emit('focus');
+  });
+  if (isPackaged) {
+    await expect.poll(() => app.evaluate(() => globalThis.usageTestRequests.length)).toBe(1);
+    const [payload] = await app.evaluate(() => globalThis.usageTestRequests);
+    expect(Object.keys(payload).sort()).toEqual(['dailyId', 'day', 'platform', 'schema', 'version']);
+    expect(JSON.stringify(payload)).not.toContain(database);
+    expect(payload.dailyId).not.toBe(optedIn.usageAnalytics.seed);
+  } else expect(await app.evaluate(() => globalThis.usageTestRequests)).toEqual([]);
+  await consent.click();
+  await expect(consent).not.toBeChecked();
+  const optedOut = JSON.parse(readFileSync(join(userData, 'settings.json'), 'utf8'));
+  expect(optedOut.usageAnalytics).toEqual({ enabled: false });
+  expect(optedOut.database).toBe(database);
+  expect(optedOut.theme).toBe('dark');
+  expect(local.list()).toEqual(originalJobs);
+  await page.getByRole('button', { name: 'Light mode', exact: true }).click();
+  expect(await app.evaluate(({ nativeTheme }) => nativeTheme.themeSource)).toBe('light');
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
   await app.evaluate(({ Menu }) =>
     Menu.getApplicationMenu().getMenuItemById('appearance-neutral').click(),
   );
   await expect(page.locator('html')).toHaveAttribute('data-accent', '#777777');
-  await expect(page.locator('.crm-button-primary').first()).toHaveCSS('background-color', 'rgb(240, 240, 240)');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await page.screenshot({
     path: join(root, 'test-results/desktop-composable.png'),
   });
   console.log(
-    'Desktop settings passed: native appearance menu, persistent theme with unchanged icon, bundled sandboxed UI, self-hosted backend switch and restart, offline error without fallback, and return to exactly preserved local data.',
+    'Desktop settings passed: persistent appearance, sandboxed UI, self-hosted backend and offline handling, optional usage with private transport stub, and exactly preserved local data.',
   );
 } catch (error) {
   if (app) {

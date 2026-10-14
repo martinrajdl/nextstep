@@ -15,6 +15,11 @@ export const APPEARANCES = [
   { name: 'Rose', color: '#ba657f' },
   { name: 'Slate', color: '#657486' },
 ];
+export const THEMES = ['light', 'dark', 'system'];
+export function themePreference(value) {
+  if (!THEMES.includes(value)) throw new Error('Choose Light, Dark or System appearance.');
+  return value;
+}
 export function accentColor(value) {
   if (typeof value !== 'string' || !/^#[a-f\d]{6}$/i.test(value))
     throw new Error('Choose a six-digit accent color.');

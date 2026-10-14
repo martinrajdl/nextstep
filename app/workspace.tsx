@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Activity,
   ArrowDownToLine,
@@ -8,15 +8,12 @@ import {
   BriefcaseBusiness,
   ChevronRight,
   Database,
-  FileJson,
   Folder,
   Inbox,
   Layers2,
   LayoutGrid,
   Menu,
-  Plus,
   RefreshCw,
-  Sparkles,
   Settings,
   GitBranch,
   X,
@@ -42,7 +39,6 @@ import nextstepIcon from '@/desktop/icons/nextstep-ui.png';
 import { useAppPreferences } from '@/components/app-settings';
 import AgentFlows, {
   FlowCard,
-  FlowLifecycle,
 } from '@/components/crm/agent-flows';
 import './workspace.css';
 const currentRoute = () =>
@@ -71,8 +67,8 @@ function ActivityView({ revision }: { revision: number }) {
   return (
     <>
       <div className="crm-page-heading">
-        <div className="crm-eyebrow">A SHARED MEMORY</div>
-        <h1>Workspace activity</h1>
+        <div className="crm-eyebrow">YOUR WORKSPACE HISTORY</div>
+        <h1>History</h1>
         <p>
           Every applied change, its author, and the values before and after.
         </p>
@@ -170,10 +166,14 @@ export default function WorkspaceApp() {
     [workbench, setWorkbench] = useState<{ collection?: Collection } | null>(
       null,
     );
+  const previousWorkspace = useRef<Workspace | null>(null);
   const refresh = useCallback(async () => {
     try {
       const data = await request<Workspace>('/api/crm/context');
+      const previous = previousWorkspace.current;
+      previousWorkspace.current = data;
       setWorkspace(data);
+      if (previous && !previous.collections.length && data.collections.length && ['overview','agents','review'].includes(currentRoute())) window.location.hash = `/collections/${data.collections[0].id}`;
       setError('');
       setRevision((v) => v + 1);
     } catch (e) {
@@ -187,10 +187,11 @@ export default function WorkspaceApp() {
     const handler = () => {
       setRoute(currentRoute());
       setNavOpen(false);
+      void refresh();
     };
     window.addEventListener('hashchange', handler);
     return () => window.removeEventListener('hashchange', handler);
-  }, []);
+  }, [refresh]);
   useEffect(() => {
     const refreshVisible = () => {
       if (
@@ -201,7 +202,7 @@ export default function WorkspaceApp() {
       )
         void refresh();
     };
-    const timer = window.setInterval(refreshVisible, 20000);
+    const timer = window.setInterval(refreshVisible, 4000);
     window.addEventListener('focus', refreshVisible);
     return () => {
       clearInterval(timer);
@@ -218,13 +219,14 @@ export default function WorkspaceApp() {
   const label =
     collection?.name ||
     {
-      overview: 'Workspace',
-      review: 'Review inbox',
-      activity: 'Activity',
-      agents: 'Agent connection',
-      flows: 'Agent flows',
+      overview: 'Workspace home',
+      review: 'Review changes',
+      activity: 'History',
+      agents: 'Connect an agent',
+      flows: 'Agent progress',
     }[route] ||
     'Workspace';
+  useEffect(() => { document.title = `${label} · Nextstep`; }, [label]);
   async function changed() {
     await refresh();
   }
@@ -241,9 +243,9 @@ export default function WorkspaceApp() {
         <div className="crm-workspace-label">
           <span className="crm-workspace-icon">N</span>
           <span>
-            Your workspace
+            Main workspace
             <small>
-              Private · {backendUrl ? 'self-hosted' : 'local database'}
+              {backendUrl ? 'Your own server' : 'Saved on this computer'}
             </small>
           </span>
           <button
@@ -256,18 +258,19 @@ export default function WorkspaceApp() {
         </div>
         <nav aria-label="Workspace navigation">
           {[
-            { id: 'overview', label: 'Overview', icon: LayoutGrid },
-            { id: 'flows', label: 'Agent flows', icon: GitBranch },
-            { id: 'review', label: 'Review inbox', icon: Inbox },
-            { id: 'activity', label: 'Activity', icon: Activity },
-            { id: 'agents', label: 'Agent connection', icon: Bot },
-          ].map((item) => (
+            { id: 'overview', label: 'Home', icon: LayoutGrid },
+            { id: 'flows', label: 'Agent progress', icon: GitBranch },
+            { id: 'review', label: 'Review changes', icon: Inbox },
+            { id: 'activity', label: 'History', icon: Activity },
+            { id: 'agents', label: 'Your agent', icon: Bot },
+          ].filter(item => item.id === 'overview' || Boolean(workspace?.collections.length) || (item.id === 'review' && Boolean(workspace?.pendingCount)) || (item.id === 'flows' && Boolean(workspace?.recentFlows.length))).map((item) => (
             <a
               key={item.id}
               href={`#/${item.id}`}
+              aria-label={item.label}
               aria-current={route === item.id ? 'page' : undefined}
             >
-              <item.icon size={17} />
+              <item.icon size={17} aria-hidden="true" />
               {item.label}
               {item.id === 'review' && Boolean(workspace?.pendingCount) && (
                 <span className="crm-nav-count">{workspace?.pendingCount}</span>
@@ -275,42 +278,16 @@ export default function WorkspaceApp() {
             </a>
           ))}
         </nav>
-        <div className="crm-sidebar-caption">
-          COLLECTIONS
-          <button
-            aria-label="New collection"
-            className="crm-icon-button"
-            onClick={() => setSchema({})}
-            disabled={!workspace}
-          >
-            <Plus size={15} />
-          </button>
-        </div>
-        <nav aria-label="Collections">
-          {workspace?.collections.map((c) => (
-            <a
-              key={c.id}
-              href={`#/collections/${c.id}`}
-              aria-current={collection?.id === c.id ? 'page' : undefined}
-            >
-              <span
-                className="crm-collection-dot"
-                style={{ background: c.color }}
-              />
-              {c.name}
-              <small>{c.recordCount}</small>
-            </a>
-          ))}
-          {!workspace?.collections.length && (
-            <span className="crm-sidebar-empty">Room for your next idea.</span>
-          )}
-        </nav>
-        <div className="crm-sidebar-caption">WORKSPACES</div>
+        {Boolean(workspace?.collections.length) && <>
+          <div className="crm-sidebar-caption">YOUR COLLECTIONS</div>
+          <nav aria-label="Collections">{workspace?.collections.map(c => <a key={c.id} href={`#/collections/${c.id}`} aria-current={collection?.id === c.id ? 'page' : undefined}><span className="crm-collection-dot" style={{background:c.color}}/>{c.name}<small>{c.recordCount}</small></a>)}</nav>
+        </>}
+        <div className="crm-sidebar-caption">OTHER WORKSPACES</div>
         <nav>
           <a href="/jobs">
             <BriefcaseBusiness size={17} />
             Job search
-            <ArrowUpRight size={13} />
+            <ChevronRight size={13} aria-hidden="true" />
           </a>
         </nav>
         <div className="crm-sidebar-bottom">
@@ -320,7 +297,7 @@ export default function WorkspaceApp() {
           <div className="crm-local-state">
             <span />
             <div>
-              On your terms.<small>Stored in your SQLite database.</small>
+              {backendUrl ? 'Saved on your server' : 'Saved on this computer'}<small>You choose which agents have access.</small>
             </div>
             <Database size={15} />
           </div>
@@ -329,7 +306,7 @@ export default function WorkspaceApp() {
             target="_blank"
             rel="noreferrer"
           >
-            Open source, by design <ArrowUpRight size={12} />
+            View source on GitHub <ArrowUpRight size={12} />
           </a>
         </div>
       </aside>
@@ -349,9 +326,10 @@ export default function WorkspaceApp() {
           >
             <Menu size={20} />
           </button>
-          <span>Workspace</span>
-          <ChevronRight size={13} />
-          <strong>{label}</strong>
+          <a className="crm-home-link" href="#/overview" onClick={() => setNavOpen(false)} aria-current={route === 'overview' ? 'page' : undefined}>
+            <LayoutGrid size={14} aria-hidden="true"/>Workspace home
+          </a>
+          {route !== 'overview' && <><ChevronRight size={13} aria-hidden="true"/><strong className="crm-current-location" aria-current="page">{label}</strong></>}
           <div>
             <span className="crm-topbar-local">
               <span />
@@ -413,248 +391,25 @@ export default function WorkspaceApp() {
             <AgentTools
               workspace={workspace}
               onWorkbench={() => setWorkbench({})}
+              onNewCollection={() => setSchema({})}
+              onReview={() => navigate('review')}
             />
           ) : route === 'flows' ? (
             <AgentFlows
               revision={revision}
               onConnect={() => navigate('agents')}
             />
+          ) : !workspace.collections.length ? (
+            <AgentTools workspace={workspace} onWorkbench={() => setWorkbench({})} onNewCollection={() => setSchema({})} onReview={() => navigate('review')}/>
           ) : (
             <>
-              <section className="crm-overview-hero">
-                <div>
-                  <div className="crm-eyebrow">
-                    <span />
-                    YOUR AGENTS. YOUR DIRECTION.
-                  </div>
-                  <h1>
-                    Make room for
-                    <br />
-                    what’s next<span>.</span>
-                  </h1>
-                  <p>
-                    Agents source contacts, shape your workspace, and move the
-                    work forward.
-                    <br />
-                    Follow their progress. Review what matters.
-                  </p>
-                  <div className="crm-hero-actions">
-                    <button
-                      className="crm-button crm-button-primary"
-                      onClick={() => navigate('agents')}
-                    >
-                      <Bot size={16} />
-                      Give your agent a brief
-                    </button>
-                    <button
-                      className="crm-button crm-button-subtle"
-                      onClick={() => setSchema({})}
-                    >
-                      Create a collection
-                      <Plus size={16} />
-                    </button>
-                  </div>
-                </div>
-                <div className="crm-overview-art" aria-hidden="true">
-                  <div className="crm-art-orbit" />
-                  <div className="crm-art-node art-one">
-                    <Folder size={20} />
-                    Context
-                  </div>
-                  <div className="crm-art-node art-two">
-                    <Bot size={20} />
-                    Agents
-                  </div>
-                  <div className="crm-art-node art-three">
-                    <Sparkles size={18} />
-                    Possibility
-                  </div>
-                  <div className="crm-art-center">
-                    <img src={nextstepIcon} alt="" width={94} height={94} />
-                  </div>
-                  <span className="crm-art-label">
-                    A SYSTEM THAT TAKES YOUR SHAPE
-                  </span>
-                </div>
-              </section>
-              <FlowLifecycle />
+              <div className="crm-page-heading crm-home-heading"><div><h1>Your workspace</h1><p>Your agent organizes the information. You keep the overview.</p></div><button className="crm-button" onClick={() => navigate('agents')}><Bot size={16}/>Your agent</button></div>
+              {workspace.pendingCount > 0 && <button className="crm-review-banner" onClick={() => navigate('review')}><Inbox size={20}/><span><strong>{workspace.pendingCount} {workspace.pendingCount === 1 ? 'change is' : 'changes are'} ready for review</strong><small>See what your agent wants to add or update.</small></span><ArrowRight size={18}/></button>}
               <section className="crm-overview-section">
-                <div className="crm-section-label">
-                  <div>
-                    <h2>Work in motion</h2>
-                    <p>
-                      Your agent’s progress, from finding information to keeping
-                      it useful.
-                    </p>
-                  </div>
-                  <button
-                    className="crm-text-button"
-                    onClick={() => navigate('flows')}
-                  >
-                    All agent flows <ArrowRight size={14} />
-                  </button>
-                </div>
-                {workspace.recentFlows.length ? (
-                  <div className="crm-flow-list">
-                    {workspace.recentFlows.slice(0, 3).map((flow) => (
-                      <FlowCard
-                        key={flow.id}
-                        flow={flow}
-                        onClick={() => navigate('flows')}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="crm-flow-start">
-                    <Bot size={24} />
-                    <div>
-                      <strong>
-                        You set the direction. Your agent takes it from there.
-                      </strong>
-                      <p>
-                        Describe the people, information, or process you want to
-                        manage. Your agent builds the structure and reports its
-                        progress here.
-                      </p>
-                    </div>
-                    <button
-                      className="crm-button crm-button-primary"
-                      onClick={() => navigate('agents')}
-                    >
-                      Give your agent a brief <ArrowRight size={15} />
-                    </button>
-                  </div>
-                )}
+                <div className="crm-collection-cards">{workspace.collections.map(c => <button key={c.id} onClick={() => navigate(`collections/${c.id}`)}><span style={{background:`${c.color}18`,color:c.color}}><Folder size={21}/></span><h2>{c.name}</h2><p>{c.description || `${c.fields.length} fields · ${c.recordCount} records`}</p><small>{c.recordCount} records<ArrowRight size={15}/></small></button>)}</div>
               </section>
-              <div className="crm-stats">
-                <div>
-                  <span>Collections</span>
-                  <strong>
-                    {workspace.collections.length.toString().padStart(2, '0')}
-                  </strong>
-                  <small>Structures you define</small>
-                </div>
-                <div>
-                  <span>Records</span>
-                  <strong>
-                    {workspace.recordCount.toString().padStart(2, '0')}
-                  </strong>
-                  <small>Pieces of useful context</small>
-                </div>
-                <button onClick={() => navigate('review')}>
-                  <span>
-                    Ready for review <ArrowUpRight size={15} />
-                  </span>
-                  <strong>
-                    {workspace.pendingCount.toString().padStart(2, '0')}
-                  </strong>
-                  <small>
-                    {workspace.pendingCount
-                      ? 'Your agents have something for you'
-                      : 'A clear inbox, a clear head'}
-                  </small>
-                </button>
-              </div>
-              {workspace.collections.length > 0 && (
-                <section className="crm-overview-section">
-                  <div className="crm-section-label">
-                    <h2>Your collections</h2>
-                    <button
-                      className="crm-text-button"
-                      onClick={() => setSchema({})}
-                    >
-                      <Plus size={14} />
-                      New collection
-                    </button>
-                  </div>
-                  <div className="crm-collection-cards">
-                    {workspace.collections.map((c) => (
-                      <button
-                        key={c.id}
-                        onClick={() => navigate(`collections/${c.id}`)}
-                      >
-                        <span
-                          style={{ background: `${c.color}18`, color: c.color }}
-                        >
-                          <Folder size={21} />
-                        </span>
-                        <h3>{c.name}</h3>
-                        <p>
-                          {c.description || 'Your information, your structure.'}
-                        </p>
-                        <small>
-                          {c.recordCount} records · {c.fields.length} fields
-                          <ArrowRight size={15} />
-                        </small>
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              )}
-              <section className="crm-overview-section">
-                <div className="crm-section-label">
-                  <div>
-                    <h2>Start with a little structure.</h2>
-                    <p>Pick a starting point. Make it entirely yours.</p>
-                  </div>
-                  <span className="crm-mini-label">EMPTY BY DESIGN</span>
-                </div>
-                <div className="crm-template-grid">
-                  {workspace.templates.map((template) => (
-                    <button
-                      key={template.id}
-                      disabled={workspace.collections.some(
-                        (c) => c.id === template.id,
-                      )}
-                      onClick={() => setSchema({ template })}
-                    >
-                      <span
-                        className="crm-template-icon"
-                        style={{ color: template.color }}
-                      >
-                        <Folder size={23} />
-                      </span>
-                      <h3>{template.name}</h3>
-                      <p>{template.description}</p>
-                      <span className="crm-template-cta">
-                        {workspace.collections.some((c) => c.id === template.id)
-                          ? 'Added to workspace'
-                          : 'Use template'}
-                        <Plus size={14} />
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-              <section className="crm-agent-banner">
-                <span className="crm-banner-icon">
-                  <Bot size={26} />
-                </span>
-                <div>
-                  <h2>Give your agent a place to work.</h2>
-                  <p>
-                    Read context, propose a structure, enrich records. You
-                    review what happens next.
-                  </p>
-                </div>
-                <button
-                  className="crm-button"
-                  onClick={() => navigate('agents')}
-                >
-                  Connect an agent
-                  <ArrowRight size={15} />
-                </button>
-              </section>
-              <div className="crm-overview-footer">
-                <span>Local first. Open source. Yours to shape.</span>
-                <button
-                  className="crm-text-button"
-                  onClick={() => setWorkbench({})}
-                >
-                  <FileJson size={14} />
-                  JSON workbench
-                </button>
-              </div>
+              {workspace.recentFlows.length > 0 && <section className="crm-overview-section"><div className="crm-section-label"><h2>Agent progress</h2><button className="crm-text-button" onClick={() => navigate('flows')}>View all<ArrowRight size={14}/></button></div><div className="crm-flow-list">{workspace.recentFlows.slice(0,3).map(flow => <FlowCard key={flow.id} flow={flow} onClick={() => navigate('flows')}/>)}</div></section>}
+              <details className="crm-home-tools"><summary>Manual tools</summary><div className="crm-manual-actions"><button className="crm-button" onClick={() => setSchema({})}>Create a collection</button><button className="crm-button" onClick={() => setWorkbench({})}>Open JSON workbench</button></div></details>
             </>
           )}
         </main>

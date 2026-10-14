@@ -90,7 +90,7 @@ export default function SchemaEditor({
   return (
     <Modal
       wide
-      title={collection ? 'Shape collection' : 'New collection'}
+      title={collection ? 'Edit collection fields' : 'New collection'}
       subtitle="Choose a structure. Your agents use the same schema."
       onClose={onClose}
       dirty={dirty}
