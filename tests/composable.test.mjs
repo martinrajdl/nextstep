@@ -1,3 +1,4 @@
+import { legacyFixture } from './legacy-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -90,17 +91,15 @@ test('additive migration and reopen preserve every legacy row, decision, profile
     Object.fromEntries(
       tables.map((name) => [
         name,
-        db.prepare(`SELECT * FROM ${name} ORDER BY rowid`).all(),
+        db.prepare(`SELECT * FROM ${name} ORDER BY id`).all(),
       ]),
     );
   const before = snapshot();
   assert.equal(store.hasLegacyWorkspace(), true);
-  db.exec(
-    'DROP TABLE crm_events; DROP TABLE crm_changes; DROP TABLE crm_views; DROP TABLE crm_records; DROP TABLE crm_collections; DROP TABLE crm_meta',
-  );
+  legacyFixture(db);
   for (let i = 0; i < 2; i++) {
     const reopened = openStore(file);
-    assert.equal(reopened.crm.context().collections.length, 0);
+    assert.equal(reopened.crm.context().collections.length, 1);
     reopened.close();
   }
   assert.deepEqual(snapshot(), before);

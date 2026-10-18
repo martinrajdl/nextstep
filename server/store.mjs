@@ -1,10 +1,11 @@
 import { DatabaseSync } from 'node:sqlite';
-import { mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { mkdirSync, chmodSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { companyKey, opportunityKeys } from './job-identity.mjs';
 import { AppError } from './errors.mjs';
 import { createComposableStore } from './crm-store.mjs';
+import { migrateCompatibility, ensureCompatibilityCollection, compatibilityCollection } from './compatibility.mjs';
 export { AppError } from './errors.mjs';
 
 export const STAGES = ['uninterested', 'prospect', 'interested', 'applied', 'screening', 'interview', 'final', 'offer', 'accepted', 'rejected', 'withdrawn'];
@@ -58,8 +59,15 @@ export function openStore(filename) {
   const db = new DatabaseSync(filename);
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
   const schemaVersion = db.prepare('PRAGMA user_version').get().user_version;
-  if (schemaVersion > 6) { db.close(); throw new Error('This database requires a newer version of Nextstep.'); }
-  db.exec(`CREATE TABLE IF NOT EXISTS opportunities (${opportunityColumns});
+  if (filename !== ':memory:' && schemaVersion > 0 && schemaVersion < 7) {
+    const directory = join(dirname(filename), 'backups');
+    mkdirSync(directory, {recursive:true, mode:0o700});
+    const backup = join(directory, `before-unified-${Date.now()}-${randomUUID().slice(0,8)}.sqlite`);
+    db.prepare('VACUUM INTO ?').run(backup);
+    chmodSync(backup, 0o600);
+  }
+  if (schemaVersion > 7) { db.close(); throw new Error('This database requires a newer version of Nextstep.'); }
+  if (schemaVersion < 7) db.exec(`CREATE TABLE IF NOT EXISTS opportunities (${opportunityColumns});
   CREATE INDEX IF NOT EXISTS idx_opportunities_stage_position ON opportunities(stage, position) WHERE deleted_at IS NULL;
   CREATE TABLE IF NOT EXISTS activity (
     id INTEGER PRIMARY KEY, opportunity_id TEXT NOT NULL REFERENCES opportunities(id),
@@ -116,6 +124,8 @@ export function openStore(filename) {
       db.exec('PRAGMA user_version=6; COMMIT;');
     } catch (error) { db.exec('ROLLBACK;'); db.close(); throw error; }
   }
+  const crm = createComposableStore(db);
+  migrateCompatibility(db);
   const hydrate = row => row ? { ...JSON.parse(row.data), id: row.id, stage: row.stage, position: row.position, version: row.version, createdAt: row.created_at, updatedAt: row.updated_at } : null;
   const list = () => db.prepare('SELECT * FROM opportunities WHERE deleted_at IS NULL ORDER BY position, created_at, id').all().map(hydrate);
   const get = (id, includeDeleted = false) => {
@@ -139,13 +149,15 @@ export function openStore(filename) {
   const checkVersion = (input, job) => { if (!Number.isInteger(input.version)) throw new AppError('The current opportunity version is required.'); if (input.version !== job.version) throw new AppError('This opportunity changed in another window. Close and reopen it to use the latest version.', 409); };
   const nextPosition = stage => Number(db.prepare('SELECT COALESCE(MAX(position), -1) + 1 AS n FROM opportunities WHERE stage = ? AND deleted_at IS NULL').get(stage).n);
   const insert = (data, position, id = randomUUID()) => {
+    ensureCompatibilityCollection(db);
     const now = new Date().toISOString();
     db.prepare('INSERT INTO opportunities(id,data,stage,position,created_at,updated_at) VALUES (?,?,?,?,?,?)').run(id,JSON.stringify(data),data.stage,position,now,now);
     log(id,'created',null,data.stage);
     return get(id);
   };
   return {
-    crm: createComposableStore(db),
+    crm,
+    compatibilityCollection: () => compatibilityCollection(db),
     hasLegacyWorkspace() {
       const onboarding = readOnboarding(db);
       return ['opportunities', 'search_profile', 'agent_schedule', 'search_runs'].some(table =>
@@ -289,6 +301,15 @@ export function openStore(filename) {
           for (const key of keys) seen.set(key,{...data,id:entry.id});
         }
         const first = Number(db.prepare("SELECT COALESCE(MIN(position), 0) AS n FROM opportunities WHERE stage = 'prospect' AND deleted_at IS NULL").get().n) - pending.length;
+        if (!dryRun && pending.length && crm.policy().reviewRequired) {
+          const collectionId = ensureCompatibilityCollection(db), collection = crm.getCollection(collectionId);
+          const proposal = crm.propose({id:randomUUID(),title:'Review imported records',actor:'Connected importer',operations:pending.map((entry,index) => {
+            const {company,contactEmail,nextStep,followUp,...values} = entry.data;
+            return {type:'create_record',id:entry.id,collectionId,collectionVersion:collection.version,title:company,position:first+index,
+              values:{...values,contact_email:contactEmail,next_step:nextStep,follow_up:followUp}};
+          })});
+          return {dryRun:false,created:[],planned:pending.map(entry => entry.data),skipped,proposalId:proposal.id,status:'pending'};
+        }
         const created = dryRun ? [] : pending.map((entry,index) => insert(entry.data,first+index,entry.id));
         return {dryRun,created,planned:dryRun ? pending.map(entry => entry.data) : [],skipped};
       });

@@ -254,7 +254,7 @@ async function main() {
   if (mcpMode) {
     app.dock?.hide();
     await app.whenReady();
-    if (crmMcpMode) await startCrmMcp(appDatabase(),{allowWrites:process.argv.includes('--allow-writes'),onClose:() => app.quit()});
+    if (crmMcpMode) await startCrmMcp(appDatabase(),{requireReview:process.argv.includes('--require-review'),onClose:() => app.quit()});
     else await startMcp(appDatabase(),() => app.quit());
     return;
   }

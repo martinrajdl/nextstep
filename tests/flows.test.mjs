@@ -156,7 +156,7 @@ test('version 1 composable migration preserves schemas, records, proposals and a
   for (const key of ['collections', 'records', 'views', 'changes', 'history'])
     assert.deepEqual(after[key], before[key]);
   assert.deepEqual(store.list(), jobs);
-  assert.equal(store.crm.context().schemaVersion, 2);
+  assert.equal(store.crm.context().schemaVersion, 3);
   assert.deepEqual(after.agentFlows, { flows: [], updates: [] });
 });
 test('incremental history pages return every unseen change in order without gaps', (t) => {

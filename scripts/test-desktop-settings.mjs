@@ -97,7 +97,7 @@ try {
     }),
   ).toEqual({ sandbox: true, nodeIntegration: false, contextIsolation: true });
   expect(local.list()).toEqual(originalJobs);
-  expect(local.crm.collections().map((c) => c.id)).toEqual(['local_contacts']);
+  expect(local.crm.collections().map((c) => c.id)).toEqual([local.compatibilityCollection(),'local_contacts']);
   await app.close();
   app = null;
   page = await launch();

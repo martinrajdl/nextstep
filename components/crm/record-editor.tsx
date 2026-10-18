@@ -289,6 +289,7 @@ export default function RecordEditor({
                   {field.required ? ' *' : ''}
                   {field.type === 'longtext' ? (
                     <textarea
+                      aria-label={field.name}
                       rows={4}
                       maxLength={20000}
                       required={field.required}
@@ -311,6 +312,7 @@ export default function RecordEditor({
                     </select>
                   ) : (
                     <input
+                      aria-label={field.name}
                       required={field.required}
                       type={
                         ['email', 'url', 'date', 'number'].includes(field.type)
@@ -371,7 +373,7 @@ export default function RecordEditor({
                       {event.action.replaceAll('_', ' ')}
                       <small>{dateTime(event.createdAt)}</small>
                     </span>
-                    {event.after && !record.archivedAt && (
+                    {event.after && typeof event.after.values === 'object' && typeof event.after.id === 'string' && !record.archivedAt && (
                       <button
                         type="button"
                         className="crm-text-button"

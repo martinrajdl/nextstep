@@ -1,3 +1,4 @@
+import { preservedRows } from './legacy-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -101,10 +102,10 @@ for (const schemaVersion of [1,2,3]) test(`upgrading schema ${schemaVersion} pre
   try {
     const check = new DatabaseSync(file);
     try {
-      assert.deepEqual(check.prepare('SELECT * FROM opportunities ORDER BY id').all(),before);
+      for (const pair of preservedRows(before, check.prepare('SELECT * FROM opportunities ORDER BY id').all())) assert.deepEqual(pair.after, pair.before);
       assert.deepEqual(check.prepare('SELECT * FROM activity').all(),history);
       assert.deepEqual(check.prepare('PRAGMA foreign_key_check').all(),[]);
-      assert.equal(check.prepare('PRAGMA user_version').get().user_version,6);
+      assert.equal(check.prepare('PRAGMA user_version').get().user_version,7);
     } finally { check.close(); }
     const moved = store.move('saved',{stage:'uninterested',beforeId:null,version:7});
     assert.equal(moved.stage,'uninterested'); assert.equal(moved.notes,notes);

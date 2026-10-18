@@ -34,15 +34,15 @@ test('handoff never accepts arbitrary protocols, relative folders or silently tr
   assert.deepEqual([...url.searchParams.keys()],['q','folder']);
 });
 
-test('CRM setup asks for intent and lets the agent propose the schema before human approval',async () => {
+test('CRM setup asks for intent and lets the agent apply by default and respects optional review',async () => {
   const {crmAgentRequest}=await import('../lib/crm-agent-request.ts');
   for(const provider of ['codex','claude-code']) {
     const url=new URL(agentHandoffUrl(provider,crmAgentRequest,'/tmp/Fictional workspace'));
     assert.equal(url.searchParams.get(provider==='codex'?'prompt':'q'),crmAgentRequest);
   }
   assert.match(crmAgentRequest,/Ask me what I want to track/);
-  assert.match(crmAgentRequest,/nextstep_crm_preview before nextstep_crm_propose/);
-  assert.match(crmAgentRequest,/Do not apply or approve your own proposal/);
+  assert.match(crmAgentRequest,/nextstep_crm_preview before nextstep_crm_apply/);
+  assert.match(crmAgentRequest,/never approve it yourself/);
   assert.match(crmAgentRequest,/Preserve existing records, decisions and other workspaces/);
   assert.doesNotMatch(crmAgentRequest,/job[ -]?(search|tracker)/i);
 });

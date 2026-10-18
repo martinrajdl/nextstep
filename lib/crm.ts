@@ -49,6 +49,7 @@ export type Collection = {
   version: number;
   recordCount: number;
   views: View[];
+  importedSettingsKey?: string;
 };
 export type Template = Pick<
   Collection,
@@ -61,6 +62,7 @@ export type RecordItem = {
   title: string;
   values: Record<string, Value>;
   externalKey: string | null;
+  position: number;
   version: number;
   createdAt: string;
   updatedAt: string;
@@ -93,7 +95,8 @@ export type Event = Diff & {
   createdAt: string;
 };
 export type Workspace = {
-  existingWorkspaces?: { id: string; name: string; path: string }[];
+  compatibilityCollectionId: string | null;
+  policy: {reviewRequired: boolean; version: number};
   recentFlows: AgentFlow[];
   collections: Collection[];
   templates: Template[];

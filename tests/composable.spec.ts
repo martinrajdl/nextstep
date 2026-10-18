@@ -325,7 +325,7 @@ test('stale edits preserve the draft, and stale agent approvals never partially 
   await page.getByRole('button', { name: 'Reject', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
-test('mobile workspace and agent setup are usable, expose exact connection paths, and preserve Jobs navigation', async ({
+test('mobile workspace and agent setup are usable, expose exact connection paths, and keep all collections in one sidebar', async ({
   page,
   request,
 }) => {
@@ -358,8 +358,7 @@ test('mobile workspace and agent setup are usable, expose exact connection paths
   await expect(page.locator('pre')).toContainText(
     context.connection.mcpServers['nextstep-crm'].args.at(-1),
   );
-  await page.getByLabel('Generate a trusted-write configuration').check();
-  await expect(page.locator('pre')).toContainText('--allow-writes');
+  await expect(page.getByText('Your agent can save changes directly.',{exact:false})).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -369,8 +368,9 @@ test('mobile workspace and agent setup are usable, expose exact connection paths
     .getByRole('button', { name: 'Open navigation', exact: true })
     .click();
   await page.getByRole('link', { name: 'Job search', exact: true }).click();
-  await expect(page).toHaveURL(/\/jobs$/);
-  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`collections/${context.compatibilityCollectionId}$`));
+  await expect(page.getByRole('heading',{name:'Job search',exact:true})).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
 test('appearance persists across workspaces while the neutral icon stays unchanged', async ({

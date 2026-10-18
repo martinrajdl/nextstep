@@ -1,6 +1,6 @@
 # Composable Nextstep
 
-Nextstep is an Electron app with a composable workspace at `/`, stored in your selected SQLite database. Agents operate the primary workflow: source information, shape the workspace, propose changes, and continue enriching or moving records after review. Humans follow progress and make decisions in the CRM.
+Nextstep is an Electron app with a composable workspace at `/`, stored in your selected SQLite database. Agents operate the primary workflow: source information, shape the workspace, save changes, and continue enriching or moving records. Humans follow progress and make decisions in the CRM. Agent writes are allowed by default; **Settings → Agent changes → Require review** opts into approval before changes are saved.
 
 ## The model
 
@@ -24,7 +24,7 @@ These display preferences persist per database and view on the device. **Save a 
 
 ## Shape data with an agent
 
-On first launch, choose **Connect Codex** or **Connect Claude Code**. Nextstep adds the connection and opens a prepared conversation; review and send it in your agent. Describe your goal there, let the agent propose the schema, and approve it in Nextstep. The accepted collection opens automatically. **Your agent → Other agents & advanced setup** exposes a copyable config and request for other clients, targeting the exact running database. It uses the `nextstep-crm` connection and preserves any other configured connections.
+On first launch, choose **Connect Codex** or **Connect Claude Code**. Nextstep adds the connection and opens a prepared conversation; review and send it in your agent. Describe your goal there, let the agent build the schema and records. The new collection opens automatically. Enable Require review in Settings if you want proposals first. **Your agent → Other agents & advanced setup** exposes a copyable config and request for other clients, targeting the exact running database. It uses the `nextstep-crm` connection and preserves any other configured connections.
 
 From a source checkout:
 
@@ -40,13 +40,16 @@ Tools:
 | `nextstep_crm_query` | Read a bounded page, search, filter, sort and inspect archived records. |
 | `nextstep_crm_get_record` | Get a complete record and its collection schema. |
 | `nextstep_crm_preview` | Validate and return before/after diffs without storing any changes. |
-| `nextstep_crm_propose` | Submit a change for human review. |
+| `nextstep_crm_apply` | Save a change directly, or return a pending proposal when Require review is enabled. |
+| `nextstep_crm_propose` | Explicitly request human review, regardless of the default. |
 | `nextstep_crm_changes` | Read pending/applied/rejected status, with pagination. |
 | `nextstep_crm_history` | Read recorded provenance and snapshots. |
 | `nextstep_crm_flows` | List flows or read a specific flow with its latest 100 progress reports. |
 | `nextstep_crm_report_flow` | Record progress, reported source links and actual linked change IDs. Does not change records. |
 
-The default connection exposes no approval or direct-write tool. To trust a particular connection with direct writes, explicitly start it with `--allow-writes`. That adds `nextstep_crm_apply`. It still validates data, checks versions and records history. Actor names are provenance labels, not authenticated identities. A process with filesystem access to the SQLite file is already trusted at the operating-system boundary.
+The default connection exposes reads, previews, proposals and `nextstep_crm_apply`. Direct writes are enabled unless **Require review** is on in the selected database. The setting is checked inside every write transaction, including existing MCP sessions; `--allow-writes` remains accepted for old configurations but cannot override the user's review setting. `--require-review` can additionally restrict a particular connection. No MCP tool changes the review setting or approves proposals. Turning review off does not automatically apply pending proposals. The bounded compatibility importer also proposes when review is required; older clients that cannot propose receive an error instead of bypassing review.
+
+Every write validates data, checks versions and records history. Actor names are provenance labels, not authenticated identities. A process with filesystem access to the SQLite file is already trusted at the operating-system boundary.
 
 Packaged desktop connections use the application executable with `--crm-mcp --database …`. The app's Your agent panel generates the correct packaged or source command.
 
@@ -57,7 +60,7 @@ There is no model runner, hidden AI service or model API key inside Nextstep. Yo
 1. **Direction:** the user gives their connected agent an outcome. The setup conversation contains a brief with the workflow contract.
 2. **Source:** the agent reads context, searches with its own authorized tools, and records a flow at stage `sourcing`, including source links and uncertainties.
 3. **Shape:** the agent designs collections, relations and views, or updates existing records. It reports stage `shaping` and previews a typed change set.
-4. **Review:** the agent submits proposals and reports stage `review` with real `changeIds`. Pending records remain unchanged. The user approves or rejects the exact diff; explicitly trusted agents can apply directly.
+4. **Save or review:** the agent calls `nextstep_crm_apply` and inspects the status. Changes normally apply directly. If review is enabled, the agent reports stage `review` with the pending change IDs and waits for a human decision.
 5. **Continue:** the agent reads the decision and fresh record versions, then continues at stage `updating`. It reports `complete` only when the linked work has been applied, or `blocked` with a reason when it cannot continue.
 
 Start a flow with a stable `id`, a unique `reportId`, `version: 0`, `goal`, `actor`, `stage` and `message`. Later reports use the current flow version and a new report ID. Identical retries are idempotent. Each report can add up to 50 `{label,url}` sources and 100 `changeIds`; a flow retains at most 200 distinct sources and change IDs. IDs link existing proposals or applied change sets. Pending or rejected changes prevent a completed report. Rejected work can be marked blocked and a revised goal started in a new flow.
@@ -96,11 +99,11 @@ History without `after` returns recent events newest first. With `after > 0`, it
 }
 ```
 
-Supported operations: `create_collection`, `update_collection`, `create_record`, `update_record`, `archive_record`, `restore_record`, `create_view`, `update_view`, `delete_view`. Updates require the current `version`; record creation/updates also require `collectionVersion`. `values` on record updates is a patch: omitted fields are preserved and `null` explicitly clears an optional value. Collection `fields` replaces the field definition list only after validating every existing record and saved view. Changing the type of a populated field is refused; explicitly copy/convert into a new field first.
+Supported operations: `create_collection`, `update_collection`, `create_record`, `update_record`, `move_record`, `archive_record`, `restore_record`, `create_view`, `update_view`, `delete_view`. Updates require the current `version`; record creation/updates also require `collectionVersion`. `values` on record updates is a patch: omitted fields are preserved and `null` explicitly clears an optional value. Collection `fields` replaces the field definition list only after validating every existing record and saved view. Changing the type of a populated field is refused; explicitly copy/convert into a new field first.
 
 Operations run in order. Create related collections before declaring relation fields, and create target records before linking to them. Supply explicit record UUIDs when referencing new records in the same batch. Otherwise Nextstep derives stable record/view IDs from the change ID and operation index. Retry an uncertain result with exactly the same change ID and content; reusing an ID for different content is rejected.
 
-Queries accept `collectionId`, `search`, `archived`, `limit` (1–200), `offset`, `filters` and `sort`. Filters use `{field,op,value}` with `eq`, `contains`, `empty`, `not_empty`, `gte`, or `lte`. Sort uses `{field,direction}`. Fields are collection keys or `title`, `createdAt`, `updatedAt`. Results include `total` and `nextOffset`. The UI pages records by 50; board counts describe that visible page. It does not fetch the entire database into an agent's context.
+Queries accept `collectionId`, `search`, `archived`, `limit` (1–200), `offset`, `filters` and `sort`. Filters use `{field,op,value}` with `eq`, `contains`, `empty`, `not_empty`, `gte`, or `lte`. Sort uses `{field,direction}`. Fields are collection keys or `title`, `createdAt`, `updatedAt`, `position`. `move_record` accepts a select `field`, a `value`, and an optional `beforeId`; it changes the stage and order atomically. Results include `total` and `nextOffset`. The UI pages records by 50; board counts describe that visible page. It does not fetch the entire database into an agent's context.
 
 ## CLI and JSON workbench
 
@@ -109,7 +112,7 @@ pnpm crm context
 pnpm crm preview data/change.json
 pnpm crm propose data/change.json
 pnpm crm query data/query.json
-pnpm crm apply data/change.json --allow-writes
+pnpm crm apply data/change.json
 pnpm crm export > data/workspace-export.json
 ```
 
@@ -125,7 +128,7 @@ See [self-hosting.md](self-hosting.md) to run on a private server through SSH. M
 
 ## Existing data and backups
 
-The model uses additive `crm_*` tables and a separate schema version. Upgrades preserve existing records, decisions, ordering, settings and history.
+All collections, including imported existing workspaces, use `crm_records` and the same UI. The upgrade preserves IDs, values, stages, ordering, versions, timestamps, archived records, preferences, schedules and history. It creates a private SQLite backup under the database’s `backups/` directory before migration. Compatibility SQL views and triggers keep existing bounded connectors reading and writing those same records, without a second data copy. Existing fields needed by a connected importer retain their keys and types; labels, extra optional fields and pipeline stages remain editable. Historical activity without full snapshots is shown as recorded and cannot be used to restore invented values.
 
 **Export workspace** includes collections, all records including archived records, views, proposal decisions, agent flows and full history. JSON export is not a byte-for-byte database restore format. For a complete backup while running, use SQLite's backup operation. Otherwise stop the app and connected helpers before copying the selected SQLite file and its companion files together. Keep backups private. See [desktop.md](desktop.md#your-database) for desktop locations.
 

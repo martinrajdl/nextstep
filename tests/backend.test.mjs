@@ -73,9 +73,11 @@ test('bundled desktop interface proxies its backend, preserves host checks and n
   assert.equal(upstream.store.crm.collections()[0].id, 'contacts');
   const context = await (await fetch(desktop.url + '/api/crm/context')).json();
   assert.equal(context.collections[0].id, 'contacts');
-  assert.deepEqual(context.existingWorkspaces, []);
+  assert.equal(context.existingWorkspaces, undefined);
   upstream.store.create({company:'Fictional existing workspace'});
-  assert.deepEqual((await (await fetch(desktop.url + '/api/crm/context')).json()).existingWorkspaces, [{id:'legacy-board',name:'Job search',path:'/jobs'}]);
+  const workspace = await (await fetch(desktop.url + '/api/crm/context')).json();
+  assert.ok(workspace.collections.some(c => c.id === workspace.compatibilityCollectionId));
+  assert.equal(workspace.existingWorkspaces, undefined);
   assert.equal(
     (
       await fetch(desktop.url + '/api/crm/context', {

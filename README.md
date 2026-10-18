@@ -2,7 +2,7 @@
 
 **A CRM for your agent. A clear view for you.**
 
-Tell your agent what you need to keep track of. It builds the collections, fields and views, sources information with its own tools, and proposes changes. You follow its progress and review the result in Nextstep.
+Tell your agent what you need to keep track of. It builds the collections, fields and views, sources information with its own tools, and keeps your records up to date. You follow its progress in Nextstep, with review available when you want it.
 
 Nextstep is a local-first **Electron app** with a SQLite database on your computer. It is open source, works with your own agent, and can connect to a [backend on your own server](docs/self-hosting.md). No Nextstep account, model subscription or API key is required.
 
@@ -16,20 +16,20 @@ Nextstep is a local-first **Electron app** with a SQLite database on your comput
 
 1. **Open Nextstep.** Unzip the download and move Nextstep.app into Applications. The Apple silicon build is signed with Developer ID and notarized by Apple; no developer tools are needed.
 2. **Connect your agent.** Choose Codex or Claude Code. Nextstep adds its connection and opens a new local conversation with a prepared request. Review the request and send it in your agent.
-3. **Describe what you need.** Your agent asks about your work and proposes the structure and information. You do not need to design a database or enter records first.
-4. **Review your workspace.** Approve the proposal in Nextstep. The new collection opens with its fields, records and views ready to use. Keep giving direction in your agent; follow reported progress and review changes here.
+3. **Describe what you need.** Your agent asks about your work and creates the structure and information. You do not need to design a database or enter records first.
+4. **Follow the work.** The new collection opens with its fields, records and views ready to use. Keep giving direction in your agent. Turn on **Settings → Agent changes → Require review** if you prefer to approve changes first.
 
 For example: “Help me keep track of potential collaborators, what they do, and our next conversation.”
 
 ![The first-launch screen asks you to connect an agent](docs/images/onboarding.png)
 
-Automatic connection is available for installed Mac desktop agents. **Other agents & advanced setup** exposes the exact MCP configuration and setup request for other clients, browser use or self-hosting. The app never sends a message automatically. After your review, the agent must read the outcome to continue; Nextstep does not run or schedule agents itself.
+Automatic connection is available for installed Mac desktop agents. **Other agents & advanced setup** exposes the exact MCP configuration and setup request for other clients, browser use or self-hosting. The app never sends a message automatically. When review is enabled, the agent must read the outcome to continue; Nextstep does not run or schedule agents itself.
 
 ## What your agent can build
 
 - **Collections for your work:** contacts, projects, research, deals or another structure. Typed fields include text, numbers, dates, email, URLs, checkboxes, selections and relationships.
 - **Useful views:** tables and boards, search, filters, sorting and saved views. Rename and reorder board stages, hide what you do not need, and move cards with Actions or drag-and-drop. Agents discover the schema and views through MCP.
-- **Reviewable changes:** proposals show the values before and after. Approval validates the whole change together; stale proposals cannot overwrite newer decisions. A trusted connection can explicitly enable direct writes.
+- **Direct writes, optional review:** agents save changes by default. Enable Require review in Settings to receive proposals instead. Proposals show before and after values; stale proposals cannot overwrite newer decisions.
 - **Visible progress:** see the agent’s reports, sources and pending work alongside confirmed applied changes. Records keep their history and can be archived and restored.
 - **Your appearance:** light, dark or system mode, with a neutral default and optional color accents. Choose in Settings or the native View → Appearance menu. The app icon stays unchanged.
 - **Your data:** local SQLite, JSON exports in Settings → Data & backend, and private self-hosting. No built-in model. Optional anonymous usage counts are off by default.
@@ -84,7 +84,7 @@ The workspace is at `/`. The browser version offers copyable agent configuration
 
 Nextstep binds its HTTP service to loopback with Host/Origin checks. It is a single-owner app, not a public multi-user server. Use a private SSH tunnel for self-hosting; do not expose the unauthenticated port to the internet. The desktop renderer stays local and sandboxed when using your backend.
 
-Your chosen agent provider may process the context it reads. The default general CRM connection can read and propose; `--allow-writes` explicitly enables trusted direct changes.
+Your chosen agent provider may process the context it reads. The general CRM connection can read and write by default. **Require review** is off by default and applies to the selected database, including already-connected agents. Explicit proposals always wait for a human decision.
 
 Personal records, research and profiles belong in ignored `data/`; runtime logs belong in `.runtime/`. Tests and screenshots use temporary databases. For a full backup while running, use SQLite's backup operation. Otherwise stop the app and all connected helpers before copying the database and any `-wal` / `-shm` companions together. JSON export is not a full SQLite backup.
 

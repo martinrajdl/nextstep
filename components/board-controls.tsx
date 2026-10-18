@@ -14,26 +14,36 @@ function valid(value: unknown): value is BoardSettings {
   const v = value as BoardSettings;
   return Boolean(v && Array.isArray(v.hiddenStages) && Array.isArray(v.actionStages) && [...v.hiddenStages, ...v.actionStages].every(s => typeof s === 'string') && (v.stageOrder === undefined || (Array.isArray(v.stageOrder) && v.stageOrder.every(s => typeof s === 'string'))) && (v.stageNames === undefined || (v.stageNames && typeof v.stageNames === 'object' && !Array.isArray(v.stageNames) && Object.values(v.stageNames).every(s => typeof s === 'string'))));
 }
-export function useBoardSettings(key: string, defaults: BoardSettings) {
+export function useBoardSettings(key: string, defaults: BoardSettings, importKey?: string) {
   const storageKey = `nextstep-board:${key}`;
   const [saved, setSaved] = useState<{key: string; value: BoardSettings} | null>(null);
   const [error, setError] = useState('');
   const editVersion = useRef(0);
+  const defaultsKey = JSON.stringify(defaults);
   const value = saved?.key === storageKey ? saved.value : cache.get(storageKey) || defaults;
   useEffect(() => {
     let cancelled = false;
     const version = editVersion.current;
     const load = async () => {
       try {
-        const result = window.nextstepDesktop
+        let result = window.nextstepDesktop
           ? await window.nextstepDesktop.getBoardSettings(key)
           : JSON.parse(localStorage.getItem(storageKey) || 'null');
+        if (!valid(result) && importKey) {
+          const previous = window.nextstepDesktop ? await window.nextstepDesktop.getBoardSettings(importKey) : JSON.parse(localStorage.getItem(`nextstep-board:${importKey}`) || 'null');
+          if (valid(previous)) {
+            const initial = JSON.parse(defaultsKey) as BoardSettings;
+            result = {...initial, ...previous, stageNames:{...initial.stageNames,...previous.stageNames}};
+            if (window.nextstepDesktop) await window.nextstepDesktop.setBoardSettings(key, result);
+            else localStorage.setItem(storageKey, JSON.stringify(result));
+          }
+        }
         if (!cancelled && version === editVersion.current && valid(result)) { cache.set(storageKey, result); setSaved({key: storageKey, value: result}); }
       } catch { /* A blocked preference store does not block access to records. */ }
     };
     void load();
     return () => { cancelled = true; };
-  }, [key, storageKey]);
+  }, [key, storageKey, importKey, defaultsKey]);
   async function save(next: BoardSettings) {
     const previous = value;
     const version = ++editVersion.current;

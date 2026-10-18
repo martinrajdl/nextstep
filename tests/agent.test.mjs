@@ -1,3 +1,4 @@
+import { legacyFixture } from './legacy-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, existsSync } from 'node:fs';
@@ -21,7 +22,7 @@ test('schema 4 upgrade retains preferences, jobs, removed records and history',t
   const profile = store.updateProfile({version:0,roles:'The user\'s choice'});
   const job = store.create({company:'Original company',stage:'interested'});
   const before = store.list(); const activity = store.activity(job.id);
-  const db = new DatabaseSync(file); db.exec('DROP TABLE agent_schedule; DROP TABLE search_runs; PRAGMA user_version=4;'); db.close();
+  const db = new DatabaseSync(file); legacyFixture(db); db.exec('DROP TABLE agent_schedule; DROP TABLE search_runs; PRAGMA user_version=4;'); db.close();
   const upgraded = openStore(file);
   try { assert.deepEqual(upgraded.getProfile(),profile); assert.deepEqual(upgraded.list(),before); assert.deepEqual(upgraded.activity(job.id),activity); assert.deepEqual(upgraded.agentStatus().runs,[]); }
   finally { upgraded.close(); }

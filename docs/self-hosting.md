@@ -69,7 +69,7 @@ Use SSH as the stdio transport, with key-based authentication configured outside
 }
 ```
 
-Replace the host and paths. The agent defaults to proposing changes for review. Add `--allow-writes` only when intentionally granting direct writes to that connection. The SSH account has filesystem access to its database; the MCP tool policy is not an operating-system sandbox.
+Replace the host and paths. The agent can save changes by default. Enable **Require review** in Settings to require proposals for the selected database, or add `--require-review` to restrict this connection. The SSH account has filesystem access to its database; the MCP tool policy is not an operating-system sandbox.
 
 ## Backup and upgrade
 

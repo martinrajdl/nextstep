@@ -20,7 +20,7 @@ test('CRM MCP cannot silently create a missing established database', () => {
   }
 });
 for (const trusted of [false, true])
-  test(`real MCP session supports ${trusted ? 'explicit trusted writes' : 'review-only proposals'} without changing legacy jobs`, async () => {
+  test(`real MCP session supports ${trusted ? 'default direct writes' : 'opt-in review'} without changing legacy jobs`, async () => {
     const directory = mkdtempSync(join(tmpdir(), 'nextstep-crm-mcp-')),
       file = join(directory, 'test.sqlite');
     const store = openStore(file);
@@ -41,15 +41,16 @@ for (const trusted of [false, true])
       stderr: 'pipe',
     });
     try {
+      if (!trusted) store.crm.setPolicy({version:1,reviewRequired:true});
       await client.connect(transport);
       const names = (await client.listTools()).tools.map((t) => t.name);
-      assert.equal(names.includes('nextstep_crm_apply'), trusted);
+      assert.equal(names.includes('nextstep_crm_apply'), true);
       assert.ok(!names.some((n) => /_(approve|review|shell|delete)$/.test(n)));
       const context = (
         await client.callTool({ name: 'nextstep_crm_context', arguments: {} })
       ).structuredContent;
-      assert.equal(context.access, trusted ? 'trusted-write' : 'propose');
-      assert.equal(context.collections.length, 0);
+      assert.equal(context.access, trusted ? 'write' : 'review-required');
+      assert.equal(context.collections.length, 1);
       const flow = await client.callTool({
         name: 'nextstep_crm_report_flow',
         arguments: {
@@ -99,9 +100,9 @@ for (const trusted of [false, true])
         ).structuredContent.diffs.length,
         2,
       );
-      assert.equal(store.crm.collections().length, 0);
+      assert.equal(store.crm.collections().length, 1);
       const result = await client.callTool({
-        name: trusted ? 'nextstep_crm_apply' : 'nextstep_crm_propose',
+        name: 'nextstep_crm_apply',
         arguments: input,
       });
       assert.equal(result.isError, undefined);
@@ -110,16 +111,7 @@ for (const trusted of [false, true])
         trusted ? 'applied' : 'pending',
       );
       if (!trusted) {
-        assert.equal(store.crm.collections().length, 0);
-        assert.equal(
-          (
-            await client.callTool({
-              name: 'nextstep_crm_apply',
-              arguments: input,
-            })
-          ).isError,
-          true,
-        );
+        assert.equal(store.crm.collections().length, 1);
         store.crm.review(input.id, { version: 1, decision: 'approve' });
       }
       const query = await client.callTool({

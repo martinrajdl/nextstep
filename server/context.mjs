@@ -10,7 +10,7 @@ export function readContext(db, database, afterActivityId = 0) {
   const runs = hasTable('search_runs') ? db.prepare('SELECT * FROM search_runs ORDER BY created_at DESC, id DESC LIMIT 10').all().map(row => ({id:row.id,summary:row.summary,learning:row.learning,evidenceIds:JSON.parse(row.evidence_ids),importedIds:JSON.parse(row.imported_ids),createdAt:row.created_at})) : [];
   return {
     database,readAt:new Date().toISOString(),profile:readSearchProfile(db),
-    byStage:Object.fromEntries(STAGES.map(stage => [stage,records.filter(job => job.stage === stage && !job.removedAt)])),
+    byStage:Object.fromEntries([...new Set([...STAGES,...records.map(record => record.stage)])].map(stage => [stage,records.filter(job => job.stage === stage && !job.removedAt)])),
     removed:records.filter(job => job.removedAt),recentChanges,nextActivityCursor,
     hasMoreChanges:Boolean(db.prepare('SELECT 1 FROM activity WHERE id > ? LIMIT 1').get(nextActivityCursor)),
     schedule:schedule ? {...JSON.parse(schedule.data),version:schedule.version,updatedAt:schedule.updated_at} : null,

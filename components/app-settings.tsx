@@ -7,6 +7,8 @@ import {
 } from 'react';
 import { Check, Download, RefreshCw, Database, Monitor, Moon, Palette, Server, Sun, ShieldCheck } from 'lucide-react';
 import Modal from './crm/modal';
+import SearchPreferences from './search-preferences';
+import AgentConnection from './agent-connection';
 import { errorMessage, type UpdateState, type ThemePreference } from '@/lib/agent';
 import { request } from '@/lib/model';
 import type { Workspace } from '@/lib/crm';
@@ -68,25 +70,44 @@ const PreferencesContext = createContext<Preferences>({
 export const useAppPreferences = () => useContext(PreferencesContext);
 
 function DataExports() {
-  const [workspaces, setWorkspaces] = useState<NonNullable<Workspace['existingWorkspaces']>>([]);
+  return <>
+    <div className="backend-actions"><a className="crm-button" href="/api/crm/export" download><Download size={15}/>Export collections</a></div>
+    <p className="crm-hint">Download all records, views, proposals and history as JSON. JSON exports are not a full database backup.</p>
+  </>;
+}
+
+function AgentSettings() {
+  const [policy, setPolicy] = useState<Workspace['policy'] | null>(null);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => {
-    let cancelled = false;
-    request<Workspace>('/api/crm/context')
-      .then(value => { if (!cancelled) setWorkspaces(value.existingWorkspaces || []); })
-      .catch(error => { if (!cancelled) setError(errorMessage(error)); });
-    return () => { cancelled = true; };
+    let active = true;
+    request<Workspace['policy']>('/api/crm/policy').then(value => { if (active) setPolicy(value); }).catch(e => { if (active) setError(errorMessage(e)); });
+    return () => { active = false; };
   }, []);
-  return <>
-    <div className="backend-actions">
-      <a className="crm-button" href="/api/crm/export" download><Download size={15}/>Export collections</a>
-      {workspaces.filter(workspace => workspace.id === 'legacy-board').map(workspace =>
-        <a key={workspace.id} className="crm-button" href="/api/export" download><Download size={15}/>Export {workspace.name}</a>
-      )}
-    </div>
-    <p className="crm-hint">Download your data as JSON. Collection exports include all records, views, proposals and history. JSON exports are not a full database backup.</p>
-    {error && <p className="crm-error" role="alert">Couldn’t load workspace exports. {error}</p>}
-  </>;
+  async function change(reviewRequired: boolean) {
+    if (!policy || saving) return;
+    const previous = policy;
+    setPolicy({...policy, reviewRequired});
+    setSaving(true); setError('');
+    try {
+      setPolicy(await request<Workspace['policy']>('/api/crm/policy', 'PATCH', {...policy, reviewRequired}));
+      window.dispatchEvent(new Event('nextstep:policy'));
+    } catch (e) {
+      setPolicy(previous);
+      setError(errorMessage(e));
+      try { setPolicy(await request<Workspace['policy']>('/api/crm/policy')); } catch { /* Retain the last confirmed setting while offline. */ }
+    }
+    finally { setSaving(false); }
+  }
+  return <section>
+    <h3><ShieldCheck size={18}/>Agent changes</h3>
+    <label className="usage-consent"><input type="checkbox" checked={policy?.reviewRequired ?? false} disabled={!policy || saving} onChange={event => void change(event.target.checked)}/><span>Require review</span></label>
+    {saving && <output className="crm-hint">Saving…</output>}
+    <p>Off by default. Your connected agents can create and update your workspace directly. Turn this on to approve their changes before they are saved.</p>
+    <p className="crm-hint">Applies to this database and its connected agents. Existing proposals still need a decision. Every applied change keeps its history.</p>
+    {error && <p className="crm-error" role="alert">{error}</p>}
+  </section>;
 }
 
 export default function AppSettings({ children }: { children: ReactNode }) {
@@ -99,6 +120,14 @@ export default function AppSettings({ children }: { children: ReactNode }) {
   const [usageEnabled, setUsageEnabled] = useState(false);
   const [savingUsage, setSavingUsage] = useState(false);
   const [open, setOpen] = useState(false);
+  const [existingCollection, setExistingCollection] = useState('');
+  const [workflowPanel, setWorkflowPanel] = useState<'preferences'|'agent'|null>(null);
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    request<Workspace>('/api/crm/context').then(value => { if (active) setExistingCollection(value.collections.find(c => c.id === value.compatibilityCollectionId)?.name || ''); }).catch(() => {});
+    return () => { active = false; };
+  }, [open]);
   const [connection, setConnection] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -210,6 +239,8 @@ export default function AppSettings({ children }: { children: ReactNode }) {
   return (
     <PreferencesContext value={{ backendUrl, resolvedTheme, openSettings, updateAvailable: Boolean(update && ['available','ready'].includes(update.status)) }}>
       {children}
+      {workflowPanel === 'preferences' && <SearchPreferences onClose={() => setWorkflowPanel(null)} onSaved={() => {}}/>}
+      {workflowPanel === 'agent' && <AgentConnection onClose={() => setWorkflowPanel(null)} onSetup={() => {setWorkflowPanel(null); window.location.href='/#/agents';}}/>}
       {open && (
         <Modal
           title="Settings"
@@ -219,6 +250,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
           }}
         >
           <div className="crm-form-body app-settings">
+            <AgentSettings/>
             {update && <section className="app-update-settings">
               <h3><Download size={18}/>App updates <small>v{update.currentVersion}</small></h3>
               <output className="update-status">{{idle:'Check for a newer version of Nextstep.',unsupported:'In-app updates are available in the signed macOS app.',checking:'Checking for updates…',current:'You’re up to date.',available:`Nextstep ${update.version} is available.`,downloading:'Downloading and verifying the update…',ready:`Nextstep ${update.version} is ready. Restart to finish updating.`,error:update.error}[update.status]}</output>
@@ -369,6 +401,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
               <p>No records, contacts, prompts, database paths or agent activity. Turning this off stops reporting and removes the local identifier.</p>
               <a href="https://github.com/martinrajdl/nextstep/blob/main/docs/privacy.md" target="_blank" rel="noreferrer">Exactly what is shared ↗</a>
             </section>}
+            {existingCollection && <section><h3>Connected importer</h3><p>Your existing connection uses {existingCollection}. Its saved preferences and schedule are preserved.</p><div className="backend-actions"><button className="crm-button" onClick={() => {setOpen(false);setWorkflowPanel('preferences');}}>Importer preferences</button><button className="crm-button" onClick={() => {setOpen(false);setWorkflowPanel('agent');}}>Connection & schedule</button></div></section>}
             <section><h3>About Nextstep</h3><p>An open-source CRM for your agent. You choose which agents have access.</p><a href="https://github.com/martinrajdl/nextstep" target="_blank" rel="noreferrer">View source on GitHub ↗</a></section>
             {error && (
               <p role="alert" className="crm-error">

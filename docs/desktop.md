@@ -1,6 +1,6 @@
 # Desktop app and local agent connection
 
-Nextstep is primarily a local-first Electron app. It bundles its interface, HTTP server, SQLite runtime, and local MCP connectors. Your agent runs the workflow: sourcing information, shaping collections, proposing changes and moving records. You follow progress in Agent progress and review decisions. No model key or external database service is needed for local use.
+Nextstep is primarily a local-first Electron app. It bundles its interface, HTTP server, SQLite runtime, and local MCP connectors. Your agent runs the workflow: sourcing information, shaping collections, saving changes and moving records. You follow progress in Agent progress and can opt into reviewing changes. No model key or external database service is needed for local use.
 
 ## Build and run
 
@@ -53,15 +53,15 @@ The MCP connection always includes the selected database's absolute path. Your a
 
 For a full backup, stop the app and any connected MCP helpers, then copy the database and any SQLite `-wal`/`-shm` companion files together. A SQLite backup operation is also safe while the database is open. Workspace JSON export includes collections, records, views, proposals, flows and history; it is not a full database backup.
 
-Data downloads live in **Settings → Data & backend**. **Export collections** includes all records, including archived ones, rather than only the visible page. Separate existing workspaces appear there with their own export when present. Workspace and pipeline toolbars stay focused on browsing and editing.
+Data downloads live in **Settings → Data & backend**. **Export collections** includes all records, including archived ones, rather than only the visible page. Existing workspaces are included as collections in that same export. Workspace and pipeline toolbars stay focused on browsing and editing.
 
 ## First-run setup
 
 The first launch asks you to **Connect your agent**. Choose **Connect Codex** or **Connect Claude Code**. Nextstep adds a separate `nextstep-crm` MCP connection for the selected database and opens a new local conversation with the setup request prefilled. Review and send it in your agent; Nextstep does not send automatically.
 
-The agent asks what you want to track, proposes collections, typed fields, relationships, views and known records, and reports its progress. Click **Review proposed changes** in Nextstep, inspect the proposal and approve it. The first accepted collection opens automatically. The agent can discover and query that same schema through MCP. Manual schema and JSON tools are under **Other agents & advanced setup** on the empty workspace, and **Manual tools** on the populated home page.
+The agent asks what you want to track, creates collections, typed fields, relationships, views and known records, and reports its progress. The first collection opens automatically. **Require review** in Settings is off by default; enable it to approve proposed changes before they are saved. The agent can discover and query that same schema through MCP. Manual schema and JSON tools are under **Other agents & advanced setup** on the empty workspace, and **Manual tools** on the populated home page.
 
-The CRM handoff uses a `Workspace` folder in Nextstep's application-data directory. It preserves other agent connections and their permissions. Existing conflicting agent configurations are never silently replaced. Other agents and self-hosted workspaces can copy the exact configuration and setup request under **Other agents & advanced setup**. The general connector proposes by default; trusted direct writes require explicitly adding `--allow-writes`.
+The CRM handoff uses a `Workspace` folder in Nextstep's application-data directory. It preserves other agent connections and their permissions. Existing conflicting agent configurations are never silently replaced. Other agents and self-hosted workspaces can copy the exact configuration and setup request under **Other agents & advanced setup**. The general connector writes directly by default and respects the selected database’s Require review setting. Existing `--allow-writes` configurations keep working without overriding that setting.
 
 **Workspace home** in the top bar returns home from any collection or workspace. The sidebar stays present while navigating, so switching does not reload the entire app. The current collection or workspace stays visible in the header.
 
@@ -81,7 +81,7 @@ node mcp/crm-stdio.mjs --database /absolute/path/to/nextstep.sqlite
 
 The helper is a separate stdio process launched by the agent and works while the Nextstep window is closed. No public MCP endpoint or relay is started. The HTTP interface binds only to loopback and the renderer has no Node access.
 
-The general connector reads context, previews changes and submits proposals. It exposes no approval tool. Direct writes require an explicitly trusted connection with `--allow-writes`; validation, version checks and history still apply. See [composable-crm.md](composable-crm.md) for the complete tool and change-set contract.
+The general connector reads context, previews changes and saves changes directly by default. Enable Require review in Settings to receive proposals instead. It exposes no approval tool; validation, version checks and history apply in either mode. See [composable-crm.md](composable-crm.md) for the complete tool and change-set contract.
 
 Nextstep does not run or schedule agents. Your chosen agent provider may process the context it reads. Optional usage counts are off by default under **Settings → Privacy**; the check-in never includes CRM records or agent content. See [privacy.md](privacy.md) for the exact payload and retention.
 

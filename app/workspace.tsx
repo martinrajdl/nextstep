@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import {
   Activity,
   ArrowRight,
@@ -37,8 +37,6 @@ import { useAppPreferences } from '@/components/app-settings';
 import AgentFlows, {
   FlowCard,
 } from '@/components/crm/agent-flows';
-const loadPipeline = () => import('./page');
-const JobWorkspace = lazy(loadPipeline);
 import { BoardSkeleton } from '@/components/board-controls';
 import './workspace.css';
 const currentRoute = () =>
@@ -191,7 +189,8 @@ export default function WorkspaceApp() {
     };
     window.addEventListener('hashchange', handler);
     window.addEventListener('popstate', handler);
-    return () => { window.removeEventListener('hashchange', handler); window.removeEventListener('popstate', handler); };
+    window.addEventListener('nextstep:policy', handler);
+    return () => { window.removeEventListener('hashchange', handler); window.removeEventListener('popstate', handler); window.removeEventListener('nextstep:policy', handler); };
   }, [refresh]);
   useEffect(() => {
     const refreshVisible = () => {
@@ -215,14 +214,12 @@ export default function WorkspaceApp() {
     setRoute(currentRoute());
     setNavOpen(false);
   };
-  const collection = workspace?.collections.find(
-    (c) => route === `collections/${c.id}`,
-  );
+  const activeCollectionId = route === 'legacy-board' ? workspace?.compatibilityCollectionId : route.startsWith('collections/') ? route.slice('collections/'.length) : null;
+  const collection = workspace?.collections.find(c => c.id === activeCollectionId);
   const label =
     collection?.name ||
     {
       overview: 'Workspace home',
-      'legacy-board': workspace?.existingWorkspaces?.find(w => w.id === 'legacy-board')?.name || 'Workspace',
       review: 'Review changes',
       activity: 'History',
       agents: 'Connect an agent',
@@ -265,7 +262,7 @@ export default function WorkspaceApp() {
             { id: 'review', label: 'Review changes', icon: Inbox },
             { id: 'activity', label: 'History', icon: Activity },
             { id: 'agents', label: 'Your agent', icon: Bot },
-          ].filter(item => item.id === 'overview' || Boolean(workspace?.collections.length) || (item.id === 'review' && Boolean(workspace?.pendingCount)) || (item.id === 'flows' && Boolean(workspace?.recentFlows.length))).map((item) => (
+          ].filter(item => item.id !== 'review' || workspace?.policy.reviewRequired || Boolean(workspace?.pendingCount)).map((item) => (
             <a
               key={item.id}
               onClick={followLink}
@@ -283,16 +280,8 @@ export default function WorkspaceApp() {
         </nav>
         {Boolean(workspace?.collections.length) && <>
           <div className="crm-sidebar-caption">YOUR COLLECTIONS</div>
-          <nav aria-label="Collections">{workspace?.collections.map(c => <a onClick={followLink} key={c.id} href={`/#/collections/${c.id}`} aria-current={collection?.id === c.id ? 'page' : undefined}><span className="crm-collection-dot" style={{background:c.color}}/>{c.name}<small>{c.recordCount}</small></a>)}</nav>
+          <nav aria-label="Collections">{workspace?.collections.map(c => <a onClick={followLink} key={c.id} href={`/#/collections/${c.id}`} aria-label={c.name} aria-current={collection?.id === c.id ? 'page' : undefined}><span className="crm-collection-dot" style={{background:c.color}}/>{c.name}<small aria-hidden="true">{c.recordCount}</small></a>)}</nav>
         </>}
-        {Boolean(workspace?.existingWorkspaces?.length) && <><div className="crm-sidebar-caption">YOUR WORKSPACES</div>
-        <nav aria-label="Other workspaces">
-          {workspace?.existingWorkspaces?.filter(item => /^\/[a-z0-9/_-]+$/.test(item.path)).map(item => <a onClick={followLink} onMouseEnter={() => { void loadPipeline(); }} onFocus={() => { void loadPipeline(); }} key={item.id} href={item.path} aria-current={route === item.id ? 'page' : undefined}>
-            <Folder size={17} />
-            {item.name}
-            <ChevronRight size={13} aria-hidden="true" />
-          </a>)}
-        </nav></>}
         <div className="crm-sidebar-bottom">
           <button aria-label="Settings" title={updateAvailable ? 'Settings · update available' : 'Settings'} className="crm-settings-button" onClick={openSettings}>
             <Settings size={17} /> Settings{updateAvailable && <span className="settings-update-dot" aria-label="Update available"/>}
@@ -334,7 +323,7 @@ export default function WorkspaceApp() {
             </button>
           </div>
         </header>
-        <main id="workspace-content" className={`crm-content ${route === 'legacy-board' ? 'crm-pipeline-content' : ''}`}>
+        <main id="workspace-content" className="crm-content">
           {error && (
             <div className="crm-error" role="alert">
               {error}
@@ -346,7 +335,7 @@ export default function WorkspaceApp() {
               </button>
             </div>
           )}
-          {route === 'legacy-board' ? <Suspense fallback={<BoardSkeleton/>}><JobWorkspace/></Suspense> : !workspace ? (
+          {!workspace ? (
             error ? <div className="crm-empty"><Database size={28}/><h1>Workspace unavailable</h1></div> : <BoardSkeleton table/>
 
           ) : collection ? (

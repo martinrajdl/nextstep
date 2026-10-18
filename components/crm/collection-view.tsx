@@ -174,6 +174,7 @@ export default function CollectionView({
   onImport: () => void;
   onChanged: () => Promise<void>;
 }) {
+  const initialView = collection.views?.[0];
   const [data, setData] = useState<PageResult>({
     records: [],
     total: 0,
@@ -186,13 +187,13 @@ export default function CollectionView({
     [archived, setArchived] = useState(false),
     [loadedKey, setLoadedKey] = useState(''),
     [error, setError] = useState('');
-  const [layout, setLayout] = useState<'table' | 'board'>('table'),
+  const [layout, setLayout] = useState<'table' | 'board'>(initialView?.layout || 'table'),
     [groupBy, setGroupBy] = useState(
-      collection.fields.find((f) => f.type === 'select')?.key || '',
+      initialView?.groupBy || collection.fields.find((f) => f.type === 'select')?.key || '',
     ),
-    [viewId, setViewId] = useState('all');
-  const [filters, setFilters] = useState<Filter[]>([]),
-    [sort, setSort] = useState<Sort>({ field: 'updatedAt', direction: 'desc' }),
+    [viewId, setViewId] = useState(initialView?.id || 'all');
+  const [filters, setFilters] = useState<Filter[]>(initialView?.filters || []),
+    [sort, setSort] = useState<Sort>(initialView?.sort || { field: 'position', direction: 'asc' }),
     [showFilter, setShowFilter] = useState(false),
     [viewEditor, setViewEditor] = useState(false),
     [moving, setMoving] = useState(false);
@@ -206,7 +207,7 @@ export default function CollectionView({
     stageOrder: view?.stageOrder || [],
     stageNames: view?.stageNames || {},
     actionStages: view?.quickActions || (defaultActions.length ? defaultActions : stageOptions.slice(-1)),
-  });
+  }, groupBy === 'stage' ? collection.importedSettingsKey : undefined);
   const {hiddenStages, actionStages} = boardPreferences.settings;
   const visibleFields = collection.fields.filter(
     (f) => !view || view.columns.includes(f.key),
@@ -302,22 +303,25 @@ export default function CollectionView({
         '',
     );
     setFilters(chosen?.filters || []);
-    setSort(chosen?.sort || { field: 'updatedAt', direction: 'desc' });
+    setSort(chosen?.sort || { field: 'position', direction: 'asc' });
   }
-  async function move(record: RecordItem, value: string) {
+  async function move(record: RecordItem, value: string, beforeId?: string) {
     if (moving || loading) return;
     setMoving(true);
     setError('');
     try {
       await applyChange(`Move ${record.title}`, [
         {
-          type: 'update_record',
+          type: 'move_record',
           id: record.id,
           version: record.version,
           collectionVersion: collection.version,
-          values: { [groupBy]: value || null },
+          field: groupBy,
+          value: value || null,
+          ...(beforeId ? {beforeId} : {}),
         },
       ]);
+      setSort({field:'position', direction:'asc'});
       await onChanged();
     } catch (e) {
       setError(errorMessage(e));
@@ -571,6 +575,7 @@ export default function CollectionView({
               }}
             >
               <option value="updatedAt">Last updated</option>
+              <option value="position">Pipeline order</option>
               <option value="createdAt">Created</option>
               <option value="title">Title</option>
               {collection.fields.map((f) => (
@@ -783,6 +788,12 @@ export default function CollectionView({
                         setDragged(record);
                       }}
                       onDragEnd={() => setDragged(null)}
+                      onDrop={event => {
+                        if (!dragged || archived || dragged.id === record.id) return;
+                        event.preventDefault(); event.stopPropagation();
+                        if (event.dataTransfer.getData('text/nextstep-record') === dragged.id) void move(dragged, group, record.id);
+                        setDragged(null);
+                      }}
                     >
                       <button onClick={() => onOpen(record)} disabled={loading}>
                         <strong>{record.title}</strong>
@@ -793,7 +804,7 @@ export default function CollectionView({
                               record.values[f.key] != null &&
                               f.type !== 'relation',
                           )
-                          .slice(0, 2)
+                          .slice(0, view ? 4 : 2)
                           .map((f) => (
                             <span key={f.key}>
                               <small>{f.name}</small>

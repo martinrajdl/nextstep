@@ -6,7 +6,7 @@ Nextstep is a local composable CRM operated by agents and reviewed by people. Re
 
 - Personal records, profiles, files, and research belong under ignored `data/`. Runtime logs live in `.runtime/`. Never commit these or use them as public fixtures/screenshots.
 - Preserve the existing database and user decisions. Do not run demo seeds or destructive migrations against it. If an established database is missing, investigate the configured path instead of creating a replacement.
-- Agents must read current context, verify sources, deduplicate records including archived identities, and preview changes before proposing them for review. Existing values and user decisions must be preserved.
+- Agents must read current context, verify sources, deduplicate records including archived identities, and preview changes before applying them; honor the selected database’s optional Require review setting. Existing values and user decisions must be preserved.
 - Explicit preferences take precedence over inferred interests. Do not infer permission to send messages, submit forms or create schedules from a request to research or organize information.
 - Compatibility workflows and their data must keep working. Their local instructions are preserved under ignored `data/private-workflow/`; they are not public product examples. Keep existing bounded connectors and write permissions intact.
 - Public copy, onboarding, documentation, release notes and screenshots describe only the general CRM. Never promote a maintainer's personal workflows or origin story. New installations start empty, without built-in personal workspaces.
@@ -15,7 +15,7 @@ Nextstep is a local composable CRM operated by agents and reviewed by people. Re
 
 - Generic collections, records, views, proposals and history live in additive `crm_*` tables in the same SQLite file. `server/crm-store.mjs` owns validation and atomic change sets.
 - `app/workspace.tsx`, `app/workspace.css`, `components/crm/` and `lib/crm.ts` implement the generic workspace. Navigation lists only workspaces present in the selected database.
-- `mcp/crm-stdio.mjs` is the general CRM connector. It proposes by default; direct writes require explicit `--allow-writes`. Keep compatibility connectors bounded.
+- `mcp/crm-stdio.mjs` is the general CRM connector. It writes by default; Require review is opt-in, off by default, and enforced dynamically inside the write transaction. `--allow-writes` must never override that setting. Keep compatibility connectors bounded and operating on the same records through the compatibility view.
 - `server/crm-flows.mjs` records agent-reported progress and derives applied counts from real change sets. Progress reporting must never approve proposals or mutate records.
 - Electron remains the primary app. `desktop/preferences.mjs` preserves appearance and backend selection; self-hosted mode serves the bundled renderer and proxies JSON API requests through a loopback SSH tunnel without opening a local shadow database.
 - Read `docs/composable-crm.md` before changing the generic model, and `docs/self-hosting.md` for private server deployment. Do not weaken loopback or Host/Origin restrictions.

@@ -1,153 +1,100 @@
 import { test, expect } from '@playwright/test';
-test.beforeEach(async ({request}) => {
-  const state = await (await request.get('/api/agent')).json();
-  await request.delete('/api/agent/schedule',{data:{version:state.schedule.version}});
-  const {profile} = await (await request.get('/api/profile')).json();
-  await request.patch('/api/profile',{data:{version:profile.version,roles:'',locations:'',workStyle:''}});
-  const {onboarding} = await (await request.get('/api/agent')).json();
-  await request.patch('/api/onboarding',{data:{version:onboarding.version,status:'new',step:0}});
+test('agent setup explains direct writes and exposes the exact shared connection', async ({
+  page,
+}) => {
+  await page.goto('/#/agents');
+  await expect(
+    page.getByRole('heading', { name: 'Connect your agent.' }),
+  ).toBeVisible();
+  await page
+    .getByText('Other agents & advanced setup', { exact: true })
+    .click();
+  await expect(page.locator('.crm-advanced-body pre')).toContainText(
+    'nextstep-crm',
+  );
+  await expect(page.locator('.crm-advanced-body pre')).toContainText(
+    '--database',
+  );
+  await expect(
+    page.getByText('Your agent can save changes directly.', { exact: false }),
+  ).toBeVisible();
+  await page.getByText('Read setup request', { exact: true }).click();
+  await expect(page.locator('.crm-generated-brief')).toContainText(
+    'nextstep_crm_apply',
+  );
+  await expect(
+    page.getByText('Generate a trusted-write configuration', { exact: true }),
+  ).toHaveCount(0);
 });
-test('first launch is generic, can be skipped, stays skipped, and can be resumed',async ({page,request}) => {
-  await page.goto('/jobs');
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page.getByLabel('Roles and work you want')).toHaveValue('');
-  await expect(page.getByLabel('Location and work eligibility')).toHaveValue('');
-  await page.screenshot({path:'test-results/onboarding-welcome.png'});
-  await page.getByRole('button',{name:'Use the board for now'}).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.reload(); await expect(page.getByRole('button',{name:'New opportunity',exact:true})).toBeVisible();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.getByRole('button',{name:'Search agent',exact:true}).click();
-  await page.getByRole('button',{name:'Continue',exact:true}).click();
-  await expect(page.getByRole('alert')).toContainText('what kind of work');
-  await page.getByLabel('Roles and work you want').fill('Museum education and public programmes');
-  await page.getByLabel('Location and work eligibility').fill('The region I chose');
-  await page.getByRole('button',{name:'Continue',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'A little help finding your next role.'})).toBeVisible();
-  await expect(page.getByLabel('When should it look for jobs?')).toHaveValue('demand');
-  await page.getByRole('button',{name:'Close setup'}).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.reload(); await page.getByRole('button',{name:'Search agent',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'A little help finding your next role.'})).toBeVisible();
-  const {profile} = await (await request.get('/api/profile')).json(); expect(profile.roles).toBe('Museum education and public programmes');
+test('review is an opt-in setting, persists after reload, and can be disabled', async ({
+  page,
+  request,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(
+    page.getByLabel('Require review', { exact: true }),
+  ).not.toBeChecked();
+  await page.getByLabel('Require review', { exact: true }).check();
+  await expect
+    .poll(
+      async () =>
+        (await (await request.get('/api/crm/policy')).json()).reviewRequired,
+    )
+    .toBe(true);
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(
+    page.getByRole('link', { name: 'Review changes', exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(
+    page.getByLabel('Require review', { exact: true }),
+  ).toBeChecked();
+  await page.getByLabel('Require review', { exact: true }).uncheck();
+  await expect
+    .poll(
+      async () =>
+        (await (await request.get('/api/crm/policy')).json()).reviewRequired,
+    )
+    .toBe(false);
+  await expect(
+    page.getByLabel('Require review', { exact: true }),
+  ).toBeEnabled();
+  await page.route('**/api/crm/policy', (route) =>
+    route.request().method() === 'PATCH'
+      ? route.fulfill({
+          status: 503,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Could not save agent settings.' }),
+        })
+      : route.continue(),
+  );
+  await page.getByLabel('Require review', { exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Could not save');
+  await expect(
+    page.getByLabel('Require review', { exact: true }),
+  ).not.toBeChecked();
+  expect(
+    (await (await request.get('/api/crm/policy')).json()).reviewRequired,
+  ).toBe(false);
 });
-test('manual browser connection and on-demand handoff are honest and contain the exact database',async ({page,request}) => {
-  await page.goto('/jobs');
-  await page.getByLabel('Roles and work you want').fill('Restoration work');
-  await page.getByRole('button',{name:'Continue',exact:true}).click();
-  await page.getByRole('button',{name:'Codex',exact:false}).click();
-  await page.getByRole('button',{name:'Continue',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Copy setup request',exact:true})).toBeDisabled();
-  await page.getByText('Advanced connection',{exact:true}).click();
-  await page.getByLabel('I added the connection in my agent').check();
-  await expect(page.getByRole('button',{name:'Copy setup request',exact:true})).toBeEnabled();
-  await page.getByRole('button',{name:'Copy setup request',exact:true}).click();
-  await page.getByText('View setup request',{exact:true}).click();
-  const state = await (await request.get('/api/agent')).json();
-  await expect(page.getByLabel('Setup request',{exact:true})).toContainText(state.database);
-  await expect(page.getByLabel('Setup request',{exact:true})).toContainText('I selected on-demand searches');
-  await expect(page.getByText('Waiting for your agent to connect',{exact:true})).toBeVisible();
-  expect(state.onboarding.connectedAt).toBeNull(); expect(state.schedule.taskId).toBe('');
-  await page.getByRole('button',{name:'Go to my board'}).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-});
-test('mobile setup keeps profile drafts on conflict and has no horizontal overflow',async ({page,request}) => {
-  await page.setViewportSize({width:390,height:844}); await page.goto('/jobs');
-  await page.getByLabel('Roles and work you want').fill('My unsaved search');
-  const {profile} = await (await request.get('/api/profile')).json();
-  await request.patch('/api/profile',{data:{version:profile.version,roles:'Another confirmed preference'}});
-  await page.getByRole('button',{name:'Continue',exact:true}).click();
-  await expect(page.getByRole('alert')).toContainText('changed elsewhere');
-  await expect(page.getByLabel('Roles and work you want')).toHaveValue('My unsaved search');
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({path:'test-results/onboarding-mobile.png'});
-  await page.getByRole('button',{name:'Close setup'}).click();
-  await page.getByRole('button',{name:'Keep editing'}).click();
-  await expect(page.getByLabel('Roles and work you want')).toHaveValue('My unsaved search');
-});
-
-for (const provider of ['claude-code','codex'] as const) {
-  test(`${provider} onboarding opens a prepared conversation even without clipboard access`,async ({page,request}) => {
-    await page.addInitScript(provider => {
-      Object.defineProperty(navigator,'clipboard',{value:{writeText:async () => { throw new Error('Clipboard blocked'); }}});
-      window.nextstepDesktop = {
-      platform:'browser',
-      getBoardSettings:async () => null,
-      setBoardSettings:async (_key,value) => value,
-      getUpdateState:async () => ({status:'unsupported' as const,currentVersion:'0.4.3',version:null,error:'',automatic:false}),
-      checkForUpdates:async () => ({status:'current' as const,currentVersion:'0.4.3',version:null,error:'',automatic:false}),
-      downloadUpdate:async () => ({status:'ready' as const,currentVersion:'0.4.3',version:'0.4.4',error:'',automatic:false}),
-      installUpdate:async () => {},
-      setAutomaticUpdates:async value => ({status:'idle' as const,currentVersion:'0.4.3',version:null,error:'',automatic:value}),
-      onUpdateStateChanged:() => () => {},
-      openCrmAgent:async () => ({configured:true,instructions:'Example setup request'}),
-      getPreferences:async () => ({accent:'#777777',theme:'light',backendUrl:null,usageEnabled:false}),
-      setTheme:async (theme) => theme,
-      onThemeChanged:() => () => {},
-      setUsageEnabled:async value => value,
-      setAppearance:async color => color,
-      setBackend:async url => ({accent:'#777777',backendUrl:url}),
-      onAppearanceChanged:() => () => {},
-      onOpenSettings:() => () => {},
-        getAgents:async () => [{provider,label:provider,installed:true,canConnect:true}],
-        connectAgent:async () => { throw new Error('Opening must perform connection setup in the main process'); },
-        openAgent:async (selected,purpose) => {
-          if (selected !== provider || purpose !== 'setup') throw new Error('Incorrect handoff target');
-          return (await fetch('/api/agent/setup')).json();
-        },
-      };
-    },provider);
-    await page.goto('/jobs');
-    await page.getByLabel('Roles and work you want').fill('Fictional research preferences');
-    await page.getByRole('button',{name:'Continue',exact:true}).click();
-    const label = provider === 'claude-code' ? 'Claude Code' : 'Codex';
-    await page.getByRole('button',{name:label,exact:false}).click();
-    await page.getByRole('button',{name:'Continue',exact:true}).click();
-    await page.getByRole('button',{name:`Open setup in ${label}`,exact:true}).click();
-    await expect(page.locator('.agent-notice')).toContainText('request filled in');
-    await expect(page.getByRole('alert')).toHaveCount(0);
-    await page.getByText('View setup request',{exact:true}).click();
-    const state = await (await request.get('/api/agent')).json();
-    await expect(page.getByLabel('Setup request',{exact:true})).toContainText(state.database);
-    await expect(page.getByText('Waiting for your agent to connect',{exact:true})).toBeVisible();
-    expect(state.onboarding.connectedAt).toBeNull();
-    await page.screenshot({path:`test-results/onboarding-handoff-${provider}.png`});
-  });
-}
-
-test('a failed desktop launch keeps the request available without claiming a connection',async ({page}) => {
-  await page.addInitScript(() => {
-    window.nextstepDesktop = {
-      platform:'browser',
-      getBoardSettings:async () => null,
-      setBoardSettings:async (_key,value) => value,
-      getUpdateState:async () => ({status:'unsupported' as const,currentVersion:'0.4.3',version:null,error:'',automatic:false}),
-      checkForUpdates:async () => ({status:'current' as const,currentVersion:'0.4.3',version:null,error:'',automatic:false}),
-      downloadUpdate:async () => ({status:'ready' as const,currentVersion:'0.4.3',version:'0.4.4',error:'',automatic:false}),
-      installUpdate:async () => {},
-      setAutomaticUpdates:async value => ({status:'idle' as const,currentVersion:'0.4.3',version:null,error:'',automatic:value}),
-      onUpdateStateChanged:() => () => {},
-      openCrmAgent:async () => ({configured:true,instructions:'Example setup request'}),
-      getPreferences:async () => ({accent:'#777777',theme:'light',backendUrl:null,usageEnabled:false}),
-      setTheme:async (theme) => theme,
-      onThemeChanged:() => () => {},
-      setUsageEnabled:async value => value,
-      setAppearance:async color => color,
-      setBackend:async url => ({accent:'#777777',backendUrl:url}),
-      onAppearanceChanged:() => () => {},
-      onOpenSettings:() => () => {},
-      getAgents:async () => [{provider:'claude-code',label:'Claude Code',installed:true,canConnect:true}],
-      connectAgent:async () => ({configured:true}),
-      openAgent:async () => { throw new Error('Could not open a new Claude Code conversation'); },
-    };
-  });
-  await page.goto('/jobs');
-  await page.getByLabel('Roles and work you want').fill('Fictional research preferences');
-  await page.getByRole('button',{name:'Continue',exact:true}).click();
-  await page.getByRole('button',{name:'Claude Code',exact:false}).click();
-  await page.getByRole('button',{name:'Continue',exact:true}).click();
-  await page.getByRole('button',{name:'Open setup in Claude Code',exact:true}).click();
-  await expect(page.getByRole('alert')).toContainText('Could not open a new Claude Code conversation');
-  await expect(page.getByLabel('Setup request',{exact:true})).toBeVisible();
-  await expect(page.getByText('Waiting for your agent to connect',{exact:true})).toBeVisible();
+test('saved importer preferences remain editable from settings', async ({
+  page,
+  request,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Importer preferences', exact: true })
+    .click();
+  await page
+    .getByLabel('Roles and work you want')
+    .fill('Fictional preferences to preserve');
+  await page
+    .getByRole('button', { name: 'Save preferences', exact: true })
+    .click();
+  expect((await (await request.get('/api/profile')).json()).profile.roles).toBe(
+    'Fictional preferences to preserve',
+  );
 });

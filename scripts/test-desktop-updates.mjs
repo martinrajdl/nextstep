@@ -20,7 +20,7 @@ let app;
 try {
   app=await electron.launch({executablePath,args:[],env:{...process.env,NEXTSTEP_DISABLE_UPDATES:'',NEXTSTEP_DB_PATH:'',DB_PATH:'',NEXTSTEP_USER_DATA:userData,NEXTSTEP_AGENT_CONFIG_HOME:join(directory,'agents')}});
   const page=await app.firstWindow();
-  await expect(page.getByRole('heading',{name:'Connect your agent.'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Your workspace'})).toBeVisible();
   const version=await app.evaluate(({app}) => app.getVersion());
   const next=version.replace(/\d+$/,n => String(Number(n)+1));
   const url=`https://github.com/martinrajdl/nextstep/releases/download/v${next}/Nextstep-${next}-macOS-arm64.zip`;
@@ -54,14 +54,15 @@ try {
   await page.getByLabel('Show Rejected stage').uncheck();
   await page.getByRole('button',{name:'Move Inbox earlier',exact:true}).click();
   await page.getByRole('button',{name:'Done',exact:true}).click();
-  const saved=await page.evaluate(() => window.nextstepDesktop.getBoardSettings('pipeline'));
-  expect(saved.stageNames).toEqual({prospect:'Inbox'});expect(saved.hiddenStages).toEqual(['rejected']);expect(saved.stageOrder[0]).toBe('prospect');
+  const key=`collection:${store.compatibilityCollection()}:${store.crm.views(store.compatibilityCollection())[0].id}:stage`;
+  const saved=await page.evaluate(key => window.nextstepDesktop.getBoardSettings(key),key);
+  expect(saved.stageNames.prospect).toBe('Inbox');expect(saved.hiddenStages).toEqual(['rejected']);expect(saved.stageOrder[0]).toBe('prospect');
   await app.close();app=null;
   app=await electron.launch({executablePath,args:[],env:{...process.env,NEXTSTEP_DISABLE_UPDATES:'1',NEXTSTEP_DB_PATH:'',DB_PATH:'',NEXTSTEP_USER_DATA:userData,NEXTSTEP_AGENT_CONFIG_HOME:join(directory,'agents')}});
   const reopened=await app.firstWindow();
   await reopened.getByRole('link',{name:'Job search',exact:true}).click();
-  await expect(reopened.locator('.board-column').first()).toHaveAttribute('aria-label','Inbox stage');
-  expect(await reopened.evaluate(() => window.nextstepDesktop.getBoardSettings('pipeline'))).toEqual(saved);
+  await expect(reopened.locator('.crm-board > section').first()).toHaveAttribute('aria-label','Inbox column');
+  expect(await reopened.evaluate(key => window.nextstepDesktop.getBoardSettings(key),key)).toEqual(saved);
   expect(store.list()).toEqual(before);
   console.log('Packaged updater UI passed: metadata-only checks, explicit download and restart, native events, persistent per-database stage names/order/visibility, and unchanged records and usage consent.');
 } finally {if(app) await app.close();store.close();rmSync(directory,{recursive:true,force:true});}

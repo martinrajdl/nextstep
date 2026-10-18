@@ -1,3 +1,4 @@
+import { legacyFixture } from './legacy-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -33,7 +34,7 @@ test('schema 5 upgrade preserves decisions, removals, reports, schedule and pref
   store.updateSchedule({version:schedule.version,taskId:'existing-task'},{registration:true});
   store.recordSearchRun({id:'existing-report',summary:'Previous report',learning:'',evidenceIds:[],importedIds:[]});
   const before = {jobs:store.list(),history:store.activity(chosen.id),profile:store.getProfile(),agent:store.agentStatus()};
-  const db = new DatabaseSync(file); db.exec('DROP TABLE onboarding; PRAGMA user_version=5;'); db.close();
+  const db = new DatabaseSync(file); legacyFixture(db); db.exec('DROP TABLE onboarding; PRAGMA user_version=5;'); db.close();
   const upgraded = openStore(file);
   try {
     assert.deepEqual(upgraded.list(),before.jobs); assert.deepEqual(upgraded.activity(chosen.id),before.history);

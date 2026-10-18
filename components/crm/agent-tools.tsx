@@ -214,7 +214,6 @@ export default function AgentTools({ workspace, onWorkbench, onNewCollection, on
   const [opened, setOpened] = useState<Provider | null>(null);
   const [copied, setCopied] = useState('');
   const [error, setError] = useState('');
-  const [trusted, setTrusted] = useState(false);
   const [sshHost, setSshHost] = useState('user@your-server');
   useEffect(() => {
     let active = true;
@@ -222,7 +221,6 @@ export default function AgentTools({ workspace, onWorkbench, onNewCollection, on
     return () => { active = false; };
   }, []);
   const configuration = structuredClone(workspace.connection) as { mcpServers: Record<string, { command: string; args: string[] }> };
-  if (trusted) configuration.mcpServers['nextstep-crm'].args.push('--allow-writes');
   if (backendUrl) {
     const connection = configuration.mcpServers['nextstep-crm'];
     const quote = (value: string) => "'" + value.replaceAll("'", "'\\''") + "'";
@@ -254,11 +252,11 @@ export default function AgentTools({ workspace, onWorkbench, onNewCollection, on
       })}
     </div>}
     <output className="crm-setup-status">
-      {progress ? <span><span className="crm-progress-dot"/> {progress.message || 'Your agent is working on your workspace.'}</span> : opened ? <span>Send the prepared request in {agentLabel(opened)}. Your agent will ask what you want to track. Come back here to review its proposal.</span> : <span>{backendUrl ? 'For a self-hosted workspace, connect over SSH below.' : window.nextstepDesktop ? 'Use an agent you already have. Your information stays on this computer.' : 'Open the Nextstep desktop app for one-click setup, or connect another agent below.'}</span>}
+      {progress ? <span><span className="crm-progress-dot"/> {progress.message || 'Your agent is working on your workspace.'}</span> : opened ? <span>Send the prepared request in {agentLabel(opened)}. Your agent will ask what you want to track. Watch your workspace take shape here.</span> : <span>{backendUrl ? 'For a self-hosted workspace, connect over SSH below.' : window.nextstepDesktop ? 'Use an agent you already have. Your information stays on this computer.' : 'Open the Nextstep desktop app for one-click setup, or connect another agent below.'}</span>}
     </output>
     {error && <p className="crm-error" role="alert">{error}</p>}
     <ol className="crm-start-steps" aria-label="Getting started">
-      <li><span>1</span>Connect your agent</li><li><span>2</span>Tell it what you need</li><li><span>3</span>Review your workspace</li>
+      <li><span>1</span>Connect your agent</li><li><span>2</span>Tell it what you need</li><li><span>3</span>Follow its work here</li>
     </ol>
     <details className="crm-advanced-setup">
       <summary>Other agents & advanced setup</summary>
@@ -268,8 +266,7 @@ export default function AgentTools({ workspace, onWorkbench, onNewCollection, on
         {backendUrl && <label>SSH host<input aria-label="SSH host" value={sshHost} onChange={event => setSshHost(event.target.value.replace(/[^a-zA-Z0-9_.@-]/g,''))}/></label>}
         <pre>{JSON.stringify(configuration,null,2)}</pre>
         <button className="crm-button" onClick={() => void copy(JSON.stringify(configuration,null,2),'config')}><Copy size={15}/>{copied === 'config' ? 'Copied' : 'Copy connection'}</button>
-        <label className="crm-checkbox-label"><input type="checkbox" checked={trusted} onChange={e => setTrusted(e.target.checked)}/>Generate a trusted-write configuration</label>
-        <p className="crm-hint">{trusted ? 'Lets a trusted agent save changes without review. Enable this in your agent only when you intend to give it direct write access.' : 'Your agent can read information and propose changes. You approve before anything is saved.'}</p>
+        <p className="crm-hint">{workspace.policy.reviewRequired ? 'Require review is on. Agent changes wait for your approval.' : 'Your agent can save changes directly. Turn on Require review in Settings if you prefer to approve them first.'}</p>
         <button className="crm-button" onClick={() => void copy(crmAgentRequest,'prompt')}><Copy size={15}/>{copied === 'prompt' ? 'Copied' : 'Copy setup request'}</button>
         <details className="crm-details"><summary>Read setup request</summary><p className="crm-generated-brief">{crmAgentRequest}</p></details>
         <hr/>

@@ -1,384 +1,250 @@
-import { test, expect, type Page } from '@playwright/test';
-// These tests exercise the existing board. First-run onboarding has its own suite.
-test.beforeEach(async ({request}) => {
-  const {onboarding} = await (await request.get('/api/agent')).json();
-  if (onboarding.status === 'new') await request.patch('/api/onboarding',{data:{version:onboarding.version,step:0,status:'dismissed'}});
-});
-async function pickUpWithKeyboard(page: Page, company: string) {
-  await page.getByRole('button',{name:`Move ${company}`,exact:true}).press('Space');
-  // KeyboardSensor attaches its document listener in the next timer task.
-  await page.evaluate(() => new Promise<void>(resolve => setTimeout(resolve,0)));
+import { test, expect, type APIRequestContext } from '@playwright/test';
+async function add(
+  request: APIRequestContext,
+  company: string,
+  stage = 'prospect',
+) {
+  const response = await request.post('/api/opportunities', {
+    data: { company, stage, notes: 'Keep these notes', role: 'Fictional role' },
+  });
+  expect(response.ok()).toBeTruthy();
+  return (await response.json()).opportunity;
 }
-async function add(page: Page, company: string) {
-  await page.getByRole('button',{name:'New opportunity',exact:true}).click();
-  await page.getByLabel('Company',{exact:false}).first().fill(company);
-  await page.getByRole('button',{name:'Add opportunity',exact:true}).last().click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('button',{name:`Open ${company}`,exact:true})).toBeVisible();
+async function context(request: APIRequestContext) {
+  return (await request.get('/api/crm/context')).json();
 }
-test('workspace navigation identifies Jobs and returns home without changing saved decisions', async ({page,request}) => {
+test('existing records and every collection share navigation, fields, actions and history', async ({
+  page,
+  request,
+}) => {
+  const kept = await add(request, 'Fictional shared keeper', 'interested');
   await page.goto('/jobs');
-  await add(page,'QA Navigation Studio');
-  await page.getByRole('button',{name:'Open QA Navigation Studio',exact:true}).click();
-  await page.getByLabel('Stage',{exact:true}).selectOption('interested');
-  await page.getByLabel('Notes',{exact:true}).fill('Keep this decision when changing workspaces.');
-  await page.getByRole('button',{name:'Save changes',exact:true}).click();
+  await expect(
+    page.getByRole('heading', { name: 'Job search', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('navigation', { name: 'Collections', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('navigation', { name: 'Other workspaces', exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.locator('.crm-board article[aria-label="Fictional shared keeper"]'),
+  ).toBeVisible();
+  await page
+    .getByRole('button', {
+      name: 'Actions for Fictional shared keeper',
+      exact: true,
+    })
+    .click();
+  await page.getByRole('menuitem', { name: 'Rejected', exact: true }).click();
+  await expect
+    .poll(
+      async () =>
+        (
+          await (await request.get('/api/opportunities')).json()
+        ).opportunities.find((r: { id: string }) => r.id === kept.id).stage,
+    )
+    .toBe('rejected');
+  await page
+    .getByRole('region', { name: 'Rejected column', exact: true })
+    .locator('article[aria-label="Fictional shared keeper"] > button')
+    .first()
+    .click();
+  await page
+    .getByLabel('Notes', { exact: true })
+    .fill('Updated through the shared editor');
+  await page.getByRole('button', { name: 'Save record', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  const before = await (await request.get('/api/opportunities')).json();
-  await page.evaluate(() => { document.documentElement.dataset.navigationProof='same-document'; });
-  for (const width of [1280,390,320]) {
-    await page.setViewportSize({width,height:900});
-    const navigation = page.locator('.crm-topbar');
-    await expect(page.getByRole('heading',{name:'Job search',exact:true})).toBeVisible();
-    const home = navigation.getByRole('link',{name:'Workspace home',exact:true});
-    await expect(home).toBeInViewport();
-    await page.screenshot({path:`test-results/workspace-navigation-${width}.png`});
-    await home.click();
-    await expect(page).toHaveURL(/\/#\/overview$/);
-    await expect(page.locator('.crm-topbar').getByRole('link',{name:'Workspace home',exact:true})).toBeVisible();
-    if (width < 900) await page.getByRole('button',{name:'Open navigation',exact:true}).click();
-    await page.getByRole('link',{name:'Job search',exact:true}).click();
-    await expect(page).toHaveURL(/\/jobs$/);
+  const c = await context(request);
+  const record = (
+    await (await request.get(`/api/crm/records/${kept.id}`)).json()
+  ).record;
+  expect(record.values.notes).toBe('Updated through the shared editor');
+  expect(record.collectionId).toBe(c.compatibilityCollectionId);
+  await page.evaluate(() => {
+    document.documentElement.dataset.sameShell = 'yes';
+  });
+  await page.getByRole('link', { name: 'Workspace home', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Collections', exact: true })
+    .getByRole('link', { name: 'Job search', exact: true })
+    .click();
+  await expect(page).toHaveURL(
+    new RegExp(`collections/${c.compatibilityCollectionId}$`),
+  );
+  await expect(page.locator('html')).toHaveAttribute('data-same-shell', 'yes');
+  await expect(
+    page.getByRole('link', { name: 'Agent progress', exact: true }),
+  ).toBeVisible();
+  await page.screenshot({ path: 'test-results/unified-existing-pipeline.png' });
+});
+test('dragging within a stage and across stages changes the same connector records', async ({
+  page,
+  request,
+}) => {
+  const a = await add(request, 'Fictional drag A'),
+    b = await add(request, 'Fictional drag B');
+  await page.goto('/jobs');
+  const card = page.locator(`article[aria-label="${b.company}"]`);
+  await card.dragTo(page.locator(`article[aria-label="${a.company}"]`));
+  await expect
+    .poll(async () => {
+      const rows = (await (await request.get('/api/opportunities')).json())
+        .opportunities;
+      return (
+        rows.findIndex((r: { id: string }) => r.id === b.id) <
+        rows.findIndex((r: { id: string }) => r.id === a.id)
+      );
+    })
+    .toBe(true);
+  await expect(card).toHaveAttribute('draggable', 'true');
+  await card.dragTo(
+    page.getByRole('region', { name: 'Interested column', exact: true }),
+  );
+  await expect
+    .poll(
+      async () =>
+        (await (await request.get(`/api/crm/records/${b.id}`)).json()).record
+          .values.stage,
+    )
+    .toBe('interested');
+  await page.reload();
+  await expect(
+    page
+      .getByRole('region', { name: 'Interested column', exact: true })
+      .locator(`article[aria-label="${b.company}"]`),
+  ).toBeVisible();
+});
+test('stages can be named, reordered, hidden and added in the shared view', async ({
+  page,
+  request,
+}) => {
+  const row = await add(request, 'Fictional stage settings');
+  await page.goto('/jobs');
+  await page
+    .getByRole('button', { name: 'View settings', exact: true })
+    .click();
+  await page.getByLabel('Stage name for Prospects').fill('Inbox');
+  await page.getByLabel('Show Uninterested stage').uncheck();
+  await page
+    .getByRole('button', { name: 'Move Inbox earlier', exact: true })
+    .click();
+  await page.getByLabel('New stage name').fill('Follow up');
+  await page.getByRole('button', { name: 'Add stage', exact: true }).click();
+  await expect(page.getByLabel('Show Follow up stage')).toBeVisible();
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(page.locator('.crm-board > section').first()).toHaveAttribute(
+    'aria-label',
+    'Inbox column',
+  );
+  await expect(
+    page.getByRole('region', { name: 'Uninterested column', exact: true }),
+  ).toHaveCount(0);
+  await page.reload();
+  await expect(
+    page.getByRole('region', { name: 'Inbox column', exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole('button', { name: `Actions for ${row.company}`, exact: true })
+    .click();
+  await page.getByRole('menuitem', { name: 'Follow up', exact: true }).click();
+  await expect
+    .poll(
+      async () =>
+        (
+          await (await request.get('/api/opportunities')).json()
+        ).opportunities.find((r: { id: string }) => r.id === row.id).stage,
+    )
+    .toBe('Follow up');
+});
+test('archived records keep their identity, values and history in both interfaces', async ({
+  page,
+  request,
+}) => {
+  const row = await add(request, 'Fictional archive');
+  await page.goto('/jobs');
+  await page
+    .getByRole('button', { name: `Actions for ${row.company}`, exact: true })
+    .click();
+  await page
+    .getByRole('menuitem', { name: 'Archive record', exact: true })
+    .click();
+  await expect
+    .poll(
+      async () =>
+        (await (await request.get(`/api/crm/records/${row.id}`)).json()).record
+          .archivedAt,
+    )
+    .not.toBeNull();
+  await page.getByRole('button', { name: 'Archive', exact: true }).click();
+  await page
+    .getByRole('button', { name: `Actions for ${row.company}`, exact: true })
+    .click();
+  await page
+    .getByRole('menuitem', { name: 'Restore record', exact: true })
+    .click();
+  await expect
+    .poll(
+      async () =>
+        (await (await request.get(`/api/crm/records/${row.id}`)).json()).record
+          .archivedAt,
+    )
+    .toBeNull();
+});
+test('an external agent edit cannot be overwritten by a stale editor', async ({
+  page,
+  request,
+}) => {
+  const row = await add(request, 'Fictional conflict');
+  await page.goto('/jobs');
+  await page
+    .locator(`article[aria-label="${row.company}"] > button`)
+    .first()
+    .click();
+  await page.getByLabel('Notes', { exact: true }).fill('Stale edit');
+  expect(
+    (
+      await request.patch(`/api/opportunities/${row.id}`, {
+        data: { version: row.version, notes: 'Fresh connector edit' },
+      })
+    ).ok(),
+  ).toBeTruthy();
+  await page.getByRole('button', { name: 'Save record', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('changed');
+  expect(
+    (await (await request.get(`/api/crm/records/${row.id}`)).json()).record
+      .values.notes,
+  ).toBe('Fresh connector edit');
+});
+test('mobile navigation and dark appearance keep the same collection controls', async ({
+  page,
+  request,
+}) => {
+  await add(request, 'Fictional mobile');
+  for (const width of [1280, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/jobs');
+    await expect(
+      page.getByRole('heading', { name: 'Job search', exact: true }),
+    ).toBeVisible();
+    if (width < 900)
+      await page
+        .getByRole('button', { name: 'Open navigation', exact: true })
+        .click();
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.getByRole('button', { name: 'Dark mode', exact: true }).click();
+    await page.getByRole('button', { name: 'Done', exact: true }).click();
+    if (width < 900)
+      await page
+        .getByRole('button', { name: 'Close navigation', exact: true })
+        .click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({ path: `test-results/unified-mobile-${width}.png` });
   }
-  expect(await (await request.get('/api/opportunities')).json()).toEqual(before);
-  await expect(page.locator('html')).toHaveAttribute('data-navigation-proof','same-document');
-});
-test('create, edit, search, list stage change, reload, close, remove, undo, and export', async ({page,request}) => {
-  const errors: string[] = []; page.on('pageerror',error => errors.push(error.message));
-  await page.goto('/jobs'); await expect(page.getByText('Saved locally')).toBeVisible();
-  await add(page,'QA Cedar');
-  await page.getByRole('button',{name:'Open QA Cedar',exact:true}).click();
-  await page.getByLabel('Role',{exact:true}).fill('Example Role');
-  await page.getByLabel('Location / work setup').fill('User-defined location');
-  await page.getByLabel('Notes',{exact:true}).fill('Interview notes\nAsk about product ownership');
-  await page.getByLabel('Next step',{exact:true}).fill('Send portfolio');
-  await page.getByLabel('Follow-up date').fill('2026-01-01');
-  await page.getByLabel('Priority',{exact:true}).selectOption('high');
-  await page.getByRole('button',{name:'Save changes',exact:true}).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.reload(); await expect(page.getByText('Example Role',{exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Show 1 follow-ups due',exact:true}).click();
-  await expect(page.getByLabel('Filter opportunities')).toHaveValue('due');
-  await expect(page.getByRole('button',{name:'Open QA Cedar',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Show 1 follow-ups due',exact:true}).click();
-  await expect(page.getByLabel('Filter opportunities')).toHaveValue('all');
-  await page.getByLabel('Search opportunities').fill('nothing-matches');
-  await expect(page.getByRole('button',{name:'Open QA Cedar',exact:true})).toHaveCount(0);
-  await page.getByRole('button',{name:'Clear filters',exact:false}).click();
-  await page.getByRole('tab',{name:'List',exact:true}).click();
-  await page.getByLabel('Stage for QA Cedar').selectOption('interested');
-  await expect(page.getByText('QA Cedar moved to Interested')).toBeVisible();
-  await page.reload(); await expect(page.getByLabel('Stage for QA Cedar')).toHaveValue('interested');
-  await page.getByLabel('Stage for QA Cedar').selectOption('interview');
-  await expect(page.getByLabel('Stage for QA Cedar')).toHaveValue('interview');
-  await expect(page.getByText('QA Cedar moved to Interview')).toBeVisible();
-  await page.reload(); await expect(page.getByLabel('Stage for QA Cedar')).toHaveValue('interview');
-  await page.getByRole('button',{name:'Open QA Cedar',exact:true}).click();
-  await expect(page.getByLabel('Notes',{exact:true})).toHaveValue('Interview notes\nAsk about product ownership');
-  await page.getByLabel('Stage',{exact:true}).selectOption('accepted');
-  await page.getByRole('button',{name:'Save changes',exact:true}).click();
-  await expect(page.getByLabel('Stage for QA Cedar')).toHaveValue('accepted');
-  await page.getByRole('button',{name:'Open QA Cedar',exact:true}).click();
-  await page.getByRole('button',{name:'Remove opportunity',exact:true}).click();
-  await page.getByRole('alertdialog').getByRole('button',{name:'Remove opportunity',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Open QA Cedar',exact:true})).toHaveCount(0);
-  await page.getByRole('button',{name:'Undo',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Open QA Cedar',exact:true})).toBeVisible();
-  const backup = await request.get('/api/export'); expect(backup.ok()).toBeTruthy(); expect((await backup.json()).opportunities.some((job: {company:string}) => job.company==='QA Cedar')).toBeTruthy();
-  expect(errors).toEqual([]);
-});
-test('pointer drag changes stage and ordering, persisted after refresh', async ({page,request}) => {
-  await page.goto('/jobs'); await page.getByRole('tab',{name:'Board',exact:true}).click();
-  await add(page,'QA Alder'); await add(page,'QA Birch');
-  const source = page.getByRole('button',{name:'Open QA Birch',exact:true});
-  const target = page.getByRole('button',{name:'Open QA Alder',exact:true});
-  const a = await source.boundingBox(); const b = await target.boundingBox();
-  if (!a || !b) throw new Error('Cards not visible');
-  await page.mouse.move(a.x+55,a.y+35); await page.mouse.down(); await page.mouse.move(a.x+55,a.y+25,{steps:3}); await page.mouse.move(b.x+55,b.y+15,{steps:15}); await page.mouse.up();
-  await expect.poll(async () => (await (await request.get('/api/opportunities')).json()).opportunities.filter((job:{stage:string})=>job.stage==='prospect').map((job:{company:string})=>job.company)).toEqual(['QA Birch','QA Alder']);
-  await expect(page.getByText('Order saved',{exact:true})).toBeVisible();
-  await expect(source.locator('..')).toHaveCSS('transform','none');
-  const source2 = await source.boundingBox(); const lane = await page.locator('[data-stage="interested"]').boundingBox(); if (!source2 || !lane) throw new Error('Drop target not visible');
-  await page.mouse.move(source2.x+65,source2.y+35); await page.mouse.down(); await page.mouse.move(source2.x+75,source2.y+35,{steps:3}); await page.mouse.move(lane.x+80,lane.y+100,{steps:20}); await page.mouse.up();
-  await expect(page.locator('[data-stage="interested"]').getByRole('button',{name:'Open QA Birch',exact:true})).toBeVisible();
-  await page.reload(); await expect(page.locator('[data-stage="interested"]').getByRole('button',{name:'Open QA Birch',exact:true})).toBeVisible();
-  await page.screenshot({path:'test-results/desktop-board.png',fullPage:true});
-});
-test('mobile editor, unsaved-change protection, keyboard move, and database error handling', async ({page,request}) => {
-  await page.setViewportSize({width:390,height:844}); await page.goto('/jobs');
-  await expect(page.getByRole('button',{name:'New opportunity',exact:true})).toBeVisible();
-  await add(page,'QA Mobile');
-  await page.getByRole('button',{name:'Open QA Mobile',exact:true}).click();
-  await page.getByLabel('Role',{exact:true}).fill('Unsaved');
-  await page.getByRole('button',{name:'Cancel',exact:true}).click();
-  await expect(page.getByRole('alertdialog')).toBeVisible();
-  await page.getByRole('button',{name:'Discard changes',exact:true}).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.screenshot({path:'test-results/mobile-board.png',fullPage:true});
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
-  await page.setViewportSize({width:1512,height:982});
-  // Start keyboard verification from a fresh page, after the modal focus-restoration lifecycle.
-  await page.reload();
-  const handle = page.getByRole('button',{name:'Move QA Mobile',exact:true});
-  await pickUpWithKeyboard(page,'QA Mobile');
-  await expect(handle).toHaveAttribute('aria-pressed','true');
-  const liveRegion = page.locator('[id^="DndLiveRegion"]');
-  const beforeDrop = (await (await request.get('/api/opportunities')).json()).opportunities;
-  const currentCard = beforeDrop.find((job:{company:string})=>job.company==='QA Mobile');
-  await expect(liveRegion).toContainText(`over droppable area ${currentCard.id}`);
-  await page.keyboard.press('ArrowRight');
-  const nextCard = beforeDrop.filter((job:{stage:string})=>job.stage==='interested')[0];
-  await expect(liveRegion).toContainText(`over droppable area ${nextCard?.id || 'interested'}`);
-  await page.keyboard.press('Space');
-  await expect.poll(async () => (await (await request.get('/api/opportunities')).json()).opportunities.find((job:{company:string})=>job.company==='QA Mobile').stage).toBe('interested');
-  await page.getByRole('button',{name:'Open QA Mobile',exact:true}).click();
-  await page.getByLabel('Role',{exact:true}).fill('Keep this draft');
-  await page.route('**/api/opportunities/*',route => route.request().method()==='PATCH' ? route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({error:'Simulated save failure'})}) : route.continue());
-  await page.getByRole('button',{name:'Save changes',exact:true}).click();
-  await expect(page.getByRole('alert')).toHaveText('Simulated save failure');
-  await expect(page.getByLabel('Role',{exact:true})).toHaveValue('Keep this draft');
-  await page.unrouteAll();
-});
-test('API rejects cross-origin writes and stale versions',async ({request}) => {
-  expect((await request.patch('/api/profile',{headers:{Origin:'https://untrusted.example'},data:{version:0,roles:'Unwanted change'}})).status()).toBe(403);
-  const denied = await request.post('/api/opportunities',{headers:{Origin:'https://untrusted.example'},data:{company:'Should not exist'}}); expect(denied.status()).toBe(403);
-  const invalid = await request.post('/api/opportunities',{data:{company:'Unsafe link',url:'javascript:alert(1)'}}); expect(invalid.status()).toBe(400);
-  const create = await request.post('/api/opportunities',{data:{company:'Version test'}}); const {opportunity:job} = await create.json();
-  expect((await request.patch(`/api/opportunities/${job.id}`,{data:{version:job.version,notes:'First edit'}})).ok()).toBeTruthy();
-  expect((await request.patch(`/api/opportunities/${job.id}`,{data:{version:job.version,notes:'Stale edit'}})).status()).toBe(409);
-});
-
-test('search preferences start undecided and persist in the app, API and export', async ({page,request}) => {
-  await page.goto('/jobs');
-  await page.getByRole('button',{name:'Search preferences',exact:true}).click();
-  await expect(page.getByLabel('Roles and work you want',{exact:true})).toHaveValue('');
-  await expect(page.getByLabel('Work arrangement',{exact:true})).toHaveValue('');
-  await page.getByLabel('Roles and work you want',{exact:true}).fill('Museum education and public programmes');
-  await page.getByLabel('Location and work eligibility',{exact:true}).fill('My selected region and eligibility');
-  await page.getByLabel('Employment type and hours',{exact:true}).fill('Part-time employee');
-  await page.getByLabel('Things to avoid',{exact:true}).fill('Sales targets');
-  await page.getByRole('button',{name:'Save preferences',exact:true}).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByText('Search preferences saved',{exact:true})).toBeVisible();
-  await page.reload();
-  await page.getByRole('button',{name:'Search preferences',exact:true}).click();
-  await expect(page.getByLabel('Roles and work you want',{exact:true})).toHaveValue('Museum education and public programmes');
-  const {profile} = await (await request.get('/api/profile')).json();
-  expect(profile.roles).toBe('Museum education and public programmes');
-  expect(profile.employmentType).toBe('Part-time employee');
-  expect(profile.version).toBe(1);
-  const exported = await (await request.get('/api/export')).json();
-  expect(exported.profile).toEqual(profile);
-  expect(exported.version).toBe(3);
-  await page.screenshot({path:'test-results/search-preferences-desktop.png',fullPage:true});
-});
-
-test('guided agent setup saves a handoff without claiming a schedule was created',async ({page,request}) => {
-  await page.goto('/jobs'); await page.getByRole('button',{name:'Search agent',exact:true}).click();
-  await page.getByRole('button',{name:'Continue',exact:true}).click();
-  await page.getByRole('button',{name:'Claude Code',exact:false}).click();
-  await page.getByLabel('When should it look for jobs?').selectOption('custom');
-  await page.getByLabel('Schedule',{exact:true}).fill('Mondays at 10:00');
-  await page.getByLabel('Timezone',{exact:true}).fill('Europe/Prague');
-  await page.getByRole('button',{name:'Continue',exact:true}).click();
-  await expect(page.getByText('Waiting for the agent to report its schedule')).toBeVisible();
-  const state = await (await request.get('/api/agent')).json();
-  expect(state.schedule.taskId).toBe(''); expect(state.schedule.reportedAt).toBeNull();
-  expect(state.schedule.provider).toBe('claude-code');
-  const setup = await (await request.get('/api/agent/setup')).json();
-  expect(setup.instructions).toContain('Mondays at 10:00'); expect(setup.instructions).toContain('a local session in the Code tab of Claude Desktop');
-  expect(setup.instructions).toContain('Never edit app code');
-  await page.getByRole('button',{name:'Go to my board'}).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.reload(); await page.getByRole('button',{name:'Search agent',exact:true}).click();
-  // An unfinished agent connection resumes at the handoff, with saved choices intact.
-  await page.getByRole('button',{name:'Back',exact:true}).click();
-  await expect(page.getByLabel('Schedule',{exact:true})).toHaveValue('Mondays at 10:00');
-  await page.getByLabel('Schedule',{exact:true}).fill('An unsaved schedule');
-  await page.getByRole('button',{name:'Close setup',exact:true}).click();
-  await expect(page.getByRole('alertdialog')).toBeVisible();
-  await page.getByRole('button',{name:'Discard changes',exact:true}).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-});
-
-test('mobile guided setup preserves drafts when saving fails',async ({page}) => {
-  await page.setViewportSize({width:390,height:844}); await page.goto('/jobs');
-  await page.getByRole('button',{name:'Search agent',exact:true}).click();
-  await page.getByLabel('Schedule',{exact:true}).fill('Keep this schedule draft');
-  await page.route('**/api/agent/schedule',route => route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({error:'Simulated setup failure'})}));
-  await page.getByRole('button',{name:'Continue',exact:true}).click();
-  await expect(page.getByRole('alert')).toHaveText('Simulated setup failure');
-  await expect(page.getByLabel('Schedule',{exact:true})).toHaveValue('Keep this schedule draft');
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
-  await page.screenshot({path:'test-results/mobile-agent.png',fullPage:true});
-});
-
-test('search preferences preserve drafts on conflicts and failed saves', async ({page,request}) => {
-  await page.goto('/jobs');
-  await page.getByRole('button',{name:'Search preferences',exact:true}).click();
-  const roles = page.getByLabel('Roles and work you want',{exact:true});
-  await roles.fill('My unsaved role preferences');
-  const {profile} = await (await request.get('/api/profile')).json();
-  const update = await request.patch('/api/profile',{data:{version:profile.version,roles:'A change from the setup agent'}});
-  expect(update.ok()).toBeTruthy();
-  await page.getByRole('button',{name:'Save preferences',exact:true}).click();
-  await expect(page.getByRole('alert')).toContainText('Search preferences changed elsewhere');
-  await expect(roles).toHaveValue('My unsaved role preferences');
-  await page.getByRole('button',{name:'Cancel',exact:true}).click();
-  await page.getByRole('button',{name:'Discard changes',exact:true}).click();
-  await page.getByRole('button',{name:'Search preferences',exact:true}).click();
-  await expect(roles).toHaveValue('A change from the setup agent');
-  await roles.fill('Keep this profile draft');
-  await page.route('**/api/profile',route => route.request().method()==='PATCH' ? route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({error:'Simulated preference save failure'})}) : route.continue());
-  await page.getByRole('button',{name:'Save preferences',exact:true}).click();
-  await expect(page.getByRole('alert')).toHaveText('Simulated preference save failure');
-  await expect(roles).toHaveValue('Keep this profile draft');
-  await page.unrouteAll();
-});
-
-test('mobile preferences can be edited, discarded and deliberately left undecided', async ({page}) => {
-  await page.setViewportSize({width:390,height:844}); await page.goto('/jobs');
-  await page.getByRole('button',{name:'Search preferences',exact:true}).click();
-  const roles = page.getByLabel('Roles and work you want',{exact:true});
-  await roles.fill('An unsaved change');
-  await page.getByRole('button',{name:'Cancel',exact:true}).click();
-  await page.getByRole('button',{name:'Keep editing',exact:true}).click();
-  await expect(page.getByRole('alertdialog')).toHaveCount(0);
-  await expect(roles).toHaveValue('An unsaved change');
-  await page.screenshot({path:'test-results/search-preferences-mobile.png',fullPage:true});
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
-  await roles.fill('');
-  await page.getByRole('button',{name:'Save preferences',exact:true}).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.reload();
-  await page.getByRole('button',{name:'Search preferences',exact:true}).click();
-  await expect(page.getByLabel('Roles and work you want',{exact:true})).toHaveValue('');
-});
-test('conflicting edits preserve the draft and reopening loads the other window’s version', async ({page,request}) => {
-  await page.goto('/jobs'); await add(page,'QA Conflict');
-  await page.getByRole('button',{name:'Open QA Conflict',exact:true}).click();
-  await page.getByLabel('Role',{exact:true}).fill('My draft');
-  const job = (await (await request.get('/api/opportunities')).json()).opportunities.find((job:{company:string})=>job.company==='QA Conflict');
-  await request.patch(`/api/opportunities/${job.id}`,{data:{version:job.version,role:'Other window’s update'}});
-  await page.getByRole('button',{name:'Save changes',exact:true}).click();
-  await expect(page.getByRole('alert')).toContainText('changed in another window');
-  await expect(page.getByLabel('Role',{exact:true})).toHaveValue('My draft');
-  await page.getByRole('button',{name:'Cancel',exact:true}).click();
-  await page.getByRole('button',{name:'Discard changes',exact:true}).click();
-  await page.getByRole('button',{name:'Open QA Conflict',exact:true}).click();
-  await expect(page.getByLabel('Role',{exact:true})).toHaveValue('Other window’s update');
-});
-test('Uninterested moves persist and hiding the column preserves list access and the visibility preference', async ({page,request}) => {
-  await page.goto('/jobs');
-  await expect(page.locator('.board-column').first()).toHaveAttribute('aria-label','Uninterested stage');
-  await add(page,'QA Not a fit');
-  const card = page.getByRole('button',{name:'Open QA Not a fit',exact:true});
-  const source = await card.boundingBox();
-  const target = await page.locator('[data-stage="uninterested"]').boundingBox();
-  if (!source || !target) throw new Error('Uninterested drop target not visible');
-  await page.mouse.move(source.x+55,source.y+35); await page.mouse.down();
-  await page.mouse.move(source.x+45,source.y+35,{steps:3});
-  await page.mouse.move(target.x+70,target.y+80,{steps:20}); await page.mouse.up();
-  await expect(page.getByText('QA Not a fit moved to Uninterested')).toBeVisible();
-  await expect(page.getByRole('region',{name:'Uninterested stage',exact:true}).getByRole('button',{name:'Open QA Not a fit',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:/View settings/}).click();
-  await page.getByLabel('Show Uninterested stage',{exact:true}).uncheck();
-  await page.getByRole('button',{name:'Done',exact:true}).click();
-  await expect(page.getByRole('region',{name:'Uninterested stage',exact:true})).toHaveCount(0);
-  await page.reload();
-  await expect(page.getByRole('button',{name:'View settings, 1 hidden',exact:true})).toBeVisible();
-  await expect(page.locator('.board-column').first()).toHaveAttribute('aria-label','Prospects stage');
-  await expect(card).toHaveCount(0);
-  const saved = (await (await request.get('/api/opportunities')).json()).opportunities.find((job:{company:string}) => job.company==='QA Not a fit');
-  expect(saved.stage).toBe('uninterested');
-  await page.getByRole('tab',{name:'List',exact:true}).click();
-  await expect(page.getByLabel('Stage for QA Not a fit')).toHaveValue('uninterested');
-  await page.getByLabel('Stage for QA Not a fit').selectOption('prospect');
-  await expect(page.getByText('QA Not a fit moved to Prospects')).toBeVisible();
-  await page.getByLabel('Stage for QA Not a fit').selectOption('uninterested');
-  await expect(page.getByText('QA Not a fit moved to Uninterested')).toBeVisible();
-  await page.getByRole('tab',{name:'Board',exact:true}).click();
-  await page.getByRole('button',{name:/View settings/}).click();
-  await page.getByLabel('Show Uninterested stage',{exact:true}).check();
-  await page.getByRole('button',{name:'Done',exact:true}).click();
-  await page.reload();
-  await expect(page.getByRole('region',{name:'Uninterested stage',exact:true}).getByRole('button',{name:'Open QA Not a fit',exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'View settings',exact:true})).toBeVisible();
-  await page.setViewportSize({width:390,height:844});
-  await page.getByRole('button',{name:/View settings/}).click();
-  await page.getByLabel('Show Uninterested stage',{exact:true}).uncheck();
-  await page.getByRole('button',{name:'Done',exact:true}).click();
-  await expect(page.getByRole('button',{name:'View settings, 1 hidden',exact:true})).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
-});
-
-test('drag to Rejected saves under Closed, preserves notes and other cards, and can be reopened', async ({page,request}) => {
-  const previous = (await (await request.get('/api/opportunities')).json()).opportunities;
-  const {opportunity:job} = await (await request.post('/api/opportunities',{data:{company:'QA Rejected',stage:'applied',notes:'Keep interview feedback',priority:'high'}})).json();
-  await page.goto('/jobs');
-  const drop = page.getByRole('region',{name:'Rejected drop target',exact:true});
-  await expect(drop).toHaveCount(0);
-  const card = page.locator(`[data-job-id="${job.id}"]`);
-  await card.scrollIntoViewIfNeeded();
-  const source = await card.boundingBox();
-  if (!source) throw new Error('Card not visible');
-  await page.mouse.move(source.x+55,source.y+35); await page.mouse.down();
-  await page.mouse.move(source.x+65,source.y+35,{steps:3});
-  await expect(drop).toBeVisible();
-  const target = await drop.boundingBox();
-  if (!target) throw new Error('Rejected drop target not visible');
-  await page.mouse.move(target.x+40,target.y+target.height/2,{steps:20});
-  await expect(drop).toHaveClass(/drop-over/);
-  await page.mouse.move(target.x-15,target.y+target.height/2,{steps:3});
-  await expect(drop).not.toHaveClass(/drop-over/);
-  await page.mouse.move(target.x+40,target.y+target.height/2,{steps:3});
-  await expect(drop).toHaveClass(/drop-over/);
-  await page.screenshot({path:'test-results/rejected-drag.png',fullPage:true});
-  await page.mouse.up();
-  await expect(page.getByText('QA Rejected moved to Rejected',{exact:true})).toBeVisible();
-  await expect(drop).toHaveCount(0);
-  await expect(card).toHaveCount(0);
-  await page.reload();
-  await page.getByRole('button',{name:/^Closed/}).click();
-  await expect(page.getByRole('region',{name:'Rejected stage',exact:true}).getByRole('button',{name:'Open QA Rejected',exact:true})).toBeVisible();
-  const saved = (await (await request.get('/api/opportunities')).json()).opportunities;
-  expect(saved.find((item:{id:string})=>item.id===job.id)).toMatchObject({stage:'rejected',notes:'Keep interview feedback',priority:'high'});
-  expect(saved.filter((item:{id:string})=>item.id!==job.id)).toEqual(previous);
-  await page.getByRole('tab',{name:'List',exact:true}).click();
-  await expect(page.getByLabel('Stage for QA Rejected')).toHaveValue('rejected');
-  await page.getByLabel('Stage for QA Rejected').selectOption('applied');
-  await expect(page.getByText('QA Rejected moved to Applied',{exact:true})).toBeVisible();
-  await page.reload();
-  await page.getByRole('button',{name:/^Active/}).click();
-  await expect(page.getByLabel('Stage for QA Rejected')).toHaveValue('applied');
-});
-
-test('keyboard rejection can be cancelled and then saved on a narrow screen', async ({page,request}) => {
-  const {opportunity:job} = await (await request.post('/api/opportunities',{data:{company:'QA Keyboard Rejected',stage:'offer'}})).json();
-  await page.setViewportSize({width:390,height:844}); await page.goto('/jobs');
-  const handle = page.getByRole('button',{name:'Move QA Keyboard Rejected',exact:true});
-  const drop = page.getByRole('region',{name:'Rejected drop target',exact:true});
-  await pickUpWithKeyboard(page,'QA Keyboard Rejected');
-  await expect(drop).toBeVisible();
-  await page.keyboard.press('ArrowDown');
-  await expect(drop).toHaveClass(/drop-over/);
-  await page.keyboard.press('ArrowUp');
-  await expect(drop).not.toHaveClass(/drop-over/);
-  await page.keyboard.press('ArrowDown');
-  await expect(drop).toHaveClass(/drop-over/);
-  await page.keyboard.press('Escape');
-  await expect(drop).toHaveCount(0);
-  expect((await (await request.get('/api/opportunities')).json()).opportunities.find((item:{id:string})=>item.id===job.id)).toEqual(job);
-  await pickUpWithKeyboard(page,'QA Keyboard Rejected');
-  await expect(drop).toBeVisible();
-  await expect(handle).toHaveAttribute('aria-pressed','true');
-  await page.keyboard.press('ArrowDown');
-  await expect(drop).toHaveClass(/drop-over/);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
-  await page.screenshot({path:'test-results/rejected-drag-mobile.png',fullPage:true});
-  await page.keyboard.press('Space');
-  await expect(page.getByText('QA Keyboard Rejected moved to Rejected',{exact:true})).toBeVisible();
-  await page.reload();
-  await page.getByRole('button',{name:/^Closed/}).click();
-  await expect(page.getByRole('region',{name:'Rejected stage',exact:true}).getByRole('button',{name:'Open QA Keyboard Rejected',exact:true})).toBeVisible();
 });
