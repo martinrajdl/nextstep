@@ -1,6 +1,6 @@
 # Composable Nextstep
 
-Nextstep is an Electron app with a generic workspace at `/` and the preserved job-search workspace at `/jobs`. Both use the same selected SQLite database. Agents operate the primary workflow: source information, shape the workspace, propose changes, and continue enriching or moving records after review. Humans follow progress and make decisions in the CRM.
+Nextstep is an Electron app with a composable workspace at `/`, stored in your selected SQLite database. Agents operate the primary workflow: source information, shape the workspace, propose changes, and continue enriching or moving records after review. Humans follow progress and make decisions in the CRM.
 
 ## The model
 
@@ -16,7 +16,7 @@ The initial workspace is empty. People, Companies, Projects, Research and Deals 
 
 ## Shape data with an agent
 
-On first launch, choose **Connect Codex** or **Connect Claude Code**. Nextstep adds the connection and opens a prepared conversation; review and send it in your agent. Describe your goal there, let the agent propose the schema, and approve it in Nextstep. The accepted collection opens automatically. **Your agent → Other agents & advanced setup** exposes a copyable config and request for other clients, targeting the exact running database. It uses a separate `nextstep-crm` connection; the existing `nextstep` Jobs research connector retains its original seven bounded tools.
+On first launch, choose **Connect Codex** or **Connect Claude Code**. Nextstep adds the connection and opens a prepared conversation; review and send it in your agent. Describe your goal there, let the agent propose the schema, and approve it in Nextstep. The accepted collection opens automatically. **Your agent → Other agents & advanced setup** exposes a copyable config and request for other clients, targeting the exact running database. It uses the `nextstep-crm` connection and preserves any other configured connections.
 
 From a source checkout:
 
@@ -40,7 +40,7 @@ Tools:
 
 The default connection exposes no approval or direct-write tool. To trust a particular connection with direct writes, explicitly start it with `--allow-writes`. That adds `nextstep_crm_apply`. It still validates data, checks versions and records history. Actor names are provenance labels, not authenticated identities. A process with filesystem access to the SQLite file is already trusted at the operating-system boundary.
 
-Packaged desktop connections use the application executable with `--crm-mcp --database …`. The app's Your agent panel generates the correct packaged or source command. The existing Jobs setup continues using `--mcp`.
+Packaged desktop connections use the application executable with `--crm-mcp --database …`. The app's Your agent panel generates the correct packaged or source command.
 
 There is no model runner, hidden AI service or model API key inside Nextstep. Your chosen agent performs interpretation and research; Nextstep provides deterministic shaping, storage and review. Record content is untrusted data, not instructions for an agent. Your agent provider may process the context it reads.
 
@@ -117,8 +117,8 @@ See [self-hosting.md](self-hosting.md) to run on a private server through SSH. M
 
 ## Existing data and backups
 
-The generic model adds `crm_*` tables and a separate schema version. It does not rewrite Jobs tables, stages, orders, notes, preferences, activity, schedule registrations or removed identities. Job import and research behavior remains governed by [JOB-FINDER.md](../JOB-FINDER.md).
+The model uses additive `crm_*` tables and a separate schema version. Upgrades preserve existing records, decisions, ordering, settings and history.
 
-**Export workspace** includes generic collections, all generic records including archived records, views, proposal decisions, agent flows and full generic history. The Jobs workspace has its existing separate export. Neither JSON export is a byte-for-byte database restore format. For a complete backup of both workspaces, stop the app and connected helpers and copy the selected SQLite file and its companion files together; the source-checkout `data/` folder is the full private working directory. Keep backups private. See [desktop.md](desktop.md#your-database) for desktop locations.
+**Export workspace** includes collections, all records including archived records, views, proposal decisions, agent flows and full history. JSON export is not a byte-for-byte database restore format. For a complete backup while running, use SQLite's backup operation. Otherwise stop the app and connected helpers before copying the selected SQLite file and its companion files together. Keep backups private. See [desktop.md](desktop.md#your-database) for desktop locations.
 
 The standalone public marketing website lives in its own repository. No marketing build or public hosting configuration belongs in this CRM repository.

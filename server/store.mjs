@@ -146,6 +146,12 @@ export function openStore(filename) {
   };
   return {
     crm: createComposableStore(db),
+    hasLegacyWorkspace() {
+      const onboarding = readOnboarding(db);
+      return ['opportunities', 'search_profile', 'agent_schedule', 'search_runs'].some(table =>
+        Boolean(db.prepare(`SELECT 1 FROM ${table} LIMIT 1`).get()),
+      ) || Boolean(onboarding && onboarding.status !== 'new');
+    },
     list, get, activity,
     agentStatus() { return {schedule:schedule(),runs:runs(),onboarding:readOnboarding(db)}; },
     updateOnboarding(input) {

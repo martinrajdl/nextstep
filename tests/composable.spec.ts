@@ -4,6 +4,13 @@ const change = (operations: object[]) => ({
   title: 'Fictional browser change',
   operations,
 });
+async function existingWorkspace(request: APIRequestContext, company: string) {
+  const response = await request.post('/api/opportunities', { data: { company } });
+  expect(response.ok()).toBeTruthy();
+  const { opportunity } = await response.json();
+  // Historical data keeps its workspace reachable without filling later board fixtures.
+  expect((await request.delete(`/api/opportunities/${opportunity.id}`, { data: { version: opportunity.version } })).ok()).toBeTruthy();
+}
 async function createCollection(
   request: APIRequestContext,
   id: string,
@@ -42,6 +49,9 @@ test('workspace starts without records and supports a custom schema, persistent 
   request,
 }) => {
   await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Connect your agent.' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Job search', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: 'Other workspaces', exact: true })).toHaveCount(0);
   await expect(
     page.getByRole('heading', { name: /Connect your agent.|Your workspace/ }),
   ).toBeVisible();
@@ -320,6 +330,7 @@ test('mobile workspace and agent setup are usable, expose exact connection paths
   page,
   request,
 }) => {
+  await existingWorkspace(request, 'Fictional existing workspace');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await expect(
@@ -365,7 +376,9 @@ test('mobile workspace and agent setup are usable, expose exact connection paths
 
 test('appearance persists across workspaces while the neutral icon stays unchanged', async ({
   page,
+  request,
 }) => {
+  await existingWorkspace(request, 'Fictional appearance workspace');
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('data-accent', '#777777');
   const icon = await page.locator('.crm-brand img').getAttribute('src');

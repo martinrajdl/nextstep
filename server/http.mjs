@@ -47,7 +47,7 @@ const server = createServer(async (req, res) => {
     if (path === '/api/crm/flows' && req.method === 'GET') return json(res,200,{flows:crm.flows.list({limit:Number(params.get('limit') || 50),offset:Number(params.get('offset') || 0)})});
     if (path === '/api/crm/flows/report' && req.method === 'POST') return json(res,200,crm.flows.report(await body(req,262144)));
     if (path.startsWith('/api/crm/flows/') && req.method === 'GET') return json(res,200,crm.flows.get(decodeURIComponent(path.slice('/api/crm/flows/'.length))));
-    if (path === '/api/crm/context' && req.method === 'GET') return json(res,200,{...crm.context(),connection:{mcpServers:{'nextstep-crm':{...crmAgentCommand,args:[...crmAgentCommand.args,'--database',database]}}}});
+    if (path === '/api/crm/context' && req.method === 'GET') return json(res,200,{...crm.context(),existingWorkspaces:store.hasLegacyWorkspace() ? [{id:'legacy-board',name:'Job search',path:'/jobs'}] : [],connection:{mcpServers:{'nextstep-crm':{...crmAgentCommand,args:[...crmAgentCommand.args,'--database',database]}}}});
     if (path === '/api/crm/query' && req.method === 'POST') return json(res,200,crm.query(await body(req)));
     if (path === '/api/crm/preview' && req.method === 'POST') return json(res,200,crm.preview(await body(req,524288)));
     if (path === '/api/crm/proposals' && req.method === 'POST') return json(res,201,crm.propose(await body(req,524288)));

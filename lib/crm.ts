@@ -89,6 +89,7 @@ export type Event = Diff & {
   createdAt: string;
 };
 export type Workspace = {
+  existingWorkspaces?: { id: string; name: string; path: string }[];
   recentFlows: AgentFlow[];
   collections: Collection[];
   templates: Template[];

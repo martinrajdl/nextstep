@@ -45,21 +45,6 @@ Automatic connection is available for installed Mac desktop agents. **Other agen
 
 [Read the composable CRM guide](docs/composable-crm.md) for supported operations, MCP tools, review policy and the data model. Manual schema and JSON tools remain available under advanced setup and Manual tools.
 
-## Your existing job search stays
-
-Choose **Job search** in the sidebar. Its stages, notes, preferences, history, record order and bounded research connector remain intact. The header always identifies the workspace, and **Workspace home** takes you back.
-
-The job-search agent reads your saved preferences and Interested / Uninterested feedback before every search. It adds verified new prospects without changing existing decisions or contacting employers. Configure it from **Search agent** in the Job search workspace. [Desktop setup](docs/desktop.md) covers the search wizard and optional native-agent scheduling; [JOB-FINDER.md](JOB-FINDER.md) defines the research and import contract.
-
-<details>
-<summary>Job search screenshots</summary>
-
-![The preserved job-search board with fictional opportunities](docs/images/board.png)
-
-![The same job-search workspace in dark mode](docs/images/board-dark.png)
-
-</details>
-
 ## Run from source
 
 Use **Node.js 24** and **pnpm 11.19.0**:
@@ -85,7 +70,7 @@ pnpm background:status
 pnpm background:stop
 ```
 
-The generic workspace is at `/`; the job tracker is at `/jobs`. The browser version offers copyable agent configuration. `pnpm start` runs the server in the foreground. For a backend on another machine, follow [self-hosting.md](docs/self-hosting.md) and connect through Settings in Electron.
+The workspace is at `/`. The browser version offers copyable agent configuration. `pnpm start` runs the server in the foreground. For a backend on another machine, follow [self-hosting.md](docs/self-hosting.md) and connect through Settings in Electron.
 
 ## Data and privacy
 
@@ -93,7 +78,7 @@ The generic workspace is at `/`; the job tracker is at `/jobs`. The browser vers
 
 Nextstep binds its HTTP service to loopback with Host/Origin checks. It is a single-owner app, not a public multi-user server. Use a private SSH tunnel for self-hosting; do not expose the unauthenticated port to the internet. The desktop renderer stays local and sandboxed when using your backend.
 
-Your chosen agent provider may process the context it reads. The default general CRM connection can read and propose; `--allow-writes` explicitly enables trusted direct changes. The separate Jobs connector retains its narrower import-only permissions.
+Your chosen agent provider may process the context it reads. The default general CRM connection can read and propose; `--allow-writes` explicitly enables trusted direct changes.
 
 Personal records, research and profiles belong in ignored `data/`; runtime logs belong in `.runtime/`. Tests and screenshots use temporary databases. For a full backup while running, use SQLite's backup operation. Otherwise stop the app and all connected helpers before copying the database and any `-wal` / `-shm` companions together. JSON export is not a full SQLite backup.
 

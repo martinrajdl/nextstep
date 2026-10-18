@@ -1,6 +1,6 @@
 # Desktop app and local agent connection
 
-Nextstep is primarily a local-first Electron app. It bundles its interface, HTTP server, SQLite runtime, and local MCP connectors. Your agent runs the workflow: sourcing information, shaping collections, proposing changes and moving records. You follow progress in Agent progress and review decisions. The Jobs workspace preserves its separate bounded research connector. No model key or external database service is needed for local use.
+Nextstep is primarily a local-first Electron app. It bundles its interface, HTTP server, SQLite runtime, and local MCP connectors. Your agent runs the workflow: sourcing information, shaping collections, proposing changes and moving records. You follow progress in Agent progress and review decisions. No model key or external database service is needed for local use.
 
 ## Build and run
 
@@ -41,9 +41,9 @@ The first desktop launch creates an empty database in Electron's per-user applic
 
 You can also launch the app with `--database /absolute/path/to/nextstep.sqlite`. The selected file must already exist. `NEXTSTEP_DB_PATH` and its legacy alias `DB_PATH` work too. `NEXTSTEP_USER_DATA` selects a separate desktop settings directory for development or tests.
 
-The MCP connection always includes the selected database's absolute path. Your agent can run from another folder or a worktree without creating a second pipeline. When switching databases, update the agent connection and check its scheduled task as well.
+The MCP connection always includes the selected database's absolute path. Your agent can run from another folder or a worktree without creating a second pipeline. When switching databases, update the agent connection to target the selected file.
 
-For a full backup, stop the app and any connected MCP helpers, then copy the database and any SQLite `-wal`/`-shm` companion files together. A SQLite backup operation is also safe while the database is open. JSON export includes preferences, current opportunities, schedule registration, and recent search reports; it is not a full database backup.
+For a full backup, stop the app and any connected MCP helpers, then copy the database and any SQLite `-wal`/`-shm` companion files together. A SQLite backup operation is also safe while the database is open. Workspace JSON export includes collections, records, views, proposals, flows and history; it is not a full database backup.
 
 ## First-run setup
 
@@ -51,81 +51,29 @@ The first launch asks you to **Connect your agent**. Choose **Connect Codex** or
 
 The agent asks what you want to track, proposes collections, typed fields, relationships, views and known records, and reports its progress. Click **Review proposed changes** in Nextstep, inspect the proposal and approve it. The first accepted collection opens automatically. The agent can discover and query that same schema through MCP. Manual schema and JSON tools are under **Other agents & advanced setup** on the empty workspace, and **Manual tools** on the populated home page.
 
-The CRM handoff uses a `Workspace` folder in Nextstep's application-data directory. It preserves the separate `nextstep` Jobs connection and its permissions. Existing conflicting agent configurations are never silently replaced. Other agents and self-hosted workspaces can copy the exact configuration and setup request under **Other agents & advanced setup**. The general connector proposes by default; trusted direct writes require explicitly adding `--allow-writes`.
+The CRM handoff uses a `Workspace` folder in Nextstep's application-data directory. It preserves other agent connections and their permissions. Existing conflicting agent configurations are never silently replaced. Other agents and self-hosted workspaces can copy the exact configuration and setup request under **Other agents & advanced setup**. The general connector proposes by default; trusted direct writes require explicitly adding `--allow-writes`.
 
-**Workspace home** in the top bar returns to the main workspace from any collection or from Job search. The current collection or workspace stays visible in the header.
+**Workspace home** in the top bar returns to the main workspace from any collection. The current collection or workspace stays visible in the header.
 
-### Job search setup
+## Connect another agent
 
-Choosing **Job search** opens the preserved jobs workspace, whose first use offers a three-step search wizard. Existing job databases keep their preferences and can resume it from **Search agent**.
-
-1. **Your search:** describe the work you want and optionally your location and work arrangement. More preferences are tucked under an optional section. No profession, region, or company type is assumed.
-2. **Your agent:** choose Codex or Claude Code Desktop. Search only when asked, or choose weekdays, daily, or a custom schedule. The timezone starts from your computer's setting.
-3. **Ready to go:** click **Open setup in Claude Code** or **Open setup in Codex**. Nextstep adds the connection and opens a new local conversation with the complete setup request prefilled. Claude opens the **Code** tab; Codex opens a local task in ChatGPT desktop or the Codex app. Confirm the Research folder if asked, then review and send. The agent confirms it reached the correct board, asks about missing criteria, creates or updates a native schedule if requested, and runs the first search.
-
-**Use the board for now** skips setup. Saved steps survive closing and reopening the app, and **Search agent** lets you resume. You can add and organize jobs manually at any time. **Search agent → Find matches with Claude Code / Codex** opens another new local conversation with an on-demand request, without changing the schedule. Returning to the board does not imply that an agent or schedule is running.
-
-The handoff uses `claude://code/new` with the request and local folder, or `codex://threads/new` with the request, local folder, and Codex mode. It does not simply reopen the app's last conversation. A dedicated `Research` folder inside Nextstep's application-data directory gives the task a local workspace while the MCP connection points to the exact selected database. Nextstep does not send the request automatically. Clipboard access is unnecessary for the Mac handoff; **View setup request → Copy request** remains available as a fallback. If your agent does not recognize the link, update it and retry. For Claude, keep **Local** selected in the Code tab.
-
-Automatic connection is available on macOS for installed desktop agents. Nextstep uses the official bundled `codex mcp add` command for Codex, and merges the `nextstep` server into the documented user-level `~/.claude.json` for Claude Code, keeping a private backup when it changes that JSON file. Other settings are preserved. A conflicting `nextstep` connection to a different database is never silently replaced. Custom or managed configurations may need **Advanced connection**. If the agent was already open, start a new local task or restart it so it loads the tools.
-
-The browser version and other platforms offer the generated connection settings under **Advanced connection**, followed by **Copy setup request**. Install the Mac app in its permanent location before connecting. Moving or renaming it later requires updating the executable path in the agent settings.
-
-The wizard distinguishes **connection added** (settings saved), **agent connection confirmed** (an MCP tool call with the matching setup token reached this database), and **agent reported the scheduled task** (the native scheduler's task ID was reported). These are recorded events, not a live agent-health check. Completed searches and new matches appear in the board; an agent that finds no new matches still records a report.
-
-An on-demand setup never requests a schedule. A recurring setup uses the agent's own scheduling tools after the user sends the request. Manage pause, resume, and deletion in the agent app. The local helper works while the Nextstep window is closed.
-
-For CLI configuration, the equivalent commands are:
+Use the exact configuration shown under **Your agent → Other agents & advanced setup**. It targets the selected database and the installed executable. For a packaged desktop app, the command has this shape:
 
 ```sh
-codex mcp add nextstep -- /absolute/path/to/Nextstep --mcp --database /absolute/path/to/nextstep.sqlite
-claude mcp add --transport stdio --scope user nextstep -- /absolute/path/to/Nextstep --mcp --database /absolute/path/to/nextstep.sqlite
+/absolute/path/to/Nextstep --crm-mcp --database /absolute/path/to/nextstep.sqlite
 ```
 
-On macOS the executable is inside `Nextstep.app/Contents/MacOS/Nextstep`; on Windows it is `Nextstep.exe`. Quote paths containing spaces. The app generates the correct command and arguments for its current installation. A source checkout can instead run `node /absolute/path/to/checkout/mcp/stdio.mjs --database /absolute/path/to/nextstep.sqlite`.
+On macOS the executable is inside `Nextstep.app/Contents/MacOS/Nextstep`. Quote paths containing spaces. From a source checkout, use:
 
-The helper is a separate stdio process launched by the agent. It can read and populate the database while the Nextstep window is closed. No public MCP endpoint or relay is started. The HTTP interface binds only to loopback and the renderer has no Node access.
+```sh
+node mcp/crm-stdio.mjs --database /absolute/path/to/nextstep.sqlite
+```
 
-### What scheduling does and does not mean
+The helper is a separate stdio process launched by the agent and works while the Nextstep window is closed. No public MCP endpoint or relay is started. The HTTP interface binds only to loopback and the renderer has no Node access.
 
-MCP provides tools and context; it is not a universal API for controlling another app's scheduler. The setup request asks your connected agent to use its native local scheduling tools. Nextstep records the task ID the agent reports, but cannot independently verify whether that task is active, paused, or deleted.
+The general connector reads context, previews changes and submits proposals. It exposes no approval tool. Direct writes require an explicitly trusted connection with `--allow-writes`; validation, version checks and history still apply. See [composable-crm.md](composable-crm.md) for the complete tool and change-set contract.
 
-Manage actual task status in the agent app. After changing the cadence in Nextstep, give the agent the updated setup request so it updates the existing task. Before switching providers or unlinking a registration, pause or delete the old task in its agent app. Unlinking in Nextstep does not stop it.
-
-Local scheduled work requires an awake computer, a running agent app, and permission to use its browsing and MCP tools. A cloud-only scheduled chat cannot directly reach a local SQLite file. This setup targets local Codex tasks and Claude Code Desktop scheduled tasks; a generic ChatGPT web task or a remote Claude connector is not equivalent.
-
-Official MCP and desktop connection references checked September 22, 2026:
-
-- [Codex MCP connections](https://learn.chatgpt.com/docs/extend/mcp?surface=cli)
-- [OpenAI desktop automations](https://learn.chatgpt.com/docs/automations)
-- [Claude Code MCP configuration](https://code.claude.com/docs/en/mcp)
-- [Claude Desktop links for new Code sessions](https://support.claude.com/en/articles/14729294-open-claude-desktop-with-a-link)
-- [Claude Code Desktop scheduled tasks](https://code.claude.com/docs/en/desktop-scheduled-tasks)
-- [Claude desktop and web connector differences](https://support.claude.com/en/articles/11725091-when-to-use-desktop-and-web-connectors)
-
-## How the search improves
-
-Every run reads the current preferences, all stages, removed records, recent decisions, and past reports. **Interested** is positive feedback and **Uninterested** is negative feedback. The agent uses explicit reasons in notes where available and adjusts search terms and ranking. A declined role does not automatically exclude its whole company; a company-only Uninterested card does.
-
-Explicit preferences always take precedence. Inferred adjustments stay tentative, with supporting opportunity IDs in a search report. Newer decisions can overturn an earlier inference. This is context-based refinement, not model training or an automatic rewrite of your saved preferences.
-
-The research agent must never edit app code, the interface, existing notes, stages, priorities, or card order. It only imports verified new jobs at the top of Prospects and records search reports. Applied, Interested, Uninterested, other stages, and removed records all participate in duplicate checks. It does not submit applications or contact employers.
-
-Your chosen agent provider processes the context it reads. Nextstep does not add a model. Optional usage counts are off by default under **Settings → Privacy**. Opting in sends one daily check-in with app version, OS family and an identifier that changes each day; it never sends CRM or agent content. See [privacy.md](privacy.md) for the payload, retention and infrastructure details.
-
-## MCP tools
-
-| Tool | Purpose |
-| --- | --- |
-| `nextstep_get_context` | Read current preferences, pipeline, decisions, and recent search reports. Page activity with `afterActivityId`, `nextActivityCursor`, and `hasMoreChanges`. |
-| `nextstep_save_preferences` | Save user-confirmed answers using the current profile version. |
-| `nextstep_import_prospects` | Preview or import verified new jobs, with duplicate checks and preserved user decisions. Defaults to a dry run. |
-| `nextstep_record_search` | Save an idempotent report and tentative adjustments with real evidence/imported IDs. |
-| `nextstep_get_setup` | Read the setup request for the chosen provider and schedule. |
-| `nextstep_confirm_connection` | Confirm that the setup request reached this exact database; it does not activate a schedule. |
-| `nextstep_register_schedule` | Record the actual task ID returned by the native agent scheduler. |
-
-There are no arbitrary SQL, shell, code-editing, deletion, or stage-moving MCP tools. A job type must be saved before MCP imports are allowed. See [JOB-FINDER.md](../JOB-FINDER.md) for the import contract and [server/agent-instructions.mjs](../server/agent-instructions.mjs) for the exact agent instructions.
+Nextstep does not run or schedule agents. Your chosen agent provider may process the context it reads. Optional usage counts are off by default under **Settings → Privacy**; the check-in never includes CRM records or agent content. See [privacy.md](privacy.md) for the exact payload and retention.
 
 ## Verify a build
 
@@ -140,6 +88,4 @@ node scripts/test-desktop-settings.mjs "/absolute/path/to/Nextstep.app/Contents/
 node scripts/test-desktop-crm.mjs "/absolute/path/to/Nextstep.app/Contents/MacOS/Nextstep"
 ```
 
-Tests use temporary databases and agent configurations. Run `node scripts/test-desktop.mjs --source claude-code` and `node scripts/test-desktop.mjs --source codex` to exercise both installed providers; replace `--source` with a packaged executable path to test the release. The check goes through onboarding, installs the connection into isolated settings, verifies the exact new-conversation URL, full prompt, and local folder, and checks that a blocked clipboard cannot prevent opening. It then confirms the connection through a real MCP client, imports a fictional match, verifies live board refresh, and reads the database after closing the window. `NEXTSTEP_AGENT_CONFIG_HOME` overrides the agent settings home for these tests; it is read only by the native main process. OS link dispatch is stubbed, and no message is sent to an agent. Separately open an unsent test draft in each installed agent to confirm the destination is a new local Code/Codex conversation. Provider-native scheduling must be checked during connection setup.
-
-The CRM desktop check also exercises a real MCP session: first-launch connection, agent-reported progress, a proposed schema and board view, human approval, automatic collection display, and unchanged Jobs records. The external agent URL is captured without opening or sending a real conversation.
+Tests use temporary databases and isolated agent configurations. They verify native connection setup, the prepared unsent conversation, a real MCP session, schema proposals, human approval, automatic collection display, appearance, backend handling and preservation of existing data. `NEXTSTEP_AGENT_CONFIG_HOME` selects isolated agent settings for tests. External URL dispatch is captured without opening or sending a real conversation.

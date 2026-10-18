@@ -21,17 +21,9 @@ try {
   await expect(firstLaunch.getByRole('heading',{name:'Connect your agent.'})).toBeVisible();
   const available = await firstLaunch.evaluate(() => window.nextstepDesktop.getAgents());
   for (const agent of available.filter(value=>value.canConnect)) await expect(firstLaunch.getByRole('button',{name:new RegExp(`Connect ${agent.label}`)})).toBeEnabled();
+  await expect(firstLaunch.locator('a[href="/jobs"]')).toHaveCount(0);
   await firstLaunch.screenshot({path:join(output,'onboarding.png'),scale:'css'});
   await app.close(); app = null;
-  store.updateOnboarding({version:0,step:0,status:'dismissed'});
-  for (const [company,role,stage,nextStep,location] of [
-    ['Cedar Studio','Product Engineer','prospect','Review the product team and role.','Remote · Europe'],
-    ['Meadow Systems','Frontend Engineer','prospect','Explore the developer experience team.','Remote'],
-    ['Northstar Labs','Design Engineer','interested','Share a small selection of recent work.','Hybrid · Example City'],
-    ['Papertrail Works','Senior Engineer','applied','Follow up after the application review.','Remote'],
-    ['Orbit Workshop','Product Engineer','screening','Prepare questions about the roadmap.','Remote · Europe'],
-    ['Daylight Studio','Frontend Lead','interview','Discuss ownership with the product team.','Remote'],
-  ]) store.create({company,role,stage,nextStep,location,url:'https://example.com/careers'});
   store.crm.apply(change([
     {type:'create_collection',id:'people',name:'People',description:'Good work starts with good people.',fields:[
       {key:'company',name:'Company',type:'text'},
@@ -58,6 +50,7 @@ try {
   const errors=[]; page.on('pageerror', error => errors.push(error.message));
   await page.goto(service.url+'/#/collections/people');
   await expect(page.getByRole('heading',{name:'People',exact:true})).toBeVisible();
+  await expect(page.locator('a[href="/jobs"]')).toHaveCount(0);
   await page.screenshot({path:join(output,'workspace.png')});
   await page.getByRole('button',{name:'Settings',exact:true}).click();
   await page.getByRole('button',{name:'Dark mode',exact:true}).click();
@@ -65,17 +58,8 @@ try {
   await page.screenshot({path:join(output,'settings-dark.png')});
   await page.getByRole('button',{name:'Done',exact:true}).click();
   await page.screenshot({path:join(output,'workspace-dark.png')});
-  await page.getByRole('link',{name:'Job search',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Job search',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Hide uninterested',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Open Cedar Studio',exact:true})).toBeVisible();
-  await page.screenshot({path:join(output,'board-dark.png')});
-  await page.getByRole('button',{name:'App settings',exact:true}).click();
-  await page.getByRole('button',{name:'Light mode',exact:true}).click();
-  await page.getByRole('button',{name:'Done',exact:true}).click();
-  await page.screenshot({path:join(output,'board.png')});
   expect(errors).toEqual([]);
-  console.log('Captured six documentation screenshots using an isolated database and fictional records.');
+  console.log('Captured four documentation screenshots using an isolated database and fictional records.');
 } finally {
   await app?.close();
   await browser?.close();

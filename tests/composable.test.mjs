@@ -94,6 +94,7 @@ test('additive migration and reopen preserve every legacy row, decision, profile
       ]),
     );
   const before = snapshot();
+  assert.equal(store.hasLegacyWorkspace(), true);
   db.exec(
     'DROP TABLE crm_events; DROP TABLE crm_changes; DROP TABLE crm_views; DROP TABLE crm_records; DROP TABLE crm_collections; DROP TABLE crm_meta',
   );
@@ -106,6 +107,26 @@ test('additive migration and reopen preserve every legacy row, decision, profile
   assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
   assert.equal(db.prepare('PRAGMA quick_check').get().quick_check, 'ok');
   db.close();
+});
+test('fresh and generic-only databases have no compatibility navigation, while existing private work remains reachable', async (t) => {
+  const { store, crm } = fixture(t);
+  assert.equal(store.hasLegacyWorkspace(), false);
+  crm.apply(change([people]));
+  record(crm);
+  assert.equal(store.hasLegacyWorkspace(), false);
+  const entry = store.create({company:'Fictional preserved record',stage:'interested',notes:'Keep my decision'});
+  assert.equal(store.hasLegacyWorkspace(), true);
+  store.remove(entry.id,{version:entry.version});
+  assert.equal(store.hasLegacyWorkspace(), true);
+  for (const [name, initialize] of [
+    ['saved preferences', value => value.updateProfile({version:0,roles:'Fictional preference'})],
+    ['started setup', value => value.updateOnboarding({version:0,status:'started',step:0})],
+  ]) await t.test(name, child => {
+    const {store: existing} = fixture(child);
+    initialize(existing);
+    assert.equal(existing.list().length,0);
+    assert.equal(existing.hasLegacyWorkspace(),true);
+  });
 });
 test('preview rolls back every operation; approved proposal persists atomically with stable IDs and provenance', (t) => {
   const { crm, file } = fixture(t);

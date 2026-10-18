@@ -5,7 +5,6 @@ import {
   ArrowRight,
   ArrowUpRight,
   Bot,
-  BriefcaseBusiness,
   ChevronRight,
   Database,
   Folder,
@@ -282,14 +281,14 @@ export default function WorkspaceApp() {
           <div className="crm-sidebar-caption">YOUR COLLECTIONS</div>
           <nav aria-label="Collections">{workspace?.collections.map(c => <a key={c.id} href={`#/collections/${c.id}`} aria-current={collection?.id === c.id ? 'page' : undefined}><span className="crm-collection-dot" style={{background:c.color}}/>{c.name}<small>{c.recordCount}</small></a>)}</nav>
         </>}
-        <div className="crm-sidebar-caption">OTHER WORKSPACES</div>
-        <nav>
-          <a href="/jobs">
-            <BriefcaseBusiness size={17} />
-            Job search
+        {Boolean(workspace?.existingWorkspaces?.length) && <><div className="crm-sidebar-caption">YOUR WORKSPACES</div>
+        <nav aria-label="Other workspaces">
+          {workspace?.existingWorkspaces?.filter(item => /^\/[a-z0-9/_-]+$/.test(item.path)).map(item => <a key={item.id} href={item.path}>
+            <Folder size={17} />
+            {item.name}
             <ChevronRight size={13} aria-hidden="true" />
-          </a>
-        </nav>
+          </a>)}
+        </nav></>}
         <div className="crm-sidebar-bottom">
           <button className="crm-settings-button" onClick={openSettings}>
             <Settings size={17} /> Settings

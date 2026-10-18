@@ -43,5 +43,6 @@ test('CRM setup asks for intent and lets the agent propose the schema before hum
   assert.match(crmAgentRequest,/Ask me what I want to track/);
   assert.match(crmAgentRequest,/nextstep_crm_preview before nextstep_crm_propose/);
   assert.match(crmAgentRequest,/Do not apply or approve your own proposal/);
-  assert.match(crmAgentRequest,/separate Job search workspace/);
+  assert.match(crmAgentRequest,/Preserve existing records, decisions and other workspaces/);
+  assert.doesNotMatch(crmAgentRequest,/job[ -]?(search|tracker)/i);
 });
