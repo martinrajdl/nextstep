@@ -5,9 +5,9 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Check, Database, Monitor, Moon, Palette, Server, Sun, ShieldCheck } from 'lucide-react';
+import { Check, Download, RefreshCw, Database, Monitor, Moon, Palette, Server, Sun, ShieldCheck } from 'lucide-react';
 import Modal from './crm/modal';
-import { errorMessage, type ThemePreference } from '@/lib/agent';
+import { errorMessage, type UpdateState, type ThemePreference } from '@/lib/agent';
 import '../app/appearance.css';
 
 const presets = [
@@ -56,8 +56,9 @@ function colorCoordinates(hex: string) {
         : ((r - g) / delta + 4) * 60;
   return { hue, saturation: Math.min(1.6, saturation / 0.35) };
 }
-type Preferences = { backendUrl: string | null; resolvedTheme: 'light'|'dark'; openSettings: () => void };
+type Preferences = { updateAvailable: boolean; backendUrl: string | null; resolvedTheme: 'light'|'dark'; openSettings: () => void };
 const PreferencesContext = createContext<Preferences>({
+  updateAvailable: false,
   backendUrl: null,
   resolvedTheme: 'light',
   openSettings: () => {},
@@ -65,6 +66,7 @@ const PreferencesContext = createContext<Preferences>({
 export const useAppPreferences = () => useContext(PreferencesContext);
 
 export default function AppSettings({ children }: { children: ReactNode }) {
+  const [update, setUpdate] = useState<UpdateState | null>(null);
   const [accent, setAccent] = useState(initialAccent);
   const [theme, setTheme] = useState<ThemePreference>(initialTheme);
   const [systemDark, setSystemDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches);
@@ -124,6 +126,8 @@ export default function AppSettings({ children }: { children: ReactNode }) {
       .catch((e) => {
         if (!cancelled) setError(errorMessage(e));
       });
+    const updates = desktop.onUpdateStateChanged(setUpdate);
+    desktop.getUpdateState().then(value => { if (!cancelled) setUpdate(value); }).catch(() => {});
     const appearance = desktop.onAppearanceChanged((color) => {
       if (validColor(color)) setAccent(color);
     });
@@ -136,6 +140,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
     });
     return () => {
       cancelled = true;
+      updates();
       appearance();
       themeChanged();
       settings();
@@ -179,8 +184,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
     }
   }
   return (
-    <PreferencesContext value={{ backendUrl, resolvedTheme, openSettings }}>
-      {window.nextstepDesktop?.platform === 'darwin' && <div className="desktop-titlebar" aria-hidden="true">Nextstep</div>}
+    <PreferencesContext value={{ backendUrl, resolvedTheme, openSettings, updateAvailable: Boolean(update && ['available','ready'].includes(update.status)) }}>
       {children}
       {open && (
         <Modal
@@ -191,6 +195,18 @@ export default function AppSettings({ children }: { children: ReactNode }) {
           }}
         >
           <div className="crm-form-body app-settings">
+            {update && <section className="app-update-settings">
+              <h3><Download size={18}/>App updates <small>v{update.currentVersion}</small></h3>
+              <output className="update-status">{{idle:'Check for a newer version of Nextstep.',unsupported:'In-app updates are available in the signed macOS app.',checking:'Checking for updates…',current:'You’re up to date.',available:`Nextstep ${update.version} is available.`,downloading:'Downloading and verifying the update…',ready:`Nextstep ${update.version} is ready. Restart to finish updating.`,error:update.error}[update.status]}</output>
+              {update.status !== 'unsupported' && <>
+                <div className="backend-actions">
+                  {update.status === 'ready' ? <button className="crm-button crm-button-primary" onClick={() => void window.nextstepDesktop?.installUpdate().catch(e => setError(errorMessage(e)))}><RefreshCw size={15}/>Restart to update</button> : update.status === 'available' ? <button className="crm-button crm-button-primary" onClick={() => void window.nextstepDesktop?.downloadUpdate().then(setUpdate).catch(e => setError(errorMessage(e)))}><Download size={15}/>Download update</button> : <button className="crm-button" disabled={['checking','downloading'].includes(update.status)} onClick={() => void window.nextstepDesktop?.checkForUpdates().then(setUpdate).catch(e => setError(errorMessage(e)))}><RefreshCw size={15}/>{update.status === 'checking' ? 'Checking…' : update.status === 'downloading' ? 'Downloading…' : 'Check for updates'}</button>}
+                </div>
+                <label className="usage-consent"><input type="checkbox" checked={update.automatic} onChange={event => void window.nextstepDesktop?.setAutomaticUpdates(event.target.checked).then(setUpdate).catch(e => setError(errorMessage(e)))}/><span>Check for updates automatically</span></label>
+                <p className="crm-hint">Checks use Electron’s update service. Downloads start when you choose. Your database stays on this computer or your own server. A downloaded update also installs the next time you quit and reopen Nextstep.</p>
+              </>}
+              <a href="https://github.com/martinrajdl/nextstep/releases/latest" target="_blank" rel="noreferrer">Release notes ↗</a>
+            </section>}
             <section>
               <h3>
                 <Palette size={18} /> Appearance
@@ -328,6 +344,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
               <p>No records, contacts, prompts, database paths or agent activity. Turning this off stops reporting and removes the local identifier.</p>
               <a href="https://github.com/martinrajdl/nextstep/blob/main/docs/privacy.md" target="_blank" rel="noreferrer">Exactly what is shared ↗</a>
             </section>}
+            <section><h3>About Nextstep</h3><p>An open-source CRM for your agent. You choose which agents have access.</p><a href="https://github.com/martinrajdl/nextstep" target="_blank" rel="noreferrer">View source on GitHub ↗</a></section>
             {error && (
               <p role="alert" className="crm-error">
                 {error}

@@ -72,6 +72,14 @@ for (const provider of ['claude-code','codex'] as const) {
       Object.defineProperty(navigator,'clipboard',{value:{writeText:async () => { throw new Error('Clipboard blocked'); }}});
       window.nextstepDesktop = {
       platform:'browser',
+      getBoardSettings:async () => null,
+      setBoardSettings:async (_key,value) => value,
+      getUpdateState:async () => ({status:'unsupported' as const,currentVersion:'0.4.3',version:null,error:'',automatic:false}),
+      checkForUpdates:async () => ({status:'current' as const,currentVersion:'0.4.3',version:null,error:'',automatic:false}),
+      downloadUpdate:async () => ({status:'ready' as const,currentVersion:'0.4.3',version:'0.4.4',error:'',automatic:false}),
+      installUpdate:async () => {},
+      setAutomaticUpdates:async value => ({status:'idle' as const,currentVersion:'0.4.3',version:null,error:'',automatic:value}),
+      onUpdateStateChanged:() => () => {},
       openCrmAgent:async () => ({configured:true,instructions:'Example setup request'}),
       getPreferences:async () => ({accent:'#777777',theme:'light',backendUrl:null,usageEnabled:false}),
       setTheme:async (theme) => theme,
@@ -111,6 +119,14 @@ test('a failed desktop launch keeps the request available without claiming a con
   await page.addInitScript(() => {
     window.nextstepDesktop = {
       platform:'browser',
+      getBoardSettings:async () => null,
+      setBoardSettings:async (_key,value) => value,
+      getUpdateState:async () => ({status:'unsupported' as const,currentVersion:'0.4.3',version:null,error:'',automatic:false}),
+      checkForUpdates:async () => ({status:'current' as const,currentVersion:'0.4.3',version:null,error:'',automatic:false}),
+      downloadUpdate:async () => ({status:'ready' as const,currentVersion:'0.4.3',version:'0.4.4',error:'',automatic:false}),
+      installUpdate:async () => {},
+      setAutomaticUpdates:async value => ({status:'idle' as const,currentVersion:'0.4.3',version:null,error:'',automatic:value}),
+      onUpdateStateChanged:() => () => {},
       openCrmAgent:async () => ({configured:true,instructions:'Example setup request'}),
       getPreferences:async () => ({accent:'#777777',theme:'light',backendUrl:null,usageEnabled:false}),
       setTheme:async (theme) => theme,

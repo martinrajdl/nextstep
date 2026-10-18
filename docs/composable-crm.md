@@ -14,6 +14,14 @@ Nextstep is an Electron app with a composable workspace at `/`, stored in your s
 
 The initial workspace is empty. People, Companies, Projects, Research and Deals are optional empty templates. No examples are seeded into the user's database. Source identity is unique within a collection, including archived records, so re-imports cannot quietly resurrect removed data. Titles alone are not treated as unique.
 
+## Board actions and stage settings
+
+Cards have an **Actions** menu instead of a status dropdown. It offers stage changes and archive/restore. Dragging between columns moves a record; the drag action bar provides common outcome stages and Archive. Defaults use the collection’s completion/outcome options when present, or its last stage. **View settings** chooses up to three stage shortcuts.
+
+In the same panel, rename the displayed stage labels, move stages earlier or later, show or hide stages, and add a select option to a collection. Hidden stages still exist and remain destinations in Actions. Table view keeps access to all records. Stage visibility never archives or deletes records. Renaming a label preserves its stored select value and history.
+
+These display preferences persist per database and view on the device. **Save a view** or **Edit view** also publishes them as view metadata for agents: `hiddenGroups` is an array of select values, `quickActions` contains up to three values, `stageOrder` orders values (unlisted values follow), and `stageNames` maps values to display labels. An empty string identifies the optional unset group. Existing views without these properties retain their original behavior. Schema changes cannot invalidate a saved view’s stage references.
+
 ## Shape data with an agent
 
 On first launch, choose **Connect Codex** or **Connect Claude Code**. Nextstep adds the connection and opens a prepared conversation; review and send it in your agent. Describe your goal there, let the agent propose the schema, and approve it in Nextstep. The accepted collection opens automatically. **Your agent → Other agents & advanced setup** exposes a copyable config and request for other clients, targeting the exact running database. It uses the `nextstep-crm` connection and preserves any other configured connections.

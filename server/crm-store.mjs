@@ -409,6 +409,16 @@ export function createComposableStore(db) {
       !collection.fields.some((f) => f.key === groupBy && f.type === 'select')
     )
       fail('A board needs a select field to group by.');
+    const options = collection.fields.find(f => f.key === groupBy && f.type === 'select')?.options || [];
+    const stageList = (value, label, limit, allowEmpty) => {
+      if (!Array.isArray(value) || value.length > limit || new Set(value).size !== value.length || value.some(v => typeof v !== 'string' || !(options.includes(v) || (allowEmpty && v === '')))) fail(`Choose existing stages for ${label}.`);
+      return value;
+    };
+    const hiddenGroups = stageList(input.hiddenGroups ?? [], 'hidden groups', 101, true);
+    const quickActions = input.quickActions === undefined ? undefined : stageList(input.quickActions, 'quick actions', 3, false);
+    const stageOrder = stageList(input.stageOrder ?? [], 'stage order', 101, true);
+    const stageNames = input.stageNames ?? {};
+    if (!stageNames || typeof stageNames !== 'object' || Array.isArray(stageNames) || Object.keys(stageNames).length > 101 || Object.entries(stageNames).some(([key,value]) => !(key === '' || options.includes(key)) || typeof value !== 'string' || !value.trim() || value.length > 80)) fail('Choose existing stages and nonempty names.');
     const columns = input.columns ?? collection.fields.map((f) => f.key);
     if (
       !Array.isArray(columns) ||
@@ -420,6 +430,10 @@ export function createComposableStore(db) {
       name,
       layout: input.layout,
       groupBy,
+      hiddenGroups,
+      stageOrder,
+      stageNames,
+      ...(quickActions === undefined ? {} : {quickActions}),
       columns,
       ...validateQuery(collection, input),
     };
@@ -572,6 +586,10 @@ export function createComposableStore(db) {
           'name',
           'layout',
           'groupBy',
+          'hiddenGroups',
+          'quickActions',
+          'stageOrder',
+          'stageNames',
           'columns',
           'filters',
           'sort',
@@ -583,6 +601,10 @@ export function createComposableStore(db) {
           'name',
           'layout',
           'groupBy',
+          'hiddenGroups',
+          'quickActions',
+          'stageOrder',
+          'stageNames',
           'columns',
           'filters',
           'sort',

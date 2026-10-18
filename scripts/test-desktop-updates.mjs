@@ -1,0 +1,67 @@
+// Verify the packaged renderer -> IPC -> native updater contract without downloading
+// or installing anything. All data and preferences are temporary.
+import {_electron as electron,expect} from '@playwright/test';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {root} from '../server/config.mjs';
+import {openStore} from '../server/store.mjs';
+const executablePath=process.argv[2];
+if (!executablePath) throw new Error('Pass a packaged Nextstep executable.');
+const directory=mkdtempSync(join(tmpdir(),'nextstep-updates-'));
+const userData=join(directory,'profile'),database=join(directory,'example.sqlite');
+mkdirSync(userData);
+writeFileSync(join(userData,'settings.json'),JSON.stringify({database,automaticUpdates:false,usageAnalytics:{enabled:false}}));
+const store=openStore(database);
+store.create({company:'Fictional update keeper',stage:'interested',notes:'Keep this exact record'});
+store.updateOnboarding({version:store.agentStatus().onboarding.version,status:'dismissed',step:0});
+const before=store.list();
+let app;
+try {
+  app=await electron.launch({executablePath,args:[],env:{...process.env,NEXTSTEP_DISABLE_UPDATES:'',NEXTSTEP_DB_PATH:'',DB_PATH:'',NEXTSTEP_USER_DATA:userData,NEXTSTEP_AGENT_CONFIG_HOME:join(directory,'agents')}});
+  const page=await app.firstWindow();
+  await expect(page.getByRole('heading',{name:'Connect your agent.'})).toBeVisible();
+  const version=await app.evaluate(({app}) => app.getVersion());
+  const next=version.replace(/\d+$/,n => String(Number(n)+1));
+  const url=`https://github.com/martinrajdl/nextstep/releases/download/v${next}/Nextstep-${next}-macOS-arm64.zip`;
+  await app.evaluate(({autoUpdater},{url}) => {
+    globalThis.updateRequests=[];globalThis.updateInstalls=0;globalThis.updateDownloads=0;
+    globalThis.fetch=async address => {globalThis.updateRequests.push(address);return new Response(JSON.stringify({url}));};
+    autoUpdater.setFeedURL=options => {globalThis.updateFeed=options.url;};
+    autoUpdater.checkForUpdates=() => {globalThis.updateDownloads++;autoUpdater.emit('update-available');};
+    autoUpdater.quitAndInstall=() => {globalThis.updateInstalls++;};
+  },{url});
+  await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await expect(page.getByLabel('Check for updates automatically')).not.toBeChecked();
+  await page.getByRole('button',{name:'Check for updates',exact:true}).click();
+  await expect(page.getByRole('dialog',{name:'Settings',exact:true}).getByRole('status')).toContainText(`Nextstep ${next} is available`);
+  expect(await app.evaluate(() => globalThis.updateDownloads)).toBe(0);
+  await page.getByRole('button',{name:'Download update',exact:true}).click();
+  await expect(page.getByRole('dialog',{name:'Settings',exact:true}).getByRole('status')).toContainText('Downloading and verifying');
+  expect(await app.evaluate(() => globalThis.updateDownloads)).toBe(1);
+  await app.evaluate(({autoUpdater},url) => autoUpdater.emit('update-downloaded',null,'Notes','Nextstep',new Date(),url),url);
+  await expect(page.getByRole('button',{name:'Restart to update',exact:true})).toBeVisible();
+  expect(await app.evaluate(() => globalThis.updateInstalls)).toBe(0);
+  await page.screenshot({path:join(root,'test-results/desktop-update-ready.png')});
+  await page.getByRole('button',{name:'Restart to update',exact:true}).click();
+  expect(await app.evaluate(() => globalThis.updateInstalls)).toBe(1);
+  expect(store.list()).toEqual(before);
+  expect(JSON.parse(readFileSync(join(userData,'settings.json'),'utf8')).usageAnalytics).toEqual({enabled:false});
+  await page.getByRole('button',{name:'Done',exact:true}).click();
+  await page.getByRole('link',{name:'Job search',exact:true}).click();
+  await page.getByRole('button',{name:'View settings',exact:true}).click();
+  await page.getByLabel('Stage name for Prospects').fill('Inbox');
+  await page.getByLabel('Show Rejected stage').uncheck();
+  await page.getByRole('button',{name:'Move Inbox earlier',exact:true}).click();
+  await page.getByRole('button',{name:'Done',exact:true}).click();
+  const saved=await page.evaluate(() => window.nextstepDesktop.getBoardSettings('pipeline'));
+  expect(saved.stageNames).toEqual({prospect:'Inbox'});expect(saved.hiddenStages).toEqual(['rejected']);expect(saved.stageOrder[0]).toBe('prospect');
+  await app.close();app=null;
+  app=await electron.launch({executablePath,args:[],env:{...process.env,NEXTSTEP_DISABLE_UPDATES:'1',NEXTSTEP_DB_PATH:'',DB_PATH:'',NEXTSTEP_USER_DATA:userData,NEXTSTEP_AGENT_CONFIG_HOME:join(directory,'agents')}});
+  const reopened=await app.firstWindow();
+  await reopened.getByRole('link',{name:'Job search',exact:true}).click();
+  await expect(reopened.locator('.board-column').first()).toHaveAttribute('aria-label','Inbox stage');
+  expect(await reopened.evaluate(() => window.nextstepDesktop.getBoardSettings('pipeline'))).toEqual(saved);
+  expect(store.list()).toEqual(before);
+  console.log('Packaged updater UI passed: metadata-only checks, explicit download and restart, native events, persistent per-database stage names/order/visibility, and unchanged records and usage consent.');
+} finally {if(app) await app.close();store.close();rmSync(directory,{recursive:true,force:true});}

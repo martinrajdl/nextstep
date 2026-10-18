@@ -98,7 +98,7 @@ export function createCrmMcp(database, { allowWrites = false } = {}) {
           'update_collection requires id and version; fields replaces the schema after existing records and views are validated.',
         archive: 'archive_record and restore_record require id and version.',
         views:
-          'create_view requires collectionId,name,layout (table or board); board requires groupBy, a select field. Optional columns,filters,sort. update_view and delete_view require id and version.',
+          'create_view requires collectionId,name,layout (table or board); board requires groupBy, a select field. Optional columns,filters,sort,hiddenGroups (select options hidden on the board),quickActions (up to 3 select options offered as drag targets). Optional stageOrder orders select values; stageNames maps select values to display labels. Hiding or labeling stages never changes record values. update_view and delete_view require id and version.',
       },
     }),
   );

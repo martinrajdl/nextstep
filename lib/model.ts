@@ -11,6 +11,7 @@ export const STAGES = [
   { id: 'rejected', name: 'Rejected', color: '#b87985', hint: 'Room for something better', closed: true },
   { id: 'withdrawn', name: 'Withdrawn', color: '#8a91a1', hint: 'A different direction', closed: true },
 ] as const;
+export type PipelineStage = Omit<typeof STAGES[number], 'name'> & {name:string};
 export type StageId = typeof STAGES[number]['id'];
 export type Opportunity = {
   id: string; company: string; role: string; location: string; salary: string; url: string; contact: string; contactEmail: string;

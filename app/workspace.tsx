@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import {
   Activity,
   ArrowDownToLine,
   ArrowRight,
-  ArrowUpRight,
   Bot,
   ChevronRight,
   Database,
@@ -39,9 +38,12 @@ import { useAppPreferences } from '@/components/app-settings';
 import AgentFlows, {
   FlowCard,
 } from '@/components/crm/agent-flows';
+const loadPipeline = () => import('./page');
+const JobWorkspace = lazy(loadPipeline);
+import { BoardSkeleton } from '@/components/board-controls';
 import './workspace.css';
 const currentRoute = () =>
-  window.location.hash.replace(/^#\/?/, '').split('?')[0] || 'overview';
+  window.location.pathname === '/jobs' ? 'legacy-board' : window.location.hash.replace(/^#\/?/, '').split('?')[0] || 'overview';
 function ActivityView({ revision }: { revision: number }) {
   const [events, setEvents] = useState<Event[]>([]),
     [error, setError] = useState(''),
@@ -148,7 +150,7 @@ function ActivityView({ revision }: { revision: number }) {
   );
 }
 export default function WorkspaceApp() {
-  const { backendUrl, openSettings } = useAppPreferences();
+  const { backendUrl, openSettings, updateAvailable } = useAppPreferences();
   const [workspace, setWorkspace] = useState<Workspace | null>(null),
     [error, setError] = useState(''),
     [route, setRoute] = useState(currentRoute),
@@ -189,7 +191,8 @@ export default function WorkspaceApp() {
       void refresh();
     };
     window.addEventListener('hashchange', handler);
-    return () => window.removeEventListener('hashchange', handler);
+    window.addEventListener('popstate', handler);
+    return () => { window.removeEventListener('hashchange', handler); window.removeEventListener('popstate', handler); };
   }, [refresh]);
   useEffect(() => {
     const refreshVisible = () => {
@@ -209,7 +212,8 @@ export default function WorkspaceApp() {
     };
   }, [refresh, schema, recordEditor, workbench]);
   const navigate = (path: string) => {
-    window.location.hash = `/${path}`;
+    window.history.pushState(null, '', `/#/${path}`);
+    setRoute(currentRoute());
     setNavOpen(false);
   };
   const collection = workspace?.collections.find(
@@ -219,6 +223,7 @@ export default function WorkspaceApp() {
     collection?.name ||
     {
       overview: 'Workspace home',
+      'legacy-board': workspace?.existingWorkspaces?.find(w => w.id === 'legacy-board')?.name || 'Workspace',
       review: 'Review changes',
       activity: 'History',
       agents: 'Connect an agent',
@@ -229,32 +234,31 @@ export default function WorkspaceApp() {
   async function changed() {
     await refresh();
   }
+  function followLink(event: MouseEvent<HTMLAnchorElement>) {
+      const link = event.currentTarget;
+      if (!link || link.target || link.hasAttribute('download') || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+      const url = new URL(link.href);
+      if (url.origin !== location.origin || !['/', '/jobs'].includes(url.pathname) || (url.pathname === '/' && url.hash && !url.hash.startsWith('#/'))) return;
+      // Preserve the shell, loaded styles and native window while navigating.
+      // A modal draft must be closed explicitly before its route can disappear.
+      if (document.querySelector('dialog[open]')) { event.preventDefault(); return; }
+      event.preventDefault();
+      history.pushState(null, '', url.pathname + url.hash);
+      setRoute(currentRoute());
+      setNavOpen(false);
+      void refresh();
+  }
   return (
     <div className="crm-shell">
       <a href="#workspace-content" className="crm-skip">
         Skip to content
       </a>
       <aside className={`crm-sidebar ${navOpen ? 'is-open' : ''}`}>
-        <a className="crm-brand" href="#/overview">
+        <a onClick={followLink} className="crm-brand" href="/#/overview">
           <img src={nextstepIcon} alt="" width={42} height={42} />
           nextstep<span className="crm-brand-dot">.</span>
         </a>
-        <div className="crm-workspace-label">
-          <span className="crm-workspace-icon">N</span>
-          <span>
-            Main workspace
-            <small>
-              {backendUrl ? 'Your own server' : 'Saved on this computer'}
-            </small>
-          </span>
-          <button
-            aria-label="Close navigation"
-            className="crm-icon-button crm-mobile-only"
-            onClick={() => setNavOpen(false)}
-          >
-            <X size={17} />
-          </button>
-        </div>
+        <button aria-label="Close navigation" className="crm-icon-button crm-mobile-only crm-sidebar-close" onClick={() => setNavOpen(false)}><X size={17}/></button>
         <nav aria-label="Workspace navigation">
           {[
             { id: 'overview', label: 'Home', icon: LayoutGrid },
@@ -265,7 +269,8 @@ export default function WorkspaceApp() {
           ].filter(item => item.id === 'overview' || Boolean(workspace?.collections.length) || (item.id === 'review' && Boolean(workspace?.pendingCount)) || (item.id === 'flows' && Boolean(workspace?.recentFlows.length))).map((item) => (
             <a
               key={item.id}
-              href={`#/${item.id}`}
+              onClick={followLink}
+              href={`/#/${item.id}`}
               aria-label={item.label}
               aria-current={route === item.id ? 'page' : undefined}
             >
@@ -279,34 +284,21 @@ export default function WorkspaceApp() {
         </nav>
         {Boolean(workspace?.collections.length) && <>
           <div className="crm-sidebar-caption">YOUR COLLECTIONS</div>
-          <nav aria-label="Collections">{workspace?.collections.map(c => <a key={c.id} href={`#/collections/${c.id}`} aria-current={collection?.id === c.id ? 'page' : undefined}><span className="crm-collection-dot" style={{background:c.color}}/>{c.name}<small>{c.recordCount}</small></a>)}</nav>
+          <nav aria-label="Collections">{workspace?.collections.map(c => <a onClick={followLink} key={c.id} href={`/#/collections/${c.id}`} aria-current={collection?.id === c.id ? 'page' : undefined}><span className="crm-collection-dot" style={{background:c.color}}/>{c.name}<small>{c.recordCount}</small></a>)}</nav>
         </>}
         {Boolean(workspace?.existingWorkspaces?.length) && <><div className="crm-sidebar-caption">YOUR WORKSPACES</div>
         <nav aria-label="Other workspaces">
-          {workspace?.existingWorkspaces?.filter(item => /^\/[a-z0-9/_-]+$/.test(item.path)).map(item => <a key={item.id} href={item.path}>
+          {workspace?.existingWorkspaces?.filter(item => /^\/[a-z0-9/_-]+$/.test(item.path)).map(item => <a onClick={followLink} onMouseEnter={() => { void loadPipeline(); }} onFocus={() => { void loadPipeline(); }} key={item.id} href={item.path} aria-current={route === item.id ? 'page' : undefined}>
             <Folder size={17} />
             {item.name}
             <ChevronRight size={13} aria-hidden="true" />
           </a>)}
         </nav></>}
         <div className="crm-sidebar-bottom">
-          <button className="crm-settings-button" onClick={openSettings}>
-            <Settings size={17} /> Settings
+          <button aria-label="Settings" title={updateAvailable ? 'Settings · update available' : 'Settings'} className="crm-settings-button" onClick={openSettings}>
+            <Settings size={17} /> Settings{updateAvailable && <span className="settings-update-dot" aria-label="Update available"/>}
           </button>
-          <div className="crm-local-state">
-            <span />
-            <div>
-              {backendUrl ? 'Saved on your server' : 'Saved on this computer'}<small>You choose which agents have access.</small>
-            </div>
-            <Database size={15} />
-          </div>
-          <a
-            href="https://github.com/martinrajdl/nextstep"
-            target="_blank"
-            rel="noreferrer"
-          >
-            View source on GitHub <ArrowUpRight size={12} />
-          </a>
+
         </div>
       </aside>
       {navOpen && (
@@ -325,7 +317,7 @@ export default function WorkspaceApp() {
           >
             <Menu size={20} />
           </button>
-          <a className="crm-home-link" href="#/overview" onClick={() => setNavOpen(false)} aria-current={route === 'overview' ? 'page' : undefined}>
+          <a className="crm-home-link" href="/#/overview" onClick={followLink} aria-current={route === 'overview' ? 'page' : undefined}>
             <LayoutGrid size={14} aria-hidden="true"/>Workspace home
           </a>
           {route !== 'overview' && <><ChevronRight size={13} aria-hidden="true"/><strong className="crm-current-location" aria-current="page">{label}</strong></>}
@@ -352,7 +344,7 @@ export default function WorkspaceApp() {
             </a>
           </div>
         </header>
-        <main id="workspace-content" className="crm-content">
+        <main id="workspace-content" className={`crm-content ${route === 'legacy-board' ? 'crm-pipeline-content' : ''}`}>
           {error && (
             <div className="crm-error" role="alert">
               {error}
@@ -364,13 +356,9 @@ export default function WorkspaceApp() {
               </button>
             </div>
           )}
-          {!workspace ? (
-            <div className="crm-empty">
-              <Database size={28} />
-              <h1>
-                {error ? 'Workspace unavailable' : 'Opening your workspace…'}
-              </h1>
-            </div>
+          {route === 'legacy-board' ? <Suspense fallback={<BoardSkeleton/>}><JobWorkspace/></Suspense> : !workspace ? (
+            error ? <div className="crm-empty"><Database size={28}/><h1>Workspace unavailable</h1></div> : <BoardSkeleton table/>
+
           ) : collection ? (
             <CollectionView
               key={collection.id}

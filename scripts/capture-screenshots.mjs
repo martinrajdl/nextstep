@@ -50,16 +50,25 @@ try {
   const errors=[]; page.on('pageerror', error => errors.push(error.message));
   await page.goto(service.url+'/#/collections/people');
   await expect(page.getByRole('heading',{name:'People',exact:true})).toBeVisible();
+  await expect(page.locator('tbody').getByRole('button',{name:/^(?!Actions).*Avery Morgan/})).toBeVisible();
   await expect(page.locator('a[href="/jobs"]')).toHaveCount(0);
   await page.screenshot({path:join(output,'workspace.png')});
+  await page.getByRole('button',{name:'Board view',exact:true}).click();
+  await expect(page.getByRole('region',{name:'Collaborating column'})).toBeVisible();
+  await page.screenshot({path:join(output,'pipeline.png')});
+  await page.getByRole('button',{name:'View settings',exact:true}).click();
+  await page.screenshot({path:join(output,'stage-settings.png')});
+  await page.getByRole('button',{name:'Done',exact:true}).click();
+  await page.getByRole('button',{name:'Table view',exact:true}).click();
   await page.getByRole('button',{name:'Settings',exact:true}).click();
   await page.getByRole('button',{name:'Dark mode',exact:true}).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
+  await expect(page.getByRole('heading',{name:'Settings',exact:true})).toHaveCSS('color','rgb(222, 222, 222)');
   await page.screenshot({path:join(output,'settings-dark.png')});
   await page.getByRole('button',{name:'Done',exact:true}).click();
   await page.screenshot({path:join(output,'workspace-dark.png')});
   expect(errors).toEqual([]);
-  console.log('Captured four documentation screenshots using an isolated database and fictional records.');
+  console.log('Captured six documentation screenshots using an isolated database and fictional records.');
 } finally {
   await app?.close();
   await browser?.close();

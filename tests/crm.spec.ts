@@ -25,10 +25,11 @@ test('workspace navigation identifies Jobs and returns home without changing sav
   await page.getByRole('button',{name:'Save changes',exact:true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   const before = await (await request.get('/api/opportunities')).json();
+  await page.evaluate(() => { document.documentElement.dataset.navigationProof='same-document'; });
   for (const width of [1280,390,320]) {
     await page.setViewportSize({width,height:900});
-    const navigation = page.getByRole('navigation',{name:'Workspace navigation'});
-    await expect(navigation.getByRole('heading',{name:'Job search',exact:true})).toBeVisible();
+    const navigation = page.locator('.crm-topbar');
+    await expect(page.getByRole('heading',{name:'Job search',exact:true})).toBeVisible();
     const home = navigation.getByRole('link',{name:'Workspace home',exact:true});
     await expect(home).toBeInViewport();
     await page.screenshot({path:`test-results/workspace-navigation-${width}.png`});
@@ -40,6 +41,7 @@ test('workspace navigation identifies Jobs and returns home without changing sav
     await expect(page).toHaveURL(/\/jobs$/);
   }
   expect(await (await request.get('/api/opportunities')).json()).toEqual(before);
+  await expect(page.locator('html')).toHaveAttribute('data-navigation-proof','same-document');
 });
 test('create, edit, search, list stage change, reload, close, remove, undo, and export', async ({page,request}) => {
   const errors: string[] = []; page.on('pageerror',error => errors.push(error.message));
@@ -279,10 +281,12 @@ test('Uninterested moves persist and hiding the column preserves list access and
   await page.mouse.move(target.x+70,target.y+80,{steps:20}); await page.mouse.up();
   await expect(page.getByText('QA Not a fit moved to Uninterested')).toBeVisible();
   await expect(page.getByRole('region',{name:'Uninterested stage',exact:true}).getByRole('button',{name:'Open QA Not a fit',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Hide uninterested',exact:true}).click();
+  await page.getByRole('button',{name:/View settings/}).click();
+  await page.getByLabel('Show Uninterested stage',{exact:true}).uncheck();
+  await page.getByRole('button',{name:'Done',exact:true}).click();
   await expect(page.getByRole('region',{name:'Uninterested stage',exact:true})).toHaveCount(0);
   await page.reload();
-  await expect(page.getByRole('button',{name:'Show uninterested',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'View settings, 1 hidden',exact:true})).toBeVisible();
   await expect(page.locator('.board-column').first()).toHaveAttribute('aria-label','Prospects stage');
   await expect(card).toHaveCount(0);
   const saved = (await (await request.get('/api/opportunities')).json()).opportunities.find((job:{company:string}) => job.company==='QA Not a fit');
@@ -294,13 +298,17 @@ test('Uninterested moves persist and hiding the column preserves list access and
   await page.getByLabel('Stage for QA Not a fit').selectOption('uninterested');
   await expect(page.getByText('QA Not a fit moved to Uninterested')).toBeVisible();
   await page.getByRole('tab',{name:'Board',exact:true}).click();
-  await page.getByRole('button',{name:'Show uninterested',exact:true}).click();
+  await page.getByRole('button',{name:/View settings/}).click();
+  await page.getByLabel('Show Uninterested stage',{exact:true}).check();
+  await page.getByRole('button',{name:'Done',exact:true}).click();
   await page.reload();
   await expect(page.getByRole('region',{name:'Uninterested stage',exact:true}).getByRole('button',{name:'Open QA Not a fit',exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Hide uninterested',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'View settings',exact:true})).toBeVisible();
   await page.setViewportSize({width:390,height:844});
-  await page.getByRole('button',{name:'Hide uninterested',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Show uninterested',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:/View settings/}).click();
+  await page.getByLabel('Show Uninterested stage',{exact:true}).uncheck();
+  await page.getByRole('button',{name:'Done',exact:true}).click();
+  await expect(page.getByRole('button',{name:'View settings, 1 hidden',exact:true})).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
 });
 

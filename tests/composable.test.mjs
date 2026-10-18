@@ -547,3 +547,18 @@ test('HTTP routes preserve loopback Host/Origin protections and expose review op
     1,
   );
 });
+
+test('board visibility and quick actions are reviewable view metadata and preserve records and legacy data', t => {
+  const {store,crm,file}=fixture(t);
+  store.create({company:'Fictional preserved decision',stage:'interested',notes:'Leave intact'});
+  const legacy=store.list();crm.apply(change([people]));const person=record(crm,{values:{status:'New'}});
+  crm.apply(change([{type:'create_view',id:'0c8ff012-dc06-4fd2-a7ab-219822d474aa',collectionId:'people',name:'Pipeline',layout:'board',groupBy:'status'}]));
+  const view=crm.views('people')[0];
+  const proposal=change([{type:'update_view',id:view.id,version:view.version,hiddenGroups:['Active'],quickActions:['Active'],stageOrder:['Active','New',''],stageNames:{New:'Inbox'}}]);
+  crm.propose(proposal);assert.deepEqual(crm.views('people')[0].hiddenGroups,[]);
+  crm.review(proposal.id,{decision:'approve',version:1});
+  const saved=crm.views('people')[0];assert.deepEqual(saved.hiddenGroups,['Active']);assert.deepEqual(saved.quickActions,['Active']);assert.deepEqual(saved.stageOrder,['Active','New','']);assert.deepEqual(saved.stageNames,{New:'Inbox'});
+  for(const patch of [{hiddenGroups:['Missing']},{quickActions:['Missing']},{quickActions:['Active','Active']},{stageOrder:['Missing']},{stageNames:{Missing:'Something'}},{stageNames:{New:''}}]) assert.throws(() => crm.apply(change([{type:'update_view',id:saved.id,version:saved.version,...patch}])));
+  assert.deepEqual(crm.getRecord(person.id),person);assert.deepEqual(store.list(),legacy);
+  const reopened=openStore(file);assert.deepEqual(reopened.crm.views('people')[0],saved);reopened.close();
+});

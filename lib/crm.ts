@@ -31,6 +31,10 @@ export type View = {
   name: string;
   layout: 'table' | 'board';
   groupBy: string;
+  hiddenGroups?: string[];
+  quickActions?: string[];
+  stageOrder?: string[];
+  stageNames?: Record<string, string>;
   columns: string[];
   filters: Filter[];
   sort: Sort;

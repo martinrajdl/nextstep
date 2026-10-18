@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, dialog, shell, ipcMain, nativeTheme } from 'electron';
+import { app, BrowserWindow, Menu, dialog, shell, ipcMain, nativeTheme, autoUpdater } from 'electron';
 import { existsSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { assertNextstepDatabase } from '../server/database-file.mjs';
@@ -12,6 +12,8 @@ import { APPEARANCES, THEMES, accentColor, themePreference, readPreferences, wri
 import { backendOrigin } from '../server/backend.mjs';
 import { crmAgentRequest } from '../lib/crm-agent-request.ts';
 import { createUsageReporter } from './usage.mjs';
+import { createUpdater } from './updates.mjs';
+import { createHash } from 'node:crypto';
 
 app.setName('Nextstep');
 if (process.env.NEXTSTEP_USER_DATA) app.setPath('userData',resolve(process.env.NEXTSTEP_USER_DATA));
@@ -20,6 +22,7 @@ const mcpMode = process.argv.includes('--mcp') || crmMcpMode;
 let service;
 let window;
 let usage;
+let updater;
 
 function iconPath() {
   return resolve(app.getAppPath(),app.isPackaged ? 'nextstep.png' : 'desktop/icons/nextstep.png');
@@ -78,7 +81,7 @@ async function showSettings() {
 function buildMenu() {
   const {accent,theme,backendUrl} = preferences();
   Menu.setApplicationMenu(Menu.buildFromTemplate([
-    ...(process.platform === 'darwin' ? [{label:'Nextstep',submenu:[{role:'about'},{label:'Settings…',accelerator:'CmdOrCtrl+,',click:() => { void showSettings(); }},{type:'separator'},{role:'hide'},{role:'hideOthers'},{role:'unhide'},{type:'separator'},{role:'quit'}]}] : []),
+    ...(process.platform === 'darwin' ? [{label:'Nextstep',submenu:[{role:'about'},{label:'Check for Updates…',click:() => { void showSettings(); void updater?.check(); }},{label:'Settings…',accelerator:'CmdOrCtrl+,',click:() => { void showSettings(); }},{type:'separator'},{role:'hide'},{role:'hideOthers'},{role:'unhide'},{type:'separator'},{role:'quit'}]}] : []),
     {label:'File',submenu:[{label:'Open database…',click:() => { void openDatabase(); }},{label:'Show database in folder',enabled:!backendUrl,click:() => shell.showItemInFolder(service.database)},{label:'Backend connection…',click:() => { void showSettings(); }},{type:'separator'},{role:process.platform === 'darwin' ? 'close' : 'quit'}]},
     {label:'Edit',submenu:[{role:'undo'},{role:'redo'},{type:'separator'},{role:'cut'},{role:'copy'},{role:'paste'},{role:'selectAll'}]},
     {label:'View',submenu:[{label:'Appearance',submenu:[...THEMES.map(value => ({id:`theme-${value}`,label:value[0].toUpperCase()+value.slice(1),type:'radio',checked:theme === value,click:() => setTheme(value)})),{type:'separator'},...APPEARANCES.map(({name,color}) => ({id:`appearance-${name.toLowerCase()}`,label:`${name} accent`,type:'radio',checked:accent === color,click:() => setAppearance(color)})),{label:'Custom color…',click:() => { void showSettings(); }}]},{label:'Settings…',accelerator:process.platform === 'darwin' ? undefined : 'CmdOrCtrl+,',click:() => { void showSettings(); }},{type:'separator'},{role:'reload'},{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'},{role:'togglefullscreen'}]},
@@ -191,6 +194,26 @@ function agentBridge() {
   });
 }
 function settingsBridge() {
+  const boardKey = key => {
+    if (typeof key !== 'string' || !key || key.length > 300) throw new Error('Invalid view settings key.');
+    return createHash('sha256').update(`${service.backendUrl || service.database}:${key}`).digest('hex');
+  };
+  ipcMain.handle('nextstep:board-settings',(event,key) => { validateSender(event); return readPreferences(app.getPath('userData')).boardSettings?.[boardKey(key)] || null; });
+  ipcMain.handle('nextstep:set-board-settings',(event,key,value) => {
+    validateSender(event);
+    const id = boardKey(key);
+    if (!value || !Array.isArray(value.hiddenStages) || !Array.isArray(value.actionStages) || value.hiddenStages.length > 101 || value.actionStages.length > 3 || [...value.hiddenStages,...value.actionStages].some(s => typeof s !== 'string' || s.length > 160)) throw new Error('Invalid view settings.');
+    if (value.stageOrder !== undefined && (!Array.isArray(value.stageOrder) || value.stageOrder.length > 101 || value.stageOrder.some(s => typeof s !== 'string' || s.length > 160))) throw new Error('Invalid stage order.');
+    if (value.stageNames !== undefined && (!value.stageNames || typeof value.stageNames !== 'object' || Array.isArray(value.stageNames) || Object.keys(value.stageNames).length > 101 || Object.entries(value.stageNames).some(([key,name]) => key.length > 160 || typeof name !== 'string' || !name.trim() || name.length > 80))) throw new Error('Invalid stage names.');
+    const existing = readPreferences(app.getPath('userData')).boardSettings || {};
+    writePreferences(app.getPath('userData'),{boardSettings:{...existing,[id]:{hiddenStages:[...new Set(value.hiddenStages)],actionStages:[...new Set(value.actionStages)],stageOrder:value.stageOrder || [],stageNames:value.stageNames || {}}}});
+    return value;
+  });
+  ipcMain.handle('nextstep:update-state',event => { validateSender(event); return updater.getState(); });
+  ipcMain.handle('nextstep:check-updates',event => { validateSender(event); return updater.check(); });
+  ipcMain.handle('nextstep:download-update',event => { validateSender(event); return updater.download(); });
+  ipcMain.handle('nextstep:install-update',event => { validateSender(event); updater.install(); });
+  ipcMain.handle('nextstep:automatic-updates',(event,value) => { validateSender(event); return updater.setAutomatic(value); });
   ipcMain.handle('nextstep:preferences',event => { validateSender(event); return preferences(); });
   ipcMain.handle('nextstep:set-appearance',(event,color) => { validateSender(event); return setAppearance(color); });
   ipcMain.handle('nextstep:set-theme',(event,theme) => { validateSender(event); return setTheme(theme); });
@@ -257,16 +280,21 @@ async function main() {
       }
     }
   } else { const database = appDatabase(); service = await createService(database); remember(database); }
+  updater = createUpdater({native:autoUpdater,version:app.getVersion(),platform:process.platform,arch:process.arch,packaged:app.isPackaged && process.env.NEXTSTEP_DISABLE_UPDATES !== '1',executable:process.execPath,read:() => readPreferences(app.getPath('userData')),write:patch => writePreferences(app.getPath('userData'),patch),send:(...args) => fetch(...args),publish:state => window?.webContents.send('nextstep:update-state-changed',state)});
   agentBridge();
   settingsBridge();
   buildMenu();
   await showWindow();
+  const firstUpdateCheck = setTimeout(() => { void updater.automaticCheck(); },10000);
+  const updateTimer = setInterval(() => { void updater.automaticCheck(); },6*60*60*1000);
+  firstUpdateCheck.unref(); updateTimer.unref();
   app.on('activate',() => { void showWindow(); });
   app.on('window-all-closed',() => { if (process.platform !== 'darwin') app.quit(); });
   // SQLite writes are synchronous. Close it after unsaved-edit prompts are resolved;
   // waiting on asynchronous HTTP teardown here can stall Electron's shutdown.
   app.on('will-quit',() => {
     clearInterval(usageTimer);
+    clearTimeout(firstUpdateCheck); clearInterval(updateTimer); updater.stop();
     usage.stop();
     service.server.closeAllConnections();
     service.store?.close();

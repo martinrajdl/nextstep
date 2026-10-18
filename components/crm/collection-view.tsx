@@ -26,6 +26,7 @@ import {
   type View,
 } from '@/lib/crm';
 import Modal from './modal';
+import { arrangeStages, BoardSettingsButton, BoardSkeleton, RecordActions, useBoardSettings, type BoardSettings } from '../board-controls';
 
 function ViewEditor({
   collection,
@@ -34,6 +35,7 @@ function ViewEditor({
   groupBy,
   filters,
   sort,
+  boardSettings,
   onClose,
   onSaved,
 }: {
@@ -43,6 +45,7 @@ function ViewEditor({
   groupBy: string;
   filters: Filter[];
   sort: Sort;
+  boardSettings: BoardSettings;
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
@@ -65,6 +68,10 @@ function ViewEditor({
           name,
           layout,
           groupBy,
+          hiddenGroups: boardSettings.hiddenStages,
+          quickActions: boardSettings.actionStages,
+          stageOrder: boardSettings.stageOrder || [],
+          stageNames: boardSettings.stageNames || {},
           filters,
           sort,
           columns,
@@ -190,8 +197,18 @@ export default function CollectionView({
     [showFilter, setShowFilter] = useState(false),
     [viewEditor, setViewEditor] = useState(false),
     [moving, setMoving] = useState(false);
+  const [dragged, setDragged] = useState<RecordItem | null>(null);
   const [related, setRelated] = useState<Record<string, RecordItem>>({});
   const view = collection.views?.find((v) => v.id === viewId);
+  const stageOptions = collection.fields.find(f => f.key === groupBy)?.options || [];
+  const defaultActions = stageOptions.filter(s => /^(done|complete[d]?|won|lost|rejected|cancelled|canceled|closed|accepted)$/i.test(s)).slice(0, 2);
+  const boardPreferences = useBoardSettings(`collection:${collection.id}:${viewId}:${groupBy}`, {
+    hiddenStages: view?.hiddenGroups || [],
+    stageOrder: view?.stageOrder || [],
+    stageNames: view?.stageNames || {},
+    actionStages: view?.quickActions || (defaultActions.length ? defaultActions : stageOptions.slice(-1)),
+  });
+  const {hiddenStages, actionStages} = boardPreferences.settings;
   const visibleFields = collection.fields.filter(
     (f) => !view || view.columns.includes(f.key),
   );
@@ -204,7 +221,6 @@ export default function CollectionView({
   }, [query]);
   const loadKey = JSON.stringify([
     collection.id,
-    revision,
     search,
     filters,
     sort,
@@ -310,6 +326,19 @@ export default function CollectionView({
       setMoving(false);
     }
   }
+  async function archive(record: RecordItem) {
+    if (moving || loading) return;
+    setMoving(true);
+    try {
+      await applyChange(`${record.archivedAt ? 'Restore' : 'Archive'} ${record.title}`, [{type: record.archivedAt ? 'restore_record' : 'archive_record', id: record.id, version: record.version}]);
+      await onChanged();
+      setError('');
+    } catch (e) { setError(errorMessage(e)); }
+    finally { setMoving(false); }
+  }
+  function actions(record: RecordItem) {
+    return <RecordActions title={record.title} stages={boardStages} current={String(record.values[groupBy] || '')} quickActions={actionStages} disabled={moving || loading} archived={archived} onMove={stage => void move(record, stage)} onArchive={() => void archive(record)}/>;
+  }
   function exportRecords() {
     const payload = JSON.stringify(
       { collection, records: data.records },
@@ -326,9 +355,11 @@ export default function CollectionView({
     URL.revokeObjectURL(url);
   }
   const groups = [
-    '',
-    ...(collection.fields.find((f) => f.key === groupBy)?.options || []),
+    ...(collection.fields.find(f => f.key === groupBy)?.required ? [] : ['']),
+    ...stageOptions,
   ];
+  const boardStages = arrangeStages(groups.map(id => ({id,name:id || 'No status'})), boardPreferences.settings);
+  const stageName = (id:string) => boardStages.find(s => s.id===id)?.name || id;
   return (
     <>
       <div className="crm-collection-heading">
@@ -409,6 +440,11 @@ export default function CollectionView({
           <Archive size={14} />
           {archived ? 'Archived' : 'Archive'}
         </button>
+        {layout === 'board' && <BoardSettingsButton stages={groups.map(id => ({id, name:id || 'No status'}))} settings={boardPreferences.settings} onChange={value => void boardPreferences.save(value)} onAddStage={async name => {
+          if (stageOptions.includes(name)) throw new Error('A stage with that name already exists.');
+          await applyChange(`Add ${name} stage`, [{type:'update_collection',id:collection.id,version:collection.version,fields:collection.fields.map(f => f.key === groupBy ? {...f,options:[...(f.options || []),name]} : f)}]);
+          await onChanged();
+        }} error={boardPreferences.error}/>}
         <div className="crm-layout-switch" aria-label="View layout">
           <button
             aria-label="Table view"
@@ -601,7 +637,7 @@ export default function CollectionView({
                 </option>
               ))}
           </select>
-          <span>Drag a card or use its status menu.</span>
+          <span>Drag a card or open its Actions menu.</span>
         </label>
       )}
       {error && (
@@ -609,8 +645,8 @@ export default function CollectionView({
           {error}
         </p>
       )}
-      <div aria-busy={loading} className={loading ? 'crm-data-loading' : ''}>
-        {!data.records.length ? (
+      <div aria-busy={loading}>
+        {loading && !loadedKey ? <BoardSkeleton table={layout === 'table'}/> : !data.records.length ? (
           <div className="crm-empty">
             <Table2 size={32} />
             <h2>
@@ -647,7 +683,7 @@ export default function CollectionView({
                       {field.name}
                     </th>
                   ))}
-                  <th scope="col">Updated</th>
+                  <th scope="col">Updated</th><th scope="col"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -715,7 +751,7 @@ export default function CollectionView({
                         undefined,
                         { month: 'short', day: 'numeric' },
                       )}
-                    </td>
+                    </td><td className="crm-table-actions">{actions(record)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -723,14 +759,14 @@ export default function CollectionView({
           </div>
         ) : (
           <div className="crm-board">
-            {groups.map((group) => (
-              // Pointer drops have an equivalent keyboard-accessible status select on each card.
+            {boardStages.filter(stage => !hiddenStages.includes(stage.id)).map(({id:group,name}) => (
+              // Pointer drops have an equivalent keyboard-accessible Actions menu on each card.
               // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
               <section
                 key={group}
-                aria-label={`${group || 'No status'} column`}
+                aria-label={`${name} column`}
                 onDragOver={(event) => {
-                  if (!archived) event.preventDefault();
+                  if (!archived && dragged) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }
                 }}
                 onDrop={(event) => {
                   event.preventDefault();
@@ -739,7 +775,8 @@ export default function CollectionView({
                       r.id ===
                       event.dataTransfer.getData('text/nextstep-record'),
                   );
-                  if (record && !archived) void move(record, group);
+                  setDragged(null);
+                  if (record && !archived && dragged?.id === record.id) void move(record, group);
                 }}
               >
                 <header>
@@ -747,7 +784,7 @@ export default function CollectionView({
                     className="crm-dot"
                     style={{ background: collection.color }}
                   />
-                  <h2>{group || 'No status'}</h2>
+                  <h2>{name}</h2>
                   <span>
                     {
                       data.records.filter(
@@ -759,18 +796,18 @@ export default function CollectionView({
                 {data.records
                   .filter((r) => (r.values[groupBy] || '') === group)
                   .map((record) => (
-                    // The record button and status select provide keyboard actions for this draggable card.
+                    // The record button and Actions menu provide keyboard access for this draggable card.
                     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
                     <article
                       key={record.id}
                       aria-label={record.title}
                       draggable={!archived && !moving && !loading}
-                      onDragStart={(event) =>
-                        event.dataTransfer.setData(
-                          'text/nextstep-record',
-                          record.id,
-                        )
-                      }
+                      onDragStart={(event) => {
+                        event.dataTransfer.setData('text/nextstep-record', record.id);
+                        event.dataTransfer.effectAllowed = 'move';
+                        setDragged(record);
+                      }}
+                      onDragEnd={() => setDragged(null)}
                     >
                       <button onClick={() => onOpen(record)} disabled={loading}>
                         <strong>{record.title}</strong>
@@ -789,20 +826,7 @@ export default function CollectionView({
                             </span>
                           ))}
                       </button>
-                      {!archived && (
-                        <select
-                          aria-label={`Move ${record.title}`}
-                          value={String(record.values[groupBy] || '')}
-                          disabled={moving || loading}
-                          onChange={(e) => void move(record, e.target.value)}
-                        >
-                          {groups.map((g) => (
-                            <option key={g} value={g}>
-                              {g || 'No status'}
-                            </option>
-                          ))}
-                        </select>
-                      )}
+                      {actions(record)}
                     </article>
                   ))}
               </section>
@@ -810,6 +834,17 @@ export default function CollectionView({
           </div>
         )}
       </div>
+      {layout === 'board' && groups.every(g => hiddenStages.includes(g)) && <div className="crm-empty"><h2>All stages are hidden.</h2><button className="crm-button" onClick={() => void boardPreferences.save({...boardPreferences.settings, hiddenStages: []})}>Show all stages</button></div>}
+      {dragged && !archived && <div className="board-action-dock" aria-label="Drag actions">
+        {[...actionStages.filter(g => groups.includes(g) && g !== dragged.values[groupBy]).map(stage => ({id:stage,label:stageName(stage)})), {id:'__archive__',label:'Archive'}].map(action => (
+          // Card actions provide the same operation to keyboard and touch users.
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+          <section key={action.id} aria-label={`${action.label} drop target`} className="board-action-target" onDragOver={event => {event.preventDefault();event.dataTransfer.dropEffect='move';event.currentTarget.classList.add('drop-over');}} onDragLeave={event => event.currentTarget.classList.remove('drop-over')} onDrop={event => {
+          event.preventDefault();
+          if (event.dataTransfer.getData('text/nextstep-record') === dragged.id) { if (action.id === '__archive__') void archive(dragged); else void move(dragged,action.id); }
+          setDragged(null);
+        }}><strong>{action.label}</strong><small>Drop to {action.id === '__archive__' ? 'archive' : 'move'}</small></section>))}
+      </div>}
       <div className="crm-pagination">
         <span>
           {data.total
@@ -840,6 +875,7 @@ export default function CollectionView({
           groupBy={groupBy}
           filters={filters}
           sort={sort}
+          boardSettings={boardPreferences.settings}
           onClose={() => setViewEditor(false)}
           onSaved={async () => {
             setViewEditor(false);

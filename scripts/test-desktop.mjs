@@ -24,7 +24,7 @@ let connected = false;
 let clipboardBefore;
 let copiedRequest;
 try {
-  app = await electron.launch({...(executablePath ? {executablePath,args:['--database',database]} : {args:[root,'--database',database]}),env:{...process.env,NEXTSTEP_DB_PATH:'',DB_PATH:'',NEXTSTEP_USER_DATA:userData,NEXTSTEP_AGENT_CONFIG_HOME:join(directory,'agent-config')},timeout:30000});
+  app = await electron.launch({...(executablePath ? {executablePath,args:['--database',database]} : {args:[root,'--database',database]}),env:{...process.env,NEXTSTEP_DB_PATH:'',DB_PATH:'',NEXTSTEP_DISABLE_UPDATES:'1', NEXTSTEP_USER_DATA:userData,NEXTSTEP_AGENT_CONFIG_HOME:join(directory,'agent-config')},timeout:30000});
   const page = await app.firstWindow();
   // Electron handles before-unload in its native will-prevent-unload listener.
   // Do not let Playwright race that handler with an automatic dialog response.
@@ -97,7 +97,7 @@ try {
   await app.evaluate(({dialog}) => { dialog.showMessageBoxSync = globalThis.nextstepOriginalDialog; });
   const connection = await app.evaluate(() => ({executable:process.execPath}));
   const args = [...(executablePath ? [] : [root]),'--mcp','--database',database];
-  const transport = new StdioClientTransport({command:connection.executable,args,env:{NEXTSTEP_USER_DATA:join(directory,'mcp-profile')},stderr:'pipe'});
+  const transport = new StdioClientTransport({command:connection.executable,args,env:{NEXTSTEP_DISABLE_UPDATES:'1', NEXTSTEP_USER_DATA:join(directory,'mcp-profile')},stderr:'pipe'});
   await client.connect(transport); connected = true;
   await page.getByRole('button',{name:'Search agent',exact:true}).click();
   await page.getByRole('button',{name:'Continue',exact:true}).click();

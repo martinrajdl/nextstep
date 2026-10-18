@@ -29,7 +29,7 @@ try {
   app = await electron.launch({
     ...(executablePath ? { executablePath } : {}),
     args:[...(executablePath ? [] : [root]), '--database', database],
-    env:{ ...process.env, NEXTSTEP_DB_PATH:'', DB_PATH:'', NEXTSTEP_USER_DATA:userData, NEXTSTEP_AGENT_CONFIG_HOME:join(directory,'agents') },
+    env:{ ...process.env, NEXTSTEP_DB_PATH:'', DB_PATH:'', NEXTSTEP_DISABLE_UPDATES:'1', NEXTSTEP_USER_DATA:userData, NEXTSTEP_AGENT_CONFIG_HOME:join(directory,'agents') },
     timeout:30000,
   });
   const page = await app.firstWindow();
@@ -38,7 +38,8 @@ try {
   await expect(page.getByRole('heading',{name:'Connect your agent.'})).toBeVisible();
   await expect(page.getByRole('textbox')).toHaveCount(0);
   await expect(page.getByRole('button',{name:'Create a collection',exact:true})).not.toBeVisible();
-  await expect(page.locator('.desktop-titlebar')).toBeVisible();
+  await expect(page.locator('.desktop-titlebar')).toHaveCount(0);
+  expect((await page.locator('.crm-sidebar').boundingBox()).y).toBe(0);
   mkdirSync(join(root,'test-results'),{recursive:true});
   await page.screenshot({path:join(root,'test-results/desktop-crm-start.png')});
   const agents = await page.evaluate(() => window.nextstepDesktop.getAgents());
@@ -59,7 +60,7 @@ try {
   expect(connection.args.slice(-2)).toEqual(['--database',database]);
   expect(connection.args).toContain('--crm-mcp');
   expect(connection.args).not.toContain('--allow-writes');
-  await client.connect(new StdioClientTransport({ ...connection, env:{NEXTSTEP_USER_DATA:join(directory,'helper')}, stderr:'pipe' }));
+  await client.connect(new StdioClientTransport({ ...connection, env:{NEXTSTEP_DISABLE_UPDATES:'1', NEXTSTEP_USER_DATA:join(directory,'helper')}, stderr:'pipe' }));
   connected = true;
   expect((await client.listTools()).tools.some(tool => tool.name === 'nextstep_crm_apply')).toBe(false);
   expect((await call('nextstep_crm_context')).collections).toHaveLength(0);
@@ -96,9 +97,10 @@ try {
   await expect(page.getByRole('heading',{name:'People',exact:true})).toBeVisible();
   await expect(page.getByRole('columnheader',{name:'Company',exact:true})).toBeVisible();
   await expect(page.getByRole('columnheader',{name:'Email',exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:/Fictional Avery/})).toBeVisible();
+  await expect(page.getByRole('button',{name:/^(?!Actions).*Fictional Avery/})).toBeVisible();
   await page.getByRole('button',{name:'By relationship',exact:true}).click();
-  await expect(page.getByLabel('Move Fictional Avery',{exact:true})).toHaveValue('In touch');
+  await expect(page.getByRole('region',{name:'In touch column'}).getByRole('button',{name:'Actions for Fictional Avery'})).toBeAttached();
+  await expect(page.locator('.crm-board article select')).toHaveCount(0);
   await call('nextstep_crm_report_flow',{id:'first-workspace',reportId:'complete',version:2,stage:'complete',message:'Your collaborators are ready.'});
   await page.getByRole('link',{name:'Workspace home',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Your workspace',exact:true})).toBeVisible();

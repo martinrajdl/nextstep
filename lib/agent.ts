@@ -1,3 +1,4 @@
+export type UpdateState = {status:'idle'|'unsupported'|'checking'|'current'|'available'|'downloading'|'ready'|'error'; currentVersion:string;version:string|null;error:string;automatic:boolean};
 export type Provider = 'codex' | 'claude-code';
 export type Schedule = {provider:Provider|'';cadence:string;timezone:string;taskId:string;reportedAt:string|null;version:number};
 export type SearchRun = {id:string;summary:string;learning:string;createdAt:string;importedIds:string[]};
@@ -9,6 +10,14 @@ declare global {
   interface Window {
     nextstepDesktop?: {
       platform: string;
+      getBoardSettings: (key:string) => Promise<import('@/components/board-controls').BoardSettings | null>;
+      setBoardSettings: (key:string,value:import('@/components/board-controls').BoardSettings) => Promise<import('@/components/board-controls').BoardSettings>;
+      getUpdateState: () => Promise<UpdateState>;
+      checkForUpdates: () => Promise<UpdateState>;
+      downloadUpdate: () => Promise<UpdateState>;
+      installUpdate: () => Promise<void>;
+      setAutomaticUpdates: (value:boolean) => Promise<UpdateState>;
+      onUpdateStateChanged: (callback:(value:UpdateState) => void) => () => void;
       getAgents:() => Promise<DesktopAgent[]>;
       connectAgent:(provider:Provider) => Promise<{configured:boolean}>;
       openAgent:(provider:Provider,purpose:'setup'|'search') => Promise<{instructions:string}>;

@@ -81,16 +81,15 @@ test('workspace starts without records and supports a custom schema, persistent 
   await page.getByLabel('Status', { exact: true }).selectOption('New');
   await page.getByRole('button', { name: 'Add record', exact: true }).click();
   await expect(
-    page.getByRole('button', { name: /Example Avery/ }),
+    page.getByRole('button', { name: /^(?!Actions).*Example Avery/ }),
   ).toBeVisible();
   await page.reload();
   await expect(
-    page.getByRole('button', { name: /Example Avery/ }),
+    page.getByRole('button', { name: /^(?!Actions).*Example Avery/ }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Board view', exact: true }).click();
-  await page
-    .getByLabel('Move Example Avery', { exact: true })
-    .selectOption('Active');
+  await page.getByRole('button',{name:'Actions for Example Avery',exact:true}).click();
+  await page.getByRole('menuitem',{name:'Active',exact:true}).click();
   await expect
     .poll(async () => {
       const data = await (
@@ -101,7 +100,7 @@ test('workspace starts without records and supports a custom schema, persistent 
       return data.records[0].values.status;
     })
     .toBe('Active');
-  await page.getByRole('button', { name: /Example Avery/ }).click();
+  await page.getByRole('button', { name: /^(?!Actions).*Example Avery/ }).click();
   await expect(page.getByLabel('Status', { exact: true })).toHaveValue(
     'Active',
   );
@@ -166,7 +165,7 @@ test('JSON import stays a proposal until reviewed; before/after diff is inspecta
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('link', { name: /Example notes_review/ }).click();
   await expect(
-    page.getByRole('button', { name: /Fictional field notes/ }),
+    page.getByRole('button', { name: /^(?!Actions).*Fictional field notes/ }),
   ).toBeVisible();
   const exportResult = await (await request.get('/api/crm/export')).json();
   expect(
@@ -214,26 +213,26 @@ test('schema relations, saved filters, archive and restore work through the user
   await page.reload();
   await page.getByRole('button', { name: 'New projects', exact: true }).click();
   await expect(
-    page.getByRole('button', { name: /Fictional project/ }),
+    page.getByRole('button', { name: /^(?!Actions).*Fictional project/ }),
   ).toBeVisible();
-  await page.getByRole('button', { name: /Fictional project/ }).click();
+  await page.getByRole('button', { name: /^(?!Actions).*Fictional project/ }).click();
   await page
     .getByRole('dialog')
     .getByRole('button', { name: 'Archive', exact: true })
     .click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(
-    page.getByRole('button', { name: /Fictional project/ }),
+    page.getByRole('button', { name: /^(?!Actions).*Fictional project/ }),
   ).toHaveCount(0);
   await page.getByRole('button', { name: 'Archive', exact: true }).click();
-  await page.getByRole('button', { name: /Fictional project/ }).click();
+  await page.getByRole('button', { name: /^(?!Actions).*Fictional project/ }).click();
   await page
     .getByRole('button', { name: 'Restore record', exact: true })
     .click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('button', { name: 'Archived', exact: true }).click();
   await expect(
-    page.getByRole('button', { name: /Fictional project/ }),
+    page.getByRole('button', { name: /^(?!Actions).*Fictional project/ }),
   ).toBeVisible();
 });
 test('stale edits preserve the draft, and stale agent approvals never partially apply', async ({
@@ -247,7 +246,7 @@ test('stale edits preserve the draft, and stale agent approvals never partially 
     'Original example',
   );
   await page.goto('/#/collections/conflict_example');
-  await page.getByRole('button', { name: /Original example/ }).click();
+  await page.getByRole('button', { name: /^(?!Actions).*Original example/ }).click();
   await page.getByLabel('Title', { exact: true }).fill('Keep this draft');
   await request.post('/api/crm/apply', {
     data: change([
@@ -271,7 +270,7 @@ test('stale edits preserve the draft, and stale agent approvals never partially 
     .getByRole('button', { name: 'Refresh workspace', exact: true })
     .click();
   await expect(
-    page.getByRole('button', { name: /External edit/ }),
+    page.getByRole('button', { name: /^(?!Actions).*External edit/ }),
   ).toBeVisible();
   const proposal = await (
     await request.post('/api/crm/proposals', {
@@ -512,7 +511,7 @@ test('light, dark and system modes persist across Jobs and collections without c
   if (await setup.isVisible()) await page.getByRole('button',{name:'Close setup',exact:true}).click();
   await expect(page).toHaveTitle('Job search · Nextstep');
   await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
-  await page.getByRole('button',{name:'App settings',exact:true}).click();
+  await page.getByRole('button',{name:'Settings',exact:true}).click();
   await page.getByRole('button',{name:'System mode',exact:true}).click();
   await page.emulateMedia({colorScheme:'light'});
   await expect(page.locator('html')).toHaveAttribute('data-theme','light');
@@ -523,4 +522,72 @@ test('light, dark and system modes persist across Jobs and collections without c
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme','light');
   expect(await (await request.get('/api/opportunities')).json()).toEqual(before);
+});
+
+test('board actions replace status selects, hidden stages persist, and saved views expose the same choices to agents', async ({page,request}) => {
+  await createCollection(request,'action_pipeline',[{key:'status',name:'Status',type:'select',options:['New','Active','Done','Rejected']},{key:'notes',name:'Notes',type:'text'}]);
+  await createRecord(request,'action_pipeline','Fictional action record',{status:'New',notes:'Preserve this note'});
+  await page.goto('/#/collections/action_pipeline');
+  await page.getByRole('button',{name:'Board view',exact:true}).click();
+  await expect(page.locator('.crm-board article select')).toHaveCount(0);
+  await page.getByRole('button',{name:'View settings',exact:true}).click();
+  await expect(page.getByLabel('Done quick action',{exact:true})).toBeChecked();
+  await expect(page.getByLabel('Rejected quick action',{exact:true})).toBeChecked();
+  await page.getByRole('button',{name:'Move Active earlier',exact:true}).click();
+  await page.getByLabel('New stage name',{exact:true}).fill('Paused');
+  await page.getByRole('button',{name:'Add stage',exact:true}).click();
+  await expect(page.getByLabel('Stage name for Paused',{exact:true})).toBeVisible();
+  await page.getByLabel('Stage name for New',{exact:true}).fill('Inbox');
+  await page.getByLabel('Show Rejected stage',{exact:true}).uncheck();
+  await page.getByRole('button',{name:'Done',exact:true}).click();
+  await expect(page.getByRole('region',{name:'Rejected column',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('region',{name:'Inbox column',exact:true})).toBeVisible();
+  await expect(page.locator('.crm-board > section').nth(1)).toHaveAttribute('aria-label','Active column');
+  await page.getByRole('button',{name:'Actions for Fictional action record',exact:true}).press('Enter');
+  await page.getByRole('menuitem',{name:'Rejected',exact:true}).click();
+  const records=async () => (await (await request.post('/api/crm/query',{data:{collectionId:'action_pipeline'}})).json()).records;
+  await expect.poll(async () => (await records())[0].values.status).toBe('Rejected');
+  await page.reload();
+  await page.getByRole('button',{name:'Board view',exact:true}).click();
+  await expect(page.getByRole('region',{name:'Rejected column',exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:/View settings/}).click();
+  await page.getByLabel('Show Rejected stage',{exact:true}).check();
+  await page.getByLabel('Show Done stage',{exact:true}).uncheck();
+  await page.getByRole('button',{name:'Done',exact:true}).click();
+  await expect(page.getByRole('region',{name:'Rejected column'}).getByRole('article')).toBeVisible();
+  const transfer=await page.evaluateHandle(() => new DataTransfer());
+  await page.getByRole('article',{name:'Fictional action record'}).dispatchEvent('dragstart',{dataTransfer:transfer});
+  await page.getByRole('region',{name:'Done drop target',exact:true}).dispatchEvent('drop',{dataTransfer:transfer});
+  await expect.poll(async () => (await records())[0].values.status).toBe('Done');
+  expect((await records())[0].values.notes).toBe('Preserve this note');
+  await page.getByRole('button',{name:'Save a view',exact:true}).click();
+  await page.getByLabel('View name',{exact:true}).fill('Focus pipeline');
+  await page.getByRole('button',{name:'Save view',exact:true}).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  const context=await (await request.get('/api/crm/context')).json();
+  expect(context.collections.find((c:{id:string}) => c.id==='action_pipeline').views[0]).toMatchObject({hiddenGroups:['Done'],quickActions:['Done','Rejected'],stageOrder:['','Active','New','Done','Rejected'],stageNames:{New:'Inbox'}});
+  await page.getByRole('button',{name:'Table view',exact:true}).click();
+  await page.screenshot({path:'test-results/board-actions-overview.png'});
+  await page.getByRole('button',{name:'Actions for Fictional action record',exact:true}).click();
+  await page.getByRole('menuitem',{name:'Archive record',exact:true}).click();
+  await expect.poll(async () => (await records()).length).toBe(0);
+  await page.getByRole('button',{name:'Archive',exact:true}).click();
+  await page.getByRole('button',{name:'Actions for Fictional action record',exact:true}).click();
+  await page.getByRole('menuitem',{name:'Restore record',exact:true}).click();
+  await expect.poll(async () => (await records()).length).toBe(1);
+});
+
+test('slow collection loading keeps the shell and never presents a false empty workspace', async ({page,request}) => {
+  await createCollection(request,'loading_example');
+  await createRecord(request,'loading_example','Fictional loading record');
+  let release: (() => void) | undefined;
+  await page.route('**/api/crm/query',async route => { await new Promise<void>(resolve => {release=resolve;}); await route.continue(); });
+  await page.goto('/#/collections/loading_example');
+  await expect(page.locator('.board-skeleton')).toBeVisible();
+  await expect(page.getByRole('heading',{name:'A clean slate.'})).toHaveCount(0);
+  await expect(page.locator('.crm-sidebar')).toBeVisible();
+  await expect.poll(() => Boolean(release)).toBe(true);release!();
+  await expect(page.getByRole('button',{name:/^(?!Actions).*Fictional loading record/})).toBeVisible();
+  await page.unroute('**/api/crm/query');
+  expect(await page.locator('.crm-table').evaluate(el => getComputedStyle(el.parentElement!).opacity)).toBe('1');
 });

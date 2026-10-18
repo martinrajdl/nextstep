@@ -28,14 +28,18 @@ Automatic connection is available for installed Mac desktop agents. **Other agen
 ## What your agent can build
 
 - **Collections for your work:** contacts, projects, research, deals or another structure. Typed fields include text, numbers, dates, email, URLs, checkboxes, selections and relationships.
-- **Useful views:** tables and boards, search, filters, sorting and saved views. Agents discover the schema and views through MCP.
+- **Useful views:** tables and boards, search, filters, sorting and saved views. Rename and reorder board stages, hide what you do not need, and move cards with Actions or drag-and-drop. Agents discover the schema and views through MCP.
 - **Reviewable changes:** proposals show the values before and after. Approval validates the whole change together; stale proposals cannot overwrite newer decisions. A trusted connection can explicitly enable direct writes.
 - **Visible progress:** see the agent’s reports, sources and pending work alongside confirmed applied changes. Records keep their history and can be archived and restored.
 - **Your appearance:** light, dark or system mode, with a neutral default and optional color accents. Choose in Settings or the native View → Appearance menu. The app icon stays unchanged.
 - **Your data:** local SQLite, complete workspace JSON export and private self-hosting. No built-in model. Optional anonymous usage counts are off by default.
 
 <details>
-<summary>Dark mode and appearance settings</summary>
+<summary>Pipeline stages, dark mode and appearance settings</summary>
+
+![A fictional contact pipeline with the workspace sidebar always available](docs/images/pipeline.png)
+
+![View settings for stage names, order, visibility and quick actions](docs/images/stage-settings.png)
 
 ![A fictional collection in dark mode](docs/images/workspace-dark.png)
 
@@ -44,6 +48,8 @@ Automatic connection is available for installed Mac desktop agents. **Other agen
 </details>
 
 [Read the composable CRM guide](docs/composable-crm.md) for supported operations, MCP tools, review policy and the data model. Manual schema and JSON tools remain available under advanced setup and Manual tools.
+
+Signed macOS releases from 0.4.3 include **Settings → App updates**: check for updates, download a signed release, then restart to install it. Update checks can be disabled independently of optional usage counts.
 
 ## Run from source
 
@@ -88,6 +94,7 @@ Personal records, research and profiles belong in ignored `data/`; runtime logs 
 | `DB_PATH` | Legacy alias, used only if `NEXTSTEP_DB_PATH` is unset. |
 | `PORT` | Source production port, default `4317`. |
 | `PLAYWRIGHT_CHANNEL` | Set to `chrome` to test with installed Chrome instead of bundled Chromium. |
+| `NEXTSTEP_DISABLE_UPDATES` | Set to `1` to disable desktop update checks. |
 | `NEXTSTEP_DISABLE_USAGE` | Set to `1` to disable optional desktop usage reporting regardless of its saved preference. |
 
 The scripts read the process environment; `.env` files are not loaded automatically. The public website lives in its own [repository](https://github.com/martinrajdl/nextstep-website).

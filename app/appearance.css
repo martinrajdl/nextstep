@@ -136,15 +136,23 @@
 :root { color-scheme:light; }
 :root[data-theme='dark'] { color-scheme:dark; --background:#17191e; --card:#1d1f25; }
 :root[data-theme='dark'] .crm-shell { background:#17191e; }
+:root[data-theme='dark'] .crm-dialog { color:#dedede; }
 .appearance-modes { display:flex;gap:8px;margin:18px 0;border:0;padding:0; }
 .appearance-modes button { display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;flex:1;padding:10px;border:1px solid var(--crm-line);border-radius:8px;background:var(--card);color:var(--crm-ink);font-size:13px; }
 .appearance-modes button[aria-pressed='true'] { border-color:var(--crm-strong);background:var(--crm-accent); }
-.desktop-titlebar { position:sticky;top:0;z-index:45;display:flex;align-items:center;justify-content:center;height:36px;background:var(--background);color:var(--muted-foreground);font-size:11px;font-weight:500;letter-spacing:.1px;-webkit-app-region:drag;user-select:none; }
-html[data-desktop='darwin'] .crm-shell { min-height:calc(100vh - 36px); }
-html[data-desktop='darwin'] .crm-sidebar { top:36px;height:calc(100vh - 36px); }
+/* The sidebar owns the native title-bar space; no separate strip. */
+html[data-desktop='darwin'] .crm-sidebar { padding-top:48px; }
+html[data-desktop='darwin'] .crm-sidebar::before { content:'';position:fixed;top:0;left:0;width:226px;height:36px;-webkit-app-region:drag; }
+html[data-desktop='darwin'] .crm-topbar { -webkit-app-region:drag; }
+html[data-desktop='darwin'] .crm-topbar :is(a,button,input,select) { -webkit-app-region:no-drag; }
+@media (max-width:1200px) { html[data-desktop='darwin'] .crm-sidebar::before { width:200px; } }
+@media (max-width:800px) { html[data-desktop='darwin'] .crm-topbar { padding-left:94px; } html[data-desktop='darwin'] .crm-sidebar::before { width:240px; } }
 [data-theme='dark'] .job-card,[data-theme='dark'] .crm-board article { box-shadow:0 1px 3px #0004; }
 [data-theme='dark'] .drag-handle { background:#1d1f25ed; }
 .company-mark { color:light-dark(var(--company-color),color-mix(in srgb,var(--company-color) 65%,white));background:color-mix(in srgb,var(--company-color) 10%,transparent); }
 [data-theme='dark'] { --primary:hsl(var(--accent-hue) calc(45% * var(--accent-saturation)) 76%);--color-primary-foreground:#17191e; }
 [data-theme='dark'] .primary-button { color:#17191e; }
 [data-theme='dark'] .primary-button:hover { background:color-mix(in srgb,var(--primary) 88%,white); }
+
+.app-update-settings h3 small { margin-left:auto;color:var(--muted-foreground);font-size:12px;font-weight:400; }
+.app-update-settings .usage-consent { margin-top:18px; }

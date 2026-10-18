@@ -43,7 +43,7 @@ async function launch(initial = false) {
       ...process.env,
       NEXTSTEP_DB_PATH: '',
       DB_PATH: '',
-      NEXTSTEP_USER_DATA: userData,
+      NEXTSTEP_DISABLE_UPDATES:'1', NEXTSTEP_USER_DATA: userData,
       NEXTSTEP_AGENT_CONFIG_HOME: join(directory, 'agents'),
     },
     timeout: 30000,
@@ -66,7 +66,8 @@ try {
   await app.evaluate(({ Menu }) => Menu.getApplicationMenu().getMenuItemById('theme-dark').click());
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   expect(await app.evaluate(({ nativeTheme }) => nativeTheme.themeSource)).toBe('dark');
-  await expect(page.locator('.desktop-titlebar')).toBeVisible();
+  await expect(page.locator('.desktop-titlebar')).toHaveCount(0);
+  expect((await page.locator('.crm-sidebar').boundingBox()).y).toBe(0);
   await expect(page.locator('.crm-brand img')).toHaveAttribute('src', icon);
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByLabel('Backend tunnel address').fill(upstream.url);

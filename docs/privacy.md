@@ -24,6 +24,12 @@ Receipts are scheduled for deletion outside a 31-day window by daily cleanup. Se
 
 Turn the setting off at any time to stop future check-ins, cancel an in-flight request where possible and remove the local seed. Previously received daily receipts expire through cleanup; turning the setting off does not recall them. Turning it back on creates a new seed. No history is queued for later upload. Offline requests fail silently and retry no more than hourly while the app is active.
 
+## Update checks
+
+The packaged macOS app checks `https://update.electronjs.org/martinrajdl/nextstep/darwin-<architecture>/<version>` at startup and every six hours. **Settings → App updates → Check for updates automatically** turns these checks off independently of optional usage counts. Manual checks send the same request. The request includes the app version and CPU architecture, with no installation identifier, database path, records or agent content. Electron’s service processes normal network metadata such as the IP address.
+
+Downloads begin only when you choose **Download update** and use the public GitHub release asset through Electron’s native signed updater. GitHub and its download infrastructure receive normal download requests. A downloaded update applies when you choose **Restart to update** or next quit and reopen. The updater source is [`desktop/updates.mjs`](../desktop/updates.mjs); `NEXTSTEP_DISABLE_UPDATES=1` disables it for tests and managed installations.
+
 ## Downloads
 
 Downloads use GitHub's existing public release-asset counters. These count download requests, including repeat downloads, rather than unique people or confirmed installations. Nextstep adds no tracking parameter or redirect to the download link.
