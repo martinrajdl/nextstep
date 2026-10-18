@@ -18,7 +18,7 @@ store.updateOnboarding({version:store.agentStatus().onboarding.version,status:'d
 const before=store.list();
 let app;
 try {
-  app=await electron.launch({executablePath,args:[],env:{...process.env,NEXTSTEP_DISABLE_UPDATES:'',NEXTSTEP_DB_PATH:'',DB_PATH:'',NEXTSTEP_USER_DATA:userData,NEXTSTEP_AGENT_CONFIG_HOME:join(directory,'agents')}});
+  app=await electron.launch({executablePath,args:[],env:{...process.env,NEXTSTEP_DEV_ICON:'1',NEXTSTEP_DISABLE_UPDATES:'',NEXTSTEP_DB_PATH:'',DB_PATH:'',NEXTSTEP_USER_DATA:userData,NEXTSTEP_AGENT_CONFIG_HOME:join(directory,'agents')}});
   const page=await app.firstWindow();
   await expect(page.getByRole('heading',{name:'Your workspace'})).toBeVisible();
   const version=await app.evaluate(({app}) => app.getVersion());
@@ -58,7 +58,7 @@ try {
   const saved=await page.evaluate(key => window.nextstepDesktop.getBoardSettings(key),key);
   expect(saved.stageNames.prospect).toBe('Inbox');expect(saved.hiddenStages).toEqual(['rejected']);expect(saved.stageOrder[0]).toBe('prospect');
   await app.close();app=null;
-  app=await electron.launch({executablePath,args:[],env:{...process.env,NEXTSTEP_DISABLE_UPDATES:'1',NEXTSTEP_DB_PATH:'',DB_PATH:'',NEXTSTEP_USER_DATA:userData,NEXTSTEP_AGENT_CONFIG_HOME:join(directory,'agents')}});
+  app=await electron.launch({executablePath,args:[],env:{...process.env,NEXTSTEP_DEV_ICON:'1',NEXTSTEP_DISABLE_UPDATES:'1',NEXTSTEP_DB_PATH:'',DB_PATH:'',NEXTSTEP_USER_DATA:userData,NEXTSTEP_AGENT_CONFIG_HOME:join(directory,'agents')}});
   const reopened=await app.firstWindow();
   await reopened.getByRole('link',{name:'Job search',exact:true}).click();
   await expect(reopened.locator('.crm-board > section').first()).toHaveAttribute('aria-label','Inbox column');

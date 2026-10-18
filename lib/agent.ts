@@ -22,7 +22,8 @@ declare global {
       connectAgent:(provider:Provider) => Promise<{configured:boolean}>;
       openAgent:(provider:Provider,purpose:'setup'|'search') => Promise<{instructions:string}>;
       openCrmAgent:(provider:Provider) => Promise<{configured:boolean;instructions:string}>;
-      getPreferences:() => Promise<{accent:string;theme:ThemePreference;backendUrl:string|null;usageEnabled:boolean}>;
+      getPreferences:() => Promise<{accent:string;theme:ThemePreference;backendUrl:string|null;usageEnabled:boolean;sidebarCollapsed:boolean}>;
+      setSidebarCollapsed:(value:boolean) => Promise<boolean>;
       setAppearance:(color:string) => Promise<string>;
       setTheme:(theme:ThemePreference) => Promise<ThemePreference>;
       setUsageEnabled:(enabled:boolean) => Promise<boolean>;

@@ -14,6 +14,7 @@ await build({entryPoints:[resolve(root,'desktop/main.mjs')],outfile:resolve(stag
 cpSync(resolve(root,'dist'),resolve(stage,'dist'),{recursive:true});
 cpSync(resolve(root,'desktop/preload.cjs'),resolve(stage,'preload.cjs'));
 cpSync(resolve(root,'desktop/icons/nextstep.png'),resolve(stage,'nextstep.png'));
+cpSync(resolve(root,'desktop/icons/nextstep-dev.png'),resolve(stage,'nextstep-dev.png'));
 for (const file of ['LICENSE','THIRD_PARTY_NOTICES.md']) cpSync(resolve(root,file),resolve(stage,file));
 // Include installed dependency notices even when bundling removes node_modules.
 // Keeping extra build-tool notices is harmless and avoids omitting a transitive license.
@@ -38,9 +39,9 @@ for (const entry of readdirSync(installed,{withFileTypes:true})) {
   if (entry.isDirectory() && existsSync(directory)) collectLicenses(directory);
 }
 writeFileSync(resolve(stage,'DEPENDENCY_LICENSES.txt'),[...licenses.entries()].sort(([a],[b]) => a.localeCompare(b)).map(([,notice]) => notice).join('\n\n--------------------\n\n'));
-writeFileSync(resolve(stage,'package.json'),JSON.stringify({name:'nextstep',productName:'Nextstep',version:manifest.version,description:manifest.description,main:'main.mjs',type:'module',license:'MIT'},null,2));
+writeFileSync(resolve(stage,'package.json'),JSON.stringify({name:'nextstep',productName:'Nextstep',version:manifest.version,description:manifest.description,main:'main.mjs',type:'module',license:'MIT',nextstepDevelopment:!release},null,2));
 if (release) console.log(`Signing with ${signing.identity.name}. Apple notarization may take several minutes.`);
-const output = await packager({dir:stage,name:'Nextstep',out:resolve(root,release ? `desktop-releases/signed/${manifest.version}` : 'desktop-releases'),platform,arch,electronVersion:manifest.devDependencies.electron,overwrite:true,asar:true,prune:false,appBundleId:'app.nextstep.crm',appCategoryType:'public.app-category.productivity',...(platform === 'darwin' ? {icon:resolve(root,'desktop/icons/nextstep.icns')} : {}),...(signing?.options ?? {})});
+const output = await packager({dir:stage,name:'Nextstep',out:resolve(root,release ? `desktop-releases/signed/${manifest.version}` : 'desktop-releases'),platform,arch,electronVersion:manifest.devDependencies.electron,overwrite:true,asar:true,prune:false,appBundleId:'app.nextstep.crm',appCategoryType:'public.app-category.productivity',...(platform === 'darwin' ? {icon:resolve(root,`desktop/icons/${release ? 'nextstep' : 'nextstep-dev'}.icns`)} : {}),...(signing?.options ?? {})});
 if (release) {
   const app = resolve(output[0],'Nextstep.app');
   const archive = resolve(root,'desktop-releases',`Nextstep-${manifest.version}-macOS-${arch}.zip`);

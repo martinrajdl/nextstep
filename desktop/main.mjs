@@ -1,5 +1,5 @@
 import { app, BrowserWindow, Menu, dialog, shell, ipcMain, nativeTheme, autoUpdater } from 'electron';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { assertNextstepDatabase } from '../server/database-file.mjs';
 import { startServer } from '../server/http.mjs';
@@ -19,13 +19,17 @@ app.setName('Nextstep');
 if (process.env.NEXTSTEP_USER_DATA) app.setPath('userData',resolve(process.env.NEXTSTEP_USER_DATA));
 const crmMcpMode = process.argv.includes('--crm-mcp');
 const mcpMode = process.argv.includes('--mcp') || crmMcpMode;
+const developmentPackage = app.isPackaged && JSON.parse(readFileSync(resolve(app.getAppPath(),'package.json'),'utf8')).nextstepDevelopment === true;
+const developmentIcon = !app.isPackaged || developmentPackage || process.env.NEXTSTEP_DEV_ICON === '1';
+const windowTitle = developmentIcon ? 'Nextstep Dev' : 'Nextstep';
 let service;
 let window;
 let usage;
 let updater;
 
 function iconPath() {
-  return resolve(app.getAppPath(),app.isPackaged ? 'nextstep.png' : 'desktop/icons/nextstep.png');
+  const filename = developmentIcon ? 'nextstep-dev.png' : 'nextstep.png';
+  return resolve(app.getAppPath(),app.isPackaged ? filename : `desktop/icons/${filename}`);
 }
 
 function savedDatabase() {
@@ -54,7 +58,7 @@ function remember(database) {
 }
 function preferences() {
   const saved = readPreferences(app.getPath('userData'));
-  return {accent:saved.accent || APPEARANCES[0].color,theme:THEMES.includes(saved.theme) ? saved.theme : 'light',backendUrl:service?.backendUrl || null,usageEnabled:saved.usageAnalytics?.enabled === true};
+  return {accent:saved.accent || APPEARANCES[0].color,theme:THEMES.includes(saved.theme) ? saved.theme : 'light',backendUrl:service?.backendUrl || null,usageEnabled:saved.usageAnalytics?.enabled === true,sidebarCollapsed:saved.sidebarCollapsed === true};
 }
 function validateSender(event) {
   if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || new URL(event.senderFrame.url).origin !== service.url) throw new Error('This action is only available in the Nextstep window.');
@@ -93,7 +97,8 @@ function external(url) {
 }
 async function showWindow() {
   if (window && !window.isDestroyed()) { window.show(); window.focus(); return; }
-  window = new BrowserWindow({width:1450,height:980,minWidth:750,minHeight:600,title:'Nextstep',icon:iconPath(),backgroundColor:nativeTheme.shouldUseDarkColors ? '#17191e' : '#ffffff',...(process.platform === 'darwin' ? {titleBarStyle:'hiddenInset',trafficLightPosition:{x:14,y:11}} : {}),webPreferences:{preload:resolve(import.meta.dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  window = new BrowserWindow({width:1450,height:980,minWidth:750,minHeight:600,title:windowTitle,icon:iconPath(),backgroundColor:nativeTheme.shouldUseDarkColors ? '#17191e' : '#ffffff',...(process.platform === 'darwin' ? {titleBarStyle:'hiddenInset',trafficLightPosition:{x:14,y:11}} : {}),webPreferences:{preload:resolve(import.meta.dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  if (developmentIcon) window.on('page-title-updated',event => event.preventDefault());
   window.on('focus',() => { void usage?.checkIn().catch(() => {}); });
   window.webContents.setWindowOpenHandler(({url}) => { external(url); return {action:'deny'}; });
   window.webContents.on('will-navigate',(event,url) => { if (new URL(url).origin !== service.url) { event.preventDefault(); external(url); } });
@@ -215,6 +220,12 @@ function settingsBridge() {
   ipcMain.handle('nextstep:install-update',event => { validateSender(event); updater.install(); });
   ipcMain.handle('nextstep:automatic-updates',(event,value) => { validateSender(event); return updater.setAutomatic(value); });
   ipcMain.handle('nextstep:preferences',event => { validateSender(event); return preferences(); });
+  ipcMain.handle('nextstep:set-sidebar-collapsed',(event,value) => {
+    validateSender(event);
+    if (typeof value !== 'boolean') throw new Error('Choose an expanded or collapsed sidebar.');
+    writePreferences(app.getPath('userData'),{sidebarCollapsed:value});
+    return value;
+  });
   ipcMain.handle('nextstep:set-appearance',(event,color) => { validateSender(event); return setAppearance(color); });
   ipcMain.handle('nextstep:set-theme',(event,theme) => { validateSender(event); return setTheme(theme); });
   ipcMain.handle('nextstep:set-usage',(event,enabled) => {

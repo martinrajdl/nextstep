@@ -4,8 +4,10 @@ test('agent setup explains direct writes and exposes the exact shared connection
 }) => {
   await page.goto('/#/agents');
   await expect(
-    page.getByRole('heading', { name: 'Connect your agent.' }),
+    page.getByRole('heading', { name: 'Agent', exact: true }),
   ).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Connection and instructions' })).not.toBeVisible();
+  await page.getByRole('button', { name: 'Connection & instructions', exact: true }).click();
   await page
     .getByText('Other agents & advanced setup', { exact: true })
     .click();

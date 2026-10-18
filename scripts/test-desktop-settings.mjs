@@ -43,7 +43,7 @@ async function launch(initial = false) {
       ...process.env,
       NEXTSTEP_DB_PATH: '',
       DB_PATH: '',
-      NEXTSTEP_DISABLE_UPDATES:'1', NEXTSTEP_USER_DATA: userData,
+      NEXTSTEP_DISABLE_UPDATES:'1', NEXTSTEP_DEV_ICON:'1', NEXTSTEP_USER_DATA: userData,
       NEXTSTEP_AGENT_CONFIG_HOME: join(directory, 'agents'),
     },
     timeout: 30000,
@@ -69,6 +69,9 @@ try {
   await expect(page.locator('.desktop-titlebar')).toHaveCount(0);
   expect((await page.locator('.crm-sidebar').boundingBox()).y).toBe(0);
   await expect(page.locator('.crm-brand img')).toHaveAttribute('src', icon);
+  await page.getByRole('button', { name: 'Collapse sidebar', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Expand sidebar', exact: true })).toBeVisible();
+  expect((await page.locator('.crm-sidebar').boundingBox()).width).toBe(process.platform === 'darwin' ? 84 : 64);
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByLabel('Backend tunnel address').fill(upstream.url);
   await page
@@ -109,6 +112,8 @@ try {
   ).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-accent', '#4473cf');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.getByRole('button', { name: 'Expand sidebar', exact: true })).toBeVisible();
+  await page.screenshot({ path: join(root, 'test-results/desktop-sidebar-collapsed.png') });
   await upstream.close();
   await page
     .getByRole('button', { name: 'Refresh workspace', exact: true })
@@ -137,6 +142,7 @@ try {
     backendUrl: null,
     accent: '#4473cf',
     theme: 'dark',
+    sidebarCollapsed: true,
   });
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const consent = page.getByRole('checkbox', { name: 'Share anonymous usage' });
@@ -189,6 +195,9 @@ try {
   );
   await expect(page.locator('html')).toHaveAttribute('data-accent', '#777777');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.getByRole('button', { name: 'Expand sidebar', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Collapse sidebar', exact: true })).toBeVisible();
+  expect(JSON.parse(readFileSync(join(userData, 'settings.json'), 'utf8')).sidebarCollapsed).toBe(false);
   await page.screenshot({
     path: join(root, 'test-results/desktop-composable.png'),
   });

@@ -1,3 +1,4 @@
+import AppButton from '@/components/app-button';
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 export default function Modal({
@@ -7,6 +8,7 @@ export default function Modal({
   onClose,
   wide = false,
   dirty = false,
+  className = '',
 }: {
   title: string;
   subtitle?: string;
@@ -14,6 +16,7 @@ export default function Modal({
   onClose: () => void;
   wide?: boolean;
   dirty?: boolean;
+  className?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -35,7 +38,7 @@ export default function Modal({
   }, [dirty]);
   return (
     <dialog
-      className={`crm-dialog ${wide ? 'crm-dialog-wide' : ''}`}
+      className={`crm-dialog ${wide ? 'crm-dialog-wide' : ''} ${className}`}
       ref={ref}
       aria-labelledby={titleId}
       aria-modal="true"
@@ -49,14 +52,14 @@ export default function Modal({
           <h2 id={titleId}>{title}</h2>
           {subtitle && <p>{subtitle}</p>}
         </div>
-        <button
+        <AppButton
           type="button"
           className="crm-icon-button"
           aria-label="Close dialog"
           onClick={close}
         >
           <X size={20} />
-        </button>
+        </AppButton>
       </header>
       {children}
     </dialog>

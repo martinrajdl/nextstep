@@ -6,7 +6,7 @@ Tell your agent what you need to keep track of. It builds the collections, field
 
 Nextstep is a local-first **Electron app** with a SQLite database on your computer. It is open source, works with your own agent, and can connect to a [backend on your own server](docs/self-hosting.md). No Nextstep account, model subscription or API key is required.
 
-**[Download for macOS · Apple silicon](https://github.com/martinrajdl/nextstep/releases/download/v0.4.5/Nextstep-0.4.5-macOS-arm64.zip)** · [Website](https://nextstep-website-lemon.vercel.app/) · [All releases](https://github.com/martinrajdl/nextstep/releases)
+**[Download for macOS · Apple silicon](https://github.com/martinrajdl/nextstep/releases/download/v0.4.8/Nextstep-0.4.8-macOS-arm64.zip)** · [Website](https://www.nextstepcrm.com/) · [All releases](https://github.com/martinrajdl/nextstep/releases)
 
 ![A Nextstep collection with fictional people, companies and next steps](docs/images/workspace.png)
 
@@ -23,7 +23,7 @@ For example: “Help me keep track of potential collaborators, what they do, and
 
 ![The first-launch screen asks you to connect an agent](docs/images/onboarding.png)
 
-Automatic connection is available for installed Mac desktop agents. **Other agents & advanced setup** exposes the exact MCP configuration and setup request for other clients, browser use or self-hosting. The app never sends a message automatically. When review is enabled, the agent must read the outcome to continue; Nextstep does not run or schedule agents itself.
+Automatic connection is available for installed Mac desktop agents. The **Agent** page brings progress together with an optional **Connection & instructions** panel. **Other agents & advanced setup** exposes the exact MCP configuration and setup request for other clients, browser use or self-hosting. The app never sends a message automatically. When review is enabled, the agent must read the outcome to continue; Nextstep does not run or schedule agents itself.
 
 ## What your agent can build
 

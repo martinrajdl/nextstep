@@ -1,3 +1,4 @@
+import AppButton from '@/components/app-button';
 import { useEffect, useState } from 'react';
 import { ArrowRight, Check, CheckCheck, Code2, Inbox, X } from 'lucide-react';
 import { request } from '@/lib/model';
@@ -154,7 +155,7 @@ export default function Review({
         <p>Your agents do the groundwork. You make the call.</p>
       </div>
       <div className="crm-view-tabs">
-        <button
+        <AppButton
           aria-pressed={scope === 'pending'}
           onClick={() => {
             setScope('pending');
@@ -162,8 +163,8 @@ export default function Review({
           }}
         >
           Needs review
-        </button>
-        <button
+        </AppButton>
+        <AppButton
           aria-pressed={scope === 'reviewed'}
           onClick={() => {
             setScope('reviewed');
@@ -171,7 +172,7 @@ export default function Review({
           }}
         >
           History
-        </button>
+        </AppButton>
       </div>
       {error && !selected && (
         <p role="alert" className="crm-error">
@@ -195,7 +196,7 @@ export default function Review({
       ) : (
         <div className="crm-review-list">
           {visible.map((change) => (
-            <button
+            <AppButton
               key={change.id}
               onClick={() => {
                 setError('');
@@ -222,25 +223,25 @@ export default function Review({
                 {change.status}
               </span>
               <ArrowRight size={17} />
-            </button>
+            </AppButton>
           ))}
         </div>
       )}
       <div className="crm-pagination">
-        <button
+        <AppButton
           className="crm-button"
           disabled={!offset}
           onClick={() => setOffset(Math.max(0, offset - 50))}
         >
           Previous
-        </button>
-        <button
+        </AppButton>
+        <AppButton
           className="crm-button"
           disabled={changes.length < 50}
           onClick={() => setOffset(offset + 50)}
         >
           Next
-        </button>
+        </AppButton>
       </div>
       {selected && (
         <Modal
@@ -278,27 +279,27 @@ export default function Review({
           <footer>
             {selected.status === 'pending' ? (
               <>
-                <button
+                <AppButton
                   disabled={busy}
                   className="crm-button"
                   onClick={() => void review('reject')}
                 >
                   <X size={15} />
                   Reject
-                </button>
-                <button
+                </AppButton>
+                <AppButton
                   disabled={busy}
                   className="crm-button crm-button-primary"
                   onClick={() => void review('approve')}
                 >
                   <Check size={15} />
                   {busy ? 'Saving…' : 'Approve change'}
-                </button>
+                </AppButton>
               </>
             ) : (
-              <button className="crm-button" onClick={() => setSelected(null)}>
+              <AppButton className="crm-button" onClick={() => setSelected(null)}>
                 Close
-              </button>
+              </AppButton>
             )}
           </footer>
         </Modal>

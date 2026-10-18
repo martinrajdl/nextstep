@@ -15,107 +15,6 @@
   --accent-saturation: 0;
   --primary: hsl(var(--accent-hue) calc(35% * var(--accent-saturation)) 32%);
 }
-.app-settings {
-  display: grid;
-  gap: 28px;
-}
-.app-settings .usage-consent { display:flex;flex-direction:row;align-items:center;gap:10px;font-size:14px;cursor:pointer; }
-.app-settings .usage-consent input { width:18px;height:18px;accent-color:var(--primary); }
-.app-settings section + section {
-  border-top: 1px solid
-    light-dark(hsl(var(--accent-hue) calc(9.4% * var(--accent-saturation)) 89.6%), hsl(var(--accent-hue) calc(9.4% * var(--accent-saturation)) 25.0%));
-  padding-top: 24px;
-}
-.app-settings h3 {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 16px;
-  margin: 0 0 10px;
-}
-.app-settings p {
-  font-size: 13px;
-  line-height: 1.6;
-  color: light-dark(hsl(var(--accent-hue) calc(7.7% * var(--accent-saturation)) 40.8%), hsl(var(--accent-hue) calc(7.7% * var(--accent-saturation)) 80.5%));
-  margin: 8px 0 16px;
-}
-.appearance-presets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 18px 0;
-}
-.appearance-presets button {
-  border: 1px solid
-    light-dark(hsl(var(--accent-hue) calc(17.5% * var(--accent-saturation)) 87.6%), hsl(var(--accent-hue) calc(17.5% * var(--accent-saturation)) 25.0%));
-  border-radius: 9px;
-  padding: 10px 14px;
-  display: grid;
-  gap: 7px;
-  justify-items: center;
-  background: light-dark(white, #1d1f25);
-  font-size: 12px;
-  color: light-dark(hsl(var(--accent-hue) calc(14.3% * var(--accent-saturation)) 20.6%), hsl(var(--accent-hue) calc(14.3% * var(--accent-saturation)) 92.6%));
-}
-.appearance-presets button[aria-pressed='true'] {
-  border-color: var(--primary);
-  background: light-dark(hsl(var(--accent-hue) calc(25% * var(--accent-saturation)) 95%), hsl(var(--accent-hue) calc(25% * var(--accent-saturation)) 17.0%));
-}
-.appearance-presets button > span {
-  height: 30px;
-  width: 30px;
-  border-radius: 50%;
-  color: white;
-  display: grid;
-  place-items: center;
-}
-.crm-dialog .app-settings .custom-accent {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 12px;
-}
-.custom-accent input {
-  width: 46px;
-  height: 34px;
-  padding: 3px;
-  cursor: pointer;
-}
-.custom-accent code {
-  font-size: 12px;
-  color: light-dark(hsl(var(--accent-hue) calc(7.7% * var(--accent-saturation)) 40.8%), hsl(var(--accent-hue) calc(7.7% * var(--accent-saturation)) 80.5%));
-}
-.backend-status {
-  display: grid;
-  gap: 4px;
-  padding: 14px;
-  background: light-dark(hsl(var(--accent-hue) calc(20% * var(--accent-saturation)) 96%), hsl(var(--accent-hue) calc(20% * var(--accent-saturation)) 16.4%));
-  border-radius: 8px;
-  font-size: 13px;
-  overflow-wrap: anywhere;
-}
-.backend-status small {
-  color: light-dark(hsl(var(--accent-hue) calc(7.7% * var(--accent-saturation)) 40.8%), hsl(var(--accent-hue) calc(7.7% * var(--accent-saturation)) 80.5%));
-  font-size: 12px;
-}
-.backend-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 16px 0;
-}
-.app-settings pre {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  font-size: 12px;
-  padding: 12px;
-  background: light-dark(hsl(
-    var(--accent-hue) calc(23.1% * var(--accent-saturation)) 94.9%
-  ), hsl(
-    var(--accent-hue) calc(23.1% * var(--accent-saturation)) 17.1%
-  ));
-  border-radius: 6px;
-}
 .crm-settings-button {
   display: flex;
   align-items: center;
@@ -137,22 +36,15 @@
 :root[data-theme='dark'] { color-scheme:dark; --background:#17191e; --card:#1d1f25; }
 :root[data-theme='dark'] .crm-shell { background:#17191e; }
 :root[data-theme='dark'] .crm-dialog { color:#dedede; }
-.appearance-modes { display:flex;gap:8px;margin:18px 0;border:0;padding:0; }
-.appearance-modes button { display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;flex:1;padding:10px;border:1px solid var(--crm-line);border-radius:8px;background:var(--card);color:var(--crm-ink);font-size:13px; }
-.appearance-modes button[aria-pressed='true'] { border-color:var(--crm-strong);background:var(--crm-accent); }
 /* The sidebar owns the native title-bar space; no separate strip. */
-html[data-desktop='darwin'] .crm-sidebar { padding-top:48px; }
-html[data-desktop='darwin'] .crm-sidebar::before { content:'';position:fixed;top:0;left:0;width:226px;height:36px;-webkit-app-region:drag; }
+html[data-desktop='darwin'] .crm-sidebar { padding-top:38px; }
+html[data-desktop='darwin'] .crm-sidebar::before { content:'';position:fixed;top:0;left:0;width:var(--crm-sidebar-width);height:32px;-webkit-app-region:drag; }
 html[data-desktop='darwin'] .crm-topbar { -webkit-app-region:drag; }
 html[data-desktop='darwin'] .crm-topbar :is(a,button,input,select) { -webkit-app-region:no-drag; }
-@media (max-width:1200px) { html[data-desktop='darwin'] .crm-sidebar::before { width:200px; } }
-@media (max-width:800px) { html[data-desktop='darwin'] .crm-topbar { padding-left:94px; } html[data-desktop='darwin'] .crm-sidebar::before { width:240px; } }
+@media (max-width:800px) { html[data-desktop='darwin'] .crm-topbar { padding-left:94px; } }
 [data-theme='dark'] .job-card,[data-theme='dark'] .crm-board article { box-shadow:0 1px 3px #0004; }
 [data-theme='dark'] .drag-handle { background:#1d1f25ed; }
 .company-mark { color:light-dark(var(--company-color),color-mix(in srgb,var(--company-color) 65%,white));background:color-mix(in srgb,var(--company-color) 10%,transparent); }
 [data-theme='dark'] { --primary:hsl(var(--accent-hue) calc(45% * var(--accent-saturation)) 76%);--color-primary-foreground:#17191e; }
 [data-theme='dark'] .primary-button { color:#17191e; }
 [data-theme='dark'] .primary-button:hover { background:color-mix(in srgb,var(--primary) 88%,white); }
-
-.app-update-settings h3 small { margin-left:auto;color:var(--muted-foreground);font-size:12px;font-weight:400; }
-.app-update-settings .usage-consent { margin-top:18px; }

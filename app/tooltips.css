@@ -1,0 +1,31 @@
+.app-tooltip-positioner {
+  z-index: 1000;
+  max-width: min(260px, var(--available-width));
+}
+
+.app-tooltip {
+  width: max-content;
+  max-width: 100%;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 5px;
+  background: light-dark(#292b30, #e8e9ec);
+  color: light-dark(#fff, #202228);
+  box-shadow: 0 3px 12px #0002;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: normal;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+  user-select: none;
+}
+.app-tooltip-positioner,
+button[aria-disabled='true'] {
+  cursor: default;
+}
+
+button[aria-disabled='true'] {
+  opacity: .6;
+}

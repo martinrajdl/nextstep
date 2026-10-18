@@ -1,3 +1,4 @@
+import AppButton, { AppLink } from '@/components/app-button';
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import {
   Activity,
@@ -10,9 +11,10 @@ import {
   Layers2,
   LayoutGrid,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   RefreshCw,
   Settings,
-  GitBranch,
   X,
 } from 'lucide-react';
 import { request } from '@/lib/model';
@@ -34,9 +36,8 @@ import AgentTools, { ChangeWorkbench } from '@/components/crm/agent-tools';
 import Modal from '@/components/crm/modal';
 import nextstepIcon from '@/desktop/icons/nextstep-ui.png';
 import { useAppPreferences } from '@/components/app-settings';
-import AgentFlows, {
-  FlowCard,
-} from '@/components/crm/agent-flows';
+import { FlowCard } from '@/components/crm/agent-flows';
+import AgentPage from '@/components/crm/agent-page';
 import { BoardSkeleton } from '@/components/board-controls';
 import './workspace.css';
 const currentRoute = () =>
@@ -85,7 +86,7 @@ function ActivityView({ revision }: { revision: number }) {
       ) : (
         <div className="crm-activity-list">
           {events.map((event) => (
-            <button key={event.id} onClick={() => setSelected(event)}>
+            <AppButton tooltip="View change details" key={event.id} onClick={() => setSelected(event)}>
               <span className="crm-activity-icon">
                 {event.actor === 'You' ? (
                   <Layers2 size={16} />
@@ -109,17 +110,17 @@ function ActivityView({ revision }: { revision: number }) {
               </span>
               <time>{dateTime(event.createdAt)}</time>
               <ChevronRight size={15} />
-            </button>
+            </AppButton>
           ))}
         </div>
       )}
       {events.length === limit && limit < 200 && (
-        <button
+        <AppButton
           className="crm-button"
           onClick={() => setLimit(Math.min(200, limit + 50))}
         >
           Show more
-        </button>
+        </AppButton>
       )}
       <p className="crm-hint">
         Showing the latest {events.length} events. The workspace export includes
@@ -137,9 +138,9 @@ function ActivityView({ revision }: { revision: number }) {
             <p className="crm-hint">Change ID: {selected.changeId}</p>
           </div>
           <footer>
-            <button className="crm-button" onClick={() => setSelected(null)}>
+            <AppButton className="crm-button" onClick={() => setSelected(null)}>
               Close
-            </button>
+            </AppButton>
           </footer>
         </Modal>
       )}
@@ -147,7 +148,9 @@ function ActivityView({ revision }: { revision: number }) {
   );
 }
 export default function WorkspaceApp() {
-  const { backendUrl, openSettings, updateAvailable } = useAppPreferences();
+  const { backendUrl, openSettings, updateAvailable, sidebarCollapsed, setSidebarCollapsed } = useAppPreferences();
+  const [desktopNavigation, setDesktopNavigation] = useState(() => window.nextstepDesktop?.platform === 'darwin' || matchMedia('(min-width: 801px)').matches);
+  const collapsed = desktopNavigation && sidebarCollapsed;
   const [workspace, setWorkspace] = useState<Workspace | null>(null),
     [error, setError] = useState(''),
     [route, setRoute] = useState(currentRoute),
@@ -181,6 +184,12 @@ export default function WorkspaceApp() {
   useEffect(() => {
     void Promise.resolve().then(refresh);
   }, [refresh]);
+  useEffect(() => {
+    const media = matchMedia('(min-width: 801px)');
+    const update = () => setDesktopNavigation(window.nextstepDesktop?.platform === 'darwin' || media.matches);
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
   useEffect(() => {
     const handler = () => {
       setRoute(currentRoute());
@@ -222,8 +231,8 @@ export default function WorkspaceApp() {
       overview: 'Workspace home',
       review: 'Review changes',
       activity: 'History',
-      agents: 'Connect an agent',
-      flows: 'Agent progress',
+      agents: 'Agent',
+      flows: 'Agent',
     }[route] ||
     'Workspace';
   useEffect(() => { document.title = `${label} · Nextstep`; }, [label]);
@@ -245,94 +254,102 @@ export default function WorkspaceApp() {
       void refresh();
   }
   return (
-    <div className="crm-shell">
-      <a href="#workspace-content" className="crm-skip">
+    <div className={`crm-shell${collapsed ? ' is-sidebar-collapsed' : ''}`}>
+      <AppLink href="#workspace-content" className="crm-skip">
         Skip to content
-      </a>
-      <aside className={`crm-sidebar ${navOpen ? 'is-open' : ''}`}>
-        <a onClick={followLink} className="crm-brand" href="/#/overview">
-          <img src={nextstepIcon} alt="" width={42} height={42} />
-          nextstep<span className="crm-brand-dot">.</span>
-        </a>
-        <button aria-label="Close navigation" className="crm-icon-button crm-mobile-only crm-sidebar-close" onClick={() => setNavOpen(false)}><X size={17}/></button>
+      </AppLink>
+      <aside id="workspace-sidebar" className={`crm-sidebar ${navOpen ? 'is-open' : ''}`}>
+        <div className="crm-sidebar-brand-row">
+        <AppLink onClick={followLink} className="crm-brand" href="/#/overview" aria-label="Nextstep home">
+          <img src={nextstepIcon} alt="" width={30} height={30} />
+          <span>nextstep<span className="crm-brand-dot">.</span></span>
+        </AppLink>
+        {desktopNavigation && <AppButton
+          className="crm-icon-button crm-sidebar-toggle"
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-expanded={!collapsed}
+          aria-controls="workspace-sidebar"
+          onClick={() => void setSidebarCollapsed(!sidebarCollapsed).catch(e => setError(errorMessage(e)))}
+        >{collapsed ? <PanelLeftOpen size={17}/> : <PanelLeftClose size={17}/>}</AppButton>}
+        <AppButton aria-label="Close navigation" className="crm-icon-button crm-mobile-only crm-sidebar-close" onClick={() => setNavOpen(false)}><X size={17}/></AppButton>
+        </div>
         <nav aria-label="Workspace navigation">
           {[
             { id: 'overview', label: 'Home', icon: LayoutGrid },
-            { id: 'flows', label: 'Agent progress', icon: GitBranch },
+            { id: 'agents', label: 'Agent', icon: Bot },
             { id: 'review', label: 'Review changes', icon: Inbox },
             { id: 'activity', label: 'History', icon: Activity },
-            { id: 'agents', label: 'Your agent', icon: Bot },
           ].filter(item => item.id !== 'review' || workspace?.policy.reviewRequired || Boolean(workspace?.pendingCount)).map((item) => (
-            <a
+            <AppLink
               key={item.id}
               onClick={followLink}
               href={`/#/${item.id}`}
               aria-label={item.label}
-              aria-current={route === item.id ? 'page' : undefined}
+              aria-current={route === item.id || (item.id === 'agents' && route === 'flows') ? 'page' : undefined}
             >
               <item.icon size={17} aria-hidden="true" />
-              {item.label}
+              <span className="crm-nav-label">{item.label}</span>
               {item.id === 'review' && Boolean(workspace?.pendingCount) && (
                 <span className="crm-nav-count">{workspace?.pendingCount}</span>
               )}
-            </a>
+            </AppLink>
           ))}
         </nav>
         {Boolean(workspace?.collections.length) && <>
-          <div className="crm-sidebar-caption">YOUR COLLECTIONS</div>
-          <nav aria-label="Collections">{workspace?.collections.map(c => <a onClick={followLink} key={c.id} href={`/#/collections/${c.id}`} aria-label={c.name} aria-current={collection?.id === c.id ? 'page' : undefined}><span className="crm-collection-dot" style={{background:c.color}}/>{c.name}<small aria-hidden="true">{c.recordCount}</small></a>)}</nav>
+          <div className="crm-sidebar-caption"><span>COLLECTIONS</span></div>
+          <nav aria-label="Collections">{workspace?.collections.map(c => <AppLink onClick={followLink} key={c.id} href={`/#/collections/${c.id}`} aria-label={c.name} aria-current={collection?.id === c.id ? 'page' : undefined}><span className="crm-collection-dot" aria-hidden="true" style={{background:collapsed ? `${c.color}18` : c.color,color:c.color}}><span>{c.name.trim().split(/\s+/).map(word => word[0]).slice(0,2).join('').toUpperCase()}</span></span><span className="crm-nav-label">{c.name}</span><small aria-hidden="true">{c.recordCount}</small></AppLink>)}</nav>
         </>}
         <div className="crm-sidebar-bottom">
-          <button aria-label="Settings" title={updateAvailable ? 'Settings · update available' : 'Settings'} className="crm-settings-button" onClick={openSettings}>
-            <Settings size={17} /> Settings{updateAvailable && <span className="settings-update-dot" aria-label="Update available"/>}
-          </button>
+          <AppButton aria-label="Settings" title={updateAvailable ? 'Settings · update available' : 'Settings'} className="crm-settings-button" onClick={openSettings}>
+            <Settings size={17} /><span className="crm-nav-label">Settings</span>{updateAvailable && <span className="settings-update-dot" aria-label="Update available"/>}
+          </AppButton>
 
         </div>
       </aside>
       {navOpen && (
-        <button
+        <AppButton
           className="crm-nav-scrim"
           aria-label="Close navigation overlay"
           onClick={() => setNavOpen(false)}
         />
       )}
-      <div className="crm-main">
+      <div className={`crm-main${collection ? ' crm-collection-main' : ''}`}>
         <header className="crm-topbar">
-          <button
+          <AppButton
             className="crm-icon-button crm-mobile-only"
             aria-label="Open navigation"
             onClick={() => setNavOpen(true)}
           >
             <Menu size={20} />
-          </button>
-          <a className="crm-home-link" href="/#/overview" onClick={followLink} aria-current={route === 'overview' ? 'page' : undefined}>
+          </AppButton>
+          <AppLink className="crm-home-link" href="/#/overview" onClick={followLink} aria-current={route === 'overview' ? 'page' : undefined}>
             <LayoutGrid size={14} aria-hidden="true"/>Workspace home
-          </a>
-          {route !== 'overview' && <><ChevronRight size={13} aria-hidden="true"/><strong className="crm-current-location" aria-current="page">{label}</strong></>}
+          </AppLink>
+          {route !== 'overview' && <><ChevronRight size={13} aria-hidden="true"/>{collection ? <h1 className="crm-current-location" title={collection.description || collection.name}>{label}</h1> : <strong className="crm-current-location" aria-current="page">{label}</strong>}</>}
           <div>
             <span className="crm-topbar-local">
               <span />
               {backendUrl ? 'Self-hosted' : 'Local'}
             </span>
-            <button
+            <AppButton
               className="crm-icon-button"
               aria-label="Refresh workspace"
               onClick={() => void refresh()}
             >
               <RefreshCw size={15} />
-            </button>
+            </AppButton>
           </div>
         </header>
-        <main id="workspace-content" className="crm-content">
+        <main id="workspace-content" className={`crm-content${collection ? ' crm-collection-content' : ''}`}>
           {error && (
             <div className="crm-error" role="alert">
               {error}
-              <button
+              <AppButton
                 className="crm-text-button"
                 onClick={() => void refresh()}
               >
                 Retry connection
-              </button>
+              </AppButton>
             </div>
           )}
           {!workspace ? (
@@ -353,29 +370,25 @@ export default function WorkspaceApp() {
             <Review onChanged={changed} revision={revision} />
           ) : route === 'activity' ? (
             <ActivityView revision={revision} />
-          ) : route === 'agents' ? (
-            <AgentTools
+          ) : route === 'agents' || route === 'flows' ? (
+            <AgentPage
               workspace={workspace}
+              revision={revision}
               onWorkbench={() => setWorkbench({})}
               onNewCollection={() => setSchema({})}
               onReview={() => navigate('review')}
-            />
-          ) : route === 'flows' ? (
-            <AgentFlows
-              revision={revision}
-              onConnect={() => navigate('agents')}
             />
           ) : !workspace.collections.length ? (
             <AgentTools workspace={workspace} onWorkbench={() => setWorkbench({})} onNewCollection={() => setSchema({})} onReview={() => navigate('review')}/>
           ) : (
             <>
-              <div className="crm-page-heading crm-home-heading"><div><h1>Your workspace</h1><p>Your agent organizes the information. You keep the overview.</p></div><button className="crm-button" onClick={() => navigate('agents')}><Bot size={16}/>Your agent</button></div>
-              {workspace.pendingCount > 0 && <button className="crm-review-banner" onClick={() => navigate('review')}><Inbox size={20}/><span><strong>{workspace.pendingCount} {workspace.pendingCount === 1 ? 'change is' : 'changes are'} ready for review</strong><small>See what your agent wants to add or update.</small></span><ArrowRight size={18}/></button>}
+              <div className="crm-page-heading crm-home-heading"><div><h1>Your workspace</h1><p>Your agent organizes the information. You keep the overview.</p></div><AppButton className="crm-button" onClick={() => navigate('agents')}><Bot size={16}/>Agent</AppButton></div>
+              {workspace.pendingCount > 0 && <AppButton tooltip="Review proposed changes" className="crm-review-banner" onClick={() => navigate('review')}><Inbox size={20}/><span><strong>{workspace.pendingCount} {workspace.pendingCount === 1 ? 'change is' : 'changes are'} ready for review</strong><small>See what your agent wants to add or update.</small></span><ArrowRight size={18}/></AppButton>}
               <section className="crm-overview-section">
-                <div className="crm-collection-cards">{workspace.collections.map(c => <button key={c.id} onClick={() => navigate(`collections/${c.id}`)}><span style={{background:`${c.color}18`,color:c.color}}><Folder size={21}/></span><h2>{c.name}</h2><p>{c.description || `${c.fields.length} fields · ${c.recordCount} records`}</p><small>{c.recordCount} records<ArrowRight size={15}/></small></button>)}</div>
+                <div className="crm-collection-cards">{workspace.collections.map(c => <AppButton tooltip={`Open ${c.name}`} key={c.id} onClick={() => navigate(`collections/${c.id}`)}><span style={{background:`${c.color}18`,color:c.color}}><Folder size={21}/></span><h2>{c.name}</h2><p>{c.description || `${c.fields.length} fields · ${c.recordCount} records`}</p><small>{c.recordCount} records<ArrowRight size={15}/></small></AppButton>)}</div>
               </section>
-              {workspace.recentFlows.length > 0 && <section className="crm-overview-section"><div className="crm-section-label"><h2>Agent progress</h2><button className="crm-text-button" onClick={() => navigate('flows')}>View all<ArrowRight size={14}/></button></div><div className="crm-flow-list">{workspace.recentFlows.slice(0,3).map(flow => <FlowCard key={flow.id} flow={flow} onClick={() => navigate('flows')}/>)}</div></section>}
-              <details className="crm-home-tools"><summary>Manual tools</summary><div className="crm-manual-actions"><button className="crm-button" onClick={() => setSchema({})}>Create a collection</button><button className="crm-button" onClick={() => setWorkbench({})}>Open JSON workbench</button></div></details>
+              {workspace.recentFlows.length > 0 && <section className="crm-overview-section"><div className="crm-section-label"><h2>Agent progress</h2><AppButton className="crm-text-button" onClick={() => navigate('agents')}>View all<ArrowRight size={14}/></AppButton></div><div className="crm-flow-list">{workspace.recentFlows.slice(0,3).map(flow => <FlowCard key={flow.id} flow={flow} onClick={() => navigate('agents')}/>)}</div></section>}
+              <details className="crm-home-tools"><summary>Manual tools</summary><div className="crm-manual-actions"><AppButton className="crm-button" onClick={() => setSchema({})}>Create a collection</AppButton><AppButton className="crm-button" onClick={() => setWorkbench({})}>Open JSON workbench</AppButton></div></details>
             </>
           )}
         </main>

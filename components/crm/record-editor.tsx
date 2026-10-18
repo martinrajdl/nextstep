@@ -1,3 +1,4 @@
+import AppButton from '@/components/app-button';
 import { useEffect, useState } from 'react';
 import { Archive, History, RotateCcw } from 'lucide-react';
 import Modal from './modal';
@@ -357,14 +358,14 @@ export default function RecordEditor({
           </fieldset>
           {record && (
             <section className="crm-record-history">
-              <button
+              <AppButton
                 className="crm-text-button"
                 type="button"
                 onClick={() => setShowHistory(!showHistory)}
               >
                 <History size={15} />
                 History · {history.length} changes
-              </button>
+              </AppButton>
               {showHistory &&
                 history.map((event) => (
                   <div key={event.id}>
@@ -374,7 +375,7 @@ export default function RecordEditor({
                       <small>{dateTime(event.createdAt)}</small>
                     </span>
                     {event.after && typeof event.after.values === 'object' && typeof event.after.id === 'string' && !record.archivedAt && (
-                      <button
+                      <AppButton
                         type="button"
                         className="crm-text-button"
                         onClick={() => {
@@ -393,7 +394,7 @@ export default function RecordEditor({
                         }}
                       >
                         Use these values
-                      </button>
+                      </AppButton>
                     )}
                   </div>
                 ))}
@@ -407,7 +408,7 @@ export default function RecordEditor({
         </div>
         <footer>
           {record && (
-            <button
+            <AppButton
               type="button"
               className="crm-button crm-archive-button"
               disabled={busy}
@@ -425,9 +426,9 @@ export default function RecordEditor({
                 <Archive size={15} />
               )}{' '}
               {record.archivedAt ? 'Restore record' : 'Archive'}
-            </button>
+            </AppButton>
           )}
-          <button
+          <AppButton
             type="button"
             className="crm-button"
             onClick={() => {
@@ -436,11 +437,11 @@ export default function RecordEditor({
             }}
           >
             Cancel
-          </button>
+          </AppButton>
           {!record?.archivedAt && (
-            <button disabled={busy} className="crm-button crm-button-primary">
+            <AppButton disabled={busy} className="crm-button crm-button-primary">
               {busy ? 'Saving…' : record ? 'Save record' : 'Add record'}
-            </button>
+            </AppButton>
           )}
         </footer>
       </form>

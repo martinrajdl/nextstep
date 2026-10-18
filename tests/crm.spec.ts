@@ -75,7 +75,7 @@ test('existing records and every collection share navigation, fields, actions an
   );
   await expect(page.locator('html')).toHaveAttribute('data-same-shell', 'yes');
   await expect(
-    page.getByRole('link', { name: 'Agent progress', exact: true }),
+    page.getByRole('link', { name: 'Agent', exact: true }),
   ).toBeVisible();
   await page.screenshot({ path: 'test-results/unified-existing-pipeline.png' });
 });

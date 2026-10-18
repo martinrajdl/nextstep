@@ -1,6 +1,6 @@
 # Desktop app and local agent connection
 
-Nextstep is primarily a local-first Electron app. It bundles its interface, HTTP server, SQLite runtime, and local MCP connectors. Your agent runs the workflow: sourcing information, shaping collections, saving changes and moving records. You follow progress in Agent progress and can opt into reviewing changes. No model key or external database service is needed for local use.
+Nextstep is primarily a local-first Electron app. It bundles its interface, HTTP server, SQLite runtime, and local MCP connectors. Your agent runs the workflow: sourcing information, shaping collections, saving changes and moving records. You follow progress on the Agent page and can opt into reviewing changes. Connection and setup instructions are optional, expandable tools on that same page. No model key or external database service is needed for local use.
 
 ## Build and run
 
@@ -23,6 +23,8 @@ The runnable app is in ignored `desktop-releases/`. It includes its own runtime,
 
 macOS packages use the custom Nextstep icon in `desktop/icons/nextstep.icns`. Its transparent 1024 px PNG master and generation prompt are kept beside it. After changing the master, run `pnpm desktop:icon` on macOS to rebuild the standard and Retina icon sizes before packaging. The generated `.icns` is committed, so ordinary builds do not need image-generation tools. An icon change requires a newly signed and notarized build; do not replace files inside an already signed app.
 
+Source runs and unsigned development packages use a black icon with a blue blueprint drawing of the N and the window title **Nextstep Dev**. Signed production releases retain the neutral icon. Desktop tests set `NEXTSTEP_DEV_ICON=1` so even a signed package uses the blueprint Dock icon while being tested. This flag changes branding only; the test scripts still use their separate temporary databases and settings. Rebuild the development ICNS with `pnpm desktop:icon --dev`.
+
 To choose another target after building the interface, run `node scripts/package-desktop.mjs <platform> <arch>`. Supported values are `darwin`, `win32`, or `linux`, and `arm64` or `x64`. The manual **Desktop builds** GitHub workflow builds on each operating system. Only macOS Apple silicon has been exercised with the full desktop smoke test so far.
 
 `desktop:package` and the manual Desktop builds workflow produce unsigned development builds. For a Developer ID-signed and notarized macOS app, use `pnpm desktop:release` after completing the [Apple signing setup](macos-signing.md). A release ZIP is created only after its signature, notarization ticket, and Gatekeeper acceptance pass verification. The macOS download is a ZIP containing Nextstep.app. Unzip it and drag the app into Applications. Starting with version 0.4.3, use **Settings → App updates** to check, download and restart into a newer signed macOS version. Earlier versions need one manual replacement in Applications; the separate database is preserved. Move the app to its permanent location before connecting your agent: the connection contains the executable's absolute path.
@@ -41,7 +43,7 @@ Open **Nextstep → Settings…** (Command-comma on macOS), **View → Settings�
 
 Local SQLite is the default. To use a backend on your own server, start a private SSH tunnel and enter its loopback address under **Settings → Data & backend**. Electron continues to serve its bundled interface locally and proxies API requests through the tunnel. It never loads a remote renderer or grants native privileges to server code. No local shadow database is opened in this mode. A failed connection shows an error; it does not fall back to writing locally. **Use local database** returns to the existing selected file without copying, merging or deleting records. See [self-hosting.md](self-hosting.md).
 
-Automatic agent installation is available only for a local database. Self-hosted agents must connect over SSH on the server, using the server's exact database path. The generic Your agent panel can generate an SSH configuration from a host or alias you provide.
+Automatic agent installation is available only for a local database. Self-hosted agents must connect over SSH on the server, using the server's exact database path. The Agent page’s Connection & instructions panel can generate an SSH configuration from a host or alias you provide.
 
 ## Your database
 
@@ -67,7 +69,7 @@ The CRM handoff uses a `Workspace` folder in Nextstep's application-data directo
 
 ## Connect another agent
 
-Use the exact configuration shown under **Your agent → Other agents & advanced setup**. It targets the selected database and the installed executable. For a packaged desktop app, the command has this shape:
+Use the exact configuration shown under **Agent → Connection & instructions → Other agents & advanced setup**. It targets the selected database and the installed executable. For a packaged desktop app, the command has this shape:
 
 ```sh
 /absolute/path/to/Nextstep --crm-mcp --database /absolute/path/to/nextstep.sqlite
@@ -102,3 +104,5 @@ node scripts/test-desktop-updates.mjs "/absolute/path/to/Nextstep.app/Contents/M
 Tests use temporary databases and isolated agent configurations. They verify native connection setup, the prepared unsent conversation, a real MCP session, schema proposals, human approval, automatic collection display, appearance, backend handling and preservation of existing data. `NEXTSTEP_AGENT_CONFIG_HOME` selects isolated agent settings for tests. External URL dispatch is captured without opening or sending a real conversation.
 
 The packaged updater check stubs release transport and native install calls to verify UI/IPC transitions without updating a real app. It also verifies stage settings across restarts and checks that records remain unchanged. Distribution verification must separately exercise a real signed update in a disposable app copy.
+
+The sidebar can collapse to an icon rail. Navigation and collection icons keep their labels in tooltips, and the desktop app remembers the chosen width across launches and backend changes. Small browser windows use the full navigation drawer.

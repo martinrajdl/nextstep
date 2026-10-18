@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('nextstepDesktop', Object.freeze({
   setAutomaticUpdates: value => ipcRenderer.invoke('nextstep:automatic-updates',value),
   onUpdateStateChanged: callback => { const listener = (_event,state) => callback(state); ipcRenderer.on('nextstep:update-state-changed',listener); return () => ipcRenderer.removeListener('nextstep:update-state-changed',listener); },
   getPreferences: () => ipcRenderer.invoke('nextstep:preferences'),
+  setSidebarCollapsed: value => ipcRenderer.invoke('nextstep:set-sidebar-collapsed',value),
   setAppearance: color => ipcRenderer.invoke('nextstep:set-appearance',color),
   setTheme: theme => ipcRenderer.invoke('nextstep:set-theme',theme),
   setUsageEnabled: enabled => ipcRenderer.invoke('nextstep:set-usage',enabled),

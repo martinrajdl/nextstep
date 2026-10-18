@@ -4,6 +4,7 @@ const change = (operations: object[]) => ({
   title: 'Fictional browser change',
   operations,
 });
+
 async function existingWorkspace(request: APIRequestContext, company: string) {
   const response = await request.post('/api/opportunities', { data: { company } });
   expect(response.ok()).toBeTruthy();
@@ -123,7 +124,8 @@ test('JSON import stays a proposal until reviewed; before/after diff is inspecta
     { key: 'source', name: 'Source', type: 'url' },
   ]);
   await page.goto('/#/collections/notes_review');
-  await page.getByRole('button', { name: 'Import JSON', exact: true }).click();
+  await page.getByRole('button', { name: 'Collection actions', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Import JSON', exact: true }).click();
   await page.getByLabel('Change set', { exact: true }).fill(
     JSON.stringify({
       records: [
@@ -207,11 +209,13 @@ test('schema relations, saved filters, archive and restore work through the user
   await page.getByLabel('Filter 1 field').selectOption('status');
   await page.getByLabel('Filter 1 operator').selectOption('eq');
   await page.getByLabel('Filter 1 value').fill('New');
-  await page.getByRole('button', { name: 'Save a view', exact: true }).click();
+  await page.getByRole('button', { name: 'Collection actions', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Save a view', exact: true }).click();
   await page.getByLabel('View name', { exact: true }).fill('New projects');
   await page.getByRole('button', { name: 'Save view', exact: true }).click();
   await page.reload();
-  await page.getByRole('button', { name: 'New projects', exact: true }).click();
+  await page.getByRole('button', { name: 'Collection actions', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'New projects', exact: true }).click();
   await expect(
     page.getByRole('button', { name: /^(?!Actions).*Fictional project/ }),
   ).toBeVisible();
@@ -348,11 +352,12 @@ test('mobile workspace and agent setup are usable, expose exact connection paths
     .getByRole('button', { name: 'Open navigation', exact: true })
     .click();
   await page
-    .getByRole('link', { name: 'Your agent', exact: true })
+    .getByRole('link', { name: 'Agent', exact: true })
     .click();
   await expect(
-    page.getByRole('heading', { name: 'Connect your agent.' }),
+    page.getByRole('heading', { name: 'Agent', exact: true }),
   ).toBeVisible();
+  await page.getByRole('button', { name: 'Connection & instructions', exact: true }).click();
   await page.getByText('Other agents & advanced setup',{exact:true}).click();
   const context = await (await request.get('/api/crm/context')).json();
   await expect(page.locator('pre')).toContainText(
@@ -423,6 +428,10 @@ test('agent progress links real proposals and reports applied work after human r
   });
   expect(report.ok()).toBeTruthy();
   await page.goto('/#/flows');
+  await expect(page.getByRole('heading', { name: 'Agent', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Agent', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('link', { name: /^(Agent progress|Your agent)$/ })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Connection and instructions' })).not.toBeVisible();
   await page
     .getByRole('button', { name: /Find fictional studio contacts/ })
     .click();
@@ -476,7 +485,7 @@ test('agent progress links real proposals and reports applied work after human r
   await page
     .getByRole('button', { name: 'Approve change', exact: true })
     .click();
-  await page.getByRole('link', { name: 'Agent progress', exact: true }).click();
+  await page.getByRole('link', { name: 'Agent', exact: true }).click();
   await page
     .getByRole('button', { name: /Find fictional studio contacts/ })
     .click();
@@ -560,7 +569,8 @@ test('board actions replace status selects, hidden stages persist, and saved vie
   await page.getByRole('region',{name:'Done drop target',exact:true}).dispatchEvent('drop',{dataTransfer:transfer});
   await expect.poll(async () => (await records())[0].values.status).toBe('Done');
   expect((await records())[0].values.notes).toBe('Preserve this note');
-  await page.getByRole('button',{name:'Save a view',exact:true}).click();
+  await page.getByRole('button',{name:'Collection actions',exact:true}).click();
+  await page.getByRole('menuitem',{name:'Save a view',exact:true}).click();
   await page.getByLabel('View name',{exact:true}).fill('Focus pipeline');
   await page.getByRole('button',{name:'Save view',exact:true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -590,4 +600,168 @@ test('slow collection loading keeps the shell and never presents a false empty w
   await expect(page.getByRole('button',{name:/^(?!Actions).*Fictional loading record/})).toBeVisible();
   await page.unroute('**/api/crm/query');
   expect(await page.locator('.crm-table').evaluate(el => getComputedStyle(el.parentElement!).opacity)).toBe('1');
+});
+
+test('long board content stays inside cards and remains available in the record editor', async ({ page, request }) => {
+  const id = 'card_layout_examples';
+  const title = 'Fictional collaborator with an unusually long name and ' + 'UnbrokenReference'.repeat(5);
+  const stage = 'Waiting for a detailed review of the collected information';
+  const summary = 'A long summary gathered by an agent. '.repeat(12).trim();
+  const source = `https://example.com/research/${'long-reference-'.repeat(12)}`;
+  await createCollection(request, id, [
+    { key: 'stage', name: 'Stage', type: 'select', options: ['New', stage, 'Done'] },
+    { key: 'summary', name: 'Summary', type: 'longtext' },
+    { key: 'source', name: 'Source', type: 'url' },
+    { key: 'context', name: 'Detailed collection context and source notes', type: 'text' },
+    { key: 'next_step', name: 'Next step', type: 'text' },
+  ]);
+  await createRecord(request, id, title, {
+    stage, summary, source,
+    context: 'ContextWithoutSpaces'.repeat(12),
+    next_step: 'Compare the findings, inspect the original sources, and decide which contact to follow up with.',
+  });
+  expect((await request.post('/api/crm/apply', {
+    data: change([{ type: 'create_view', collectionId: id, name: 'Pipeline', layout: 'board', groupBy: 'stage', columns: ['summary', 'source', 'context', 'next_step'] }]),
+  })).ok()).toBeTruthy();
+  await page.goto(`/#/collections/${id}`);
+  const card = page.getByRole('article', { name: title, exact: true });
+  await expect(card).toBeVisible();
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await card.scrollIntoViewIfNeeded();
+    await card.hover();
+    const bounds = await card.evaluate(node => {
+      const content = node.querySelector('button:not(.record-actions-trigger)')!;
+      const contentBounds = content.getBoundingClientRect();
+      const titleBounds = content.querySelector('strong')!.getBoundingClientRect();
+      const actionsBounds = node.querySelector('.record-actions-trigger')!.getBoundingClientRect();
+      const header = node.closest('.crm-board > section')!.querySelector('header')!;
+      return {
+        fieldOverflow: [...content.querySelectorAll('span, small')].some(field => {
+          const rect = field.getBoundingClientRect();
+          return rect.right > contentBounds.right + 1 || rect.left < contentBounds.left - 1;
+        }),
+        titleOverlapsActions: titleBounds.right > actionsBounds.left - 4,
+        cardOverflow: node.scrollWidth > node.clientWidth + 1,
+        headerOverflow: header.scrollWidth > header.clientWidth + 1,
+        pageOverflow: document.documentElement.scrollWidth > innerWidth,
+      };
+    });
+    expect(bounds).toEqual({ fieldOverflow: false, titleOverlapsActions: false, cardOverflow: false, headerOverflow: false, pageOverflow: false });
+    await page.screenshot({ path: `test-results/board-long-content-${width}.png` });
+  }
+  await card.locator('button:not(.record-actions-trigger)').click();
+  await expect(page.getByLabel('Title', { exact: true })).toHaveValue(title);
+  await expect(page.getByLabel('Summary', { exact: true })).toHaveValue(summary);
+  await expect(page.getByLabel('Source', { exact: true })).toHaveValue(source);
+});
+
+test('collection controls stay compact and the pipeline fills every window width', async ({ page, request }) => {
+  const id = 'full_width_examples';
+  await createCollection(request, id, [
+    { key: 'status', name: 'Status', type: 'select', required: true, options: ['New', 'Review', 'Ready', 'Done'] },
+    { key: 'summary', name: 'Summary', type: 'text' },
+  ]);
+  for (const [index, status] of ['New', 'Review', 'Ready', 'Done'].entries()) {
+    await createRecord(request, id, `Example ${index + 1}`, { status, summary: 'Collected by an agent, ready to inspect.' });
+  }
+  expect((await request.post('/api/crm/apply', { data: change([
+    { type: 'create_view', collectionId: id, name: 'Pipeline', layout: 'board', groupBy: 'status', columns: ['summary'] },
+    { type: 'create_view', collectionId: id, name: 'A saved view with a long descriptive name', layout: 'table', columns: ['status', 'summary'] },
+  ]) })).ok()).toBeTruthy();
+  await page.goto(`/#/collections/${id}`);
+  await page.getByRole('button', { name: 'Collection actions', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Pipeline', exact: true }).click();
+  await expect(page.getByRole('article')).toHaveCount(4);
+  for (const width of [2560, 1920, 1280, 800, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const layout = await page.locator('.crm-main').evaluate(main => {
+      const mainBounds = main.getBoundingClientRect();
+      const board = main.querySelector('.crm-board')!.getBoundingClientRect();
+      const controls = main.querySelector('.crm-collection-controls')!.getBoundingClientRect();
+      return {
+        leftInset: board.left - mainBounds.left,
+        rightInset: mainBounds.right - board.right,
+        boardTop: board.top,
+        controlsHeight: controls.height,
+        controlsOverflow: [...main.querySelectorAll('.crm-collection-controls button, .crm-collection-controls select, .crm-collection-controls input')].some(control => {
+          const bounds = control.getBoundingClientRect();
+          return bounds.left < controls.left - 1 || bounds.right > controls.right + 1;
+        }),
+        pageOverflow: document.documentElement.scrollWidth > innerWidth,
+      };
+    });
+    expect(layout.leftInset).toBe(16);
+    expect(layout.rightInset).toBe(16);
+    expect(layout.controlsOverflow).toBe(false);
+    expect(layout.pageOverflow).toBe(false);
+    if (width >= 1280) {
+      expect(layout.controlsHeight).toBeLessThanOrEqual(32);
+      expect(layout.boardTop).toBeLessThanOrEqual(100);
+    }
+    await page.screenshot({ path: `test-results/collection-compact-${width}.png` });
+  }
+  await page.getByRole('button', { name: 'Collection actions', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'A saved view with a long descriptive name', exact: true }).click();
+  await expect(page.getByRole('table')).toBeVisible();
+  await page.getByRole('button', { name: 'Collection actions', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Edit fields', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+});
+
+test('collections fill the window and scroll records independently beneath fixed headers', async ({ page, request }) => {
+  const id = `scroll_${Date.now()}`;
+  await createCollection(request, id, [
+    { key: 'status', name: 'Status', type: 'select', options: ['New', 'Ready'] },
+    { key: 'summary', name: 'Summary', type: 'text' },
+  ]);
+  expect((await request.post('/api/crm/apply', { data: change(Array.from({ length: 36 }, (_, index) => ({
+    type: 'create_record', collectionId: id, collectionVersion: 1,
+    title: `Fictional record ${String(index + 1).padStart(2, '0')}`,
+    values: { status: index % 2 ? 'Ready' : 'New', summary: 'Agent-collected information for human review.' },
+  }))) })).ok()).toBeTruthy();
+  await page.goto(`/#/collections/${id}`);
+  for (const width of [1512, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.getByRole('button', { name: 'Table view', exact: true }).click();
+    const table = page.getByRole('region', { name: 'Collection records', exact: true });
+    await expect(table.locator('tbody tr')).toHaveCount(36);
+    const before = await page.locator('.crm-pagination').boundingBox();
+    await table.focus();
+    await page.keyboard.press('End');
+    await expect.poll(() => table.evaluate(node => node.scrollTop)).toBeGreaterThan(0);
+    await expect.poll(() => table.evaluate(node => node.scrollHeight - node.clientHeight - node.scrollTop)).toBeLessThanOrEqual(1);
+    const tableBounds = await table.boundingBox();
+    const heading = await table.locator('thead').boundingBox();
+    expect(Math.abs(heading!.y - tableBounds!.y)).toBeLessThanOrEqual(2);
+    expect(Math.abs(tableBounds!.y + tableBounds!.height - before!.y + 10)).toBeLessThanOrEqual(2);
+    expect(before!.y + before!.height).toBeLessThanOrEqual(844);
+    expect(before!.y + before!.height).toBeGreaterThan(820);
+    await page.screenshot({ path: `test-results/table-full-height-${width}.png` });
+
+    await page.getByRole('button', { name: 'Board view', exact: true }).click();
+    const cards = page.getByRole('region', { name: 'New records', exact: true });
+    const neighbor = page.getByRole('region', { name: 'Ready records', exact: true });
+    const columnHeader = page.getByRole('heading', { name: 'New', exact: true });
+    const headerBefore = await columnHeader.boundingBox();
+    await cards.focus();
+    await page.keyboard.press('End');
+    await expect.poll(() => cards.evaluate(node => node.scrollTop)).toBeGreaterThan(0);
+    await expect.poll(() => cards.evaluate(node => node.scrollHeight - node.clientHeight - node.scrollTop)).toBeLessThanOrEqual(1);
+    expect(await neighbor.evaluate(node => node.scrollTop)).toBe(0);
+    expect((await columnHeader.boundingBox())!.y).toBe(headerBefore!.y);
+    expect(await page.locator('.crm-pagination').boundingBox()).toEqual(before);
+    const frame = await page.locator('.crm-board').evaluate(node => ({
+      bottom: node.getBoundingClientRect().bottom,
+      verticalOverflow: node.scrollHeight > node.clientHeight,
+      documentOverflow: document.documentElement.scrollHeight > innerHeight,
+      pageScroll: window.scrollY,
+    }));
+    expect(Math.abs(frame.bottom - before!.y + 10)).toBeLessThanOrEqual(2);
+    expect(frame.verticalOverflow).toBe(false);
+    expect(frame.documentOverflow).toBe(false);
+    expect(frame.pageScroll).toBe(0);
+    await page.screenshot({ path: `test-results/board-full-height-${width}.png` });
+  }
 });

@@ -1,3 +1,4 @@
+import AppButton, { AppLink } from '@/components/app-button';
 import {
   createContext,
   useContext,
@@ -5,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Check, Download, RefreshCw, Database, Monitor, Moon, Palette, Server, Sun, ShieldCheck } from 'lucide-react';
+import { Check, Download, RefreshCw, Database, Info, Monitor, Moon, Palette, Plug, Server, Sun, ShieldCheck } from 'lucide-react';
 import Modal from './crm/modal';
 import SearchPreferences from './search-preferences';
 import AgentConnection from './agent-connection';
@@ -13,6 +14,7 @@ import { errorMessage, type UpdateState, type ThemePreference } from '@/lib/agen
 import { request } from '@/lib/model';
 import type { Workspace } from '@/lib/crm';
 import '../app/appearance.css';
+import '../app/settings.css';
 
 const presets = [
   ['Neutral', '#777777'],
@@ -24,6 +26,11 @@ const presets = [
 ] as const;
 const preferenceKey = 'nextstep-appearance-v1';
 const themeKey = 'nextstep-theme-v1';
+const sidebarKey = 'nextstep-sidebar-collapsed';
+function initialSidebarCollapsed() {
+  try { return localStorage.getItem(sidebarKey) === 'true'; }
+  catch { return false; }
+}
 const themes = [{value:'light',label:'Light',icon:Sun},{value:'dark',label:'Dark',icon:Moon},{value:'system',label:'System',icon:Monitor}] as const;
 const validTheme = (value: unknown): value is ThemePreference => themes.some(theme => theme.value === value);
 function initialTheme(): ThemePreference {
@@ -60,20 +67,22 @@ function colorCoordinates(hex: string) {
         : ((r - g) / delta + 4) * 60;
   return { hue, saturation: Math.min(1.6, saturation / 0.35) };
 }
-type Preferences = { updateAvailable: boolean; backendUrl: string | null; resolvedTheme: 'light'|'dark'; openSettings: () => void };
+type Preferences = { updateAvailable: boolean; backendUrl: string | null; resolvedTheme: 'light'|'dark'; sidebarCollapsed: boolean; setSidebarCollapsed: (value: boolean) => Promise<void>; openSettings: () => void };
 const PreferencesContext = createContext<Preferences>({
   updateAvailable: false,
   backendUrl: null,
   resolvedTheme: 'light',
+  sidebarCollapsed: false,
+  setSidebarCollapsed: async () => {},
   openSettings: () => {},
 });
 export const useAppPreferences = () => useContext(PreferencesContext);
 
 function DataExports() {
-  return <>
-    <div className="backend-actions"><a className="crm-button" href="/api/crm/export" download><Download size={15}/>Export collections</a></div>
-    <p className="crm-hint">Download all records, views, proposals and history as JSON. JSON exports are not a full database backup.</p>
-  </>;
+  return <div className="settings-group">
+    <div className="backend-actions"><AppLink tooltip="Export collections as JSON" className="crm-button" href="/api/crm/export" download><Download size={15}/>Export collections</AppLink></div>
+    <p className="settings-note">Download all records, views, proposals and history as JSON. JSON exports are not a full database backup.</p>
+  </div>;
 }
 
 function AgentSettings() {
@@ -103,9 +112,9 @@ function AgentSettings() {
   return <section>
     <h3><ShieldCheck size={18}/>Agent changes</h3>
     <label className="usage-consent"><input type="checkbox" checked={policy?.reviewRequired ?? false} disabled={!policy || saving} onChange={event => void change(event.target.checked)}/><span>Require review</span></label>
-    {saving && <output className="crm-hint">Saving…</output>}
+    {saving && <output className="settings-note">Saving…</output>}
     <p>Off by default. Your connected agents can create and update your workspace directly. Turn this on to approve their changes before they are saved.</p>
-    <p className="crm-hint">Applies to this database and its connected agents. Existing proposals still need a decision. Every applied change keeps its history.</p>
+    <p className="settings-note">Applies to this database and its connected agents. Existing proposals still need a decision. Every applied change keeps its history.</p>
     {error && <p className="crm-error" role="alert">{error}</p>}
   </section>;
 }
@@ -114,6 +123,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
   const [update, setUpdate] = useState<UpdateState | null>(null);
   const [accent, setAccent] = useState(initialAccent);
   const [theme, setTheme] = useState<ThemePreference>(initialTheme);
+  const [sidebarCollapsed, updateSidebarCollapsed] = useState(initialSidebarCollapsed);
   const [systemDark, setSystemDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches);
   const resolvedTheme = theme === 'system' ? (systemDark ? 'dark' : 'light') : theme;
   const [backendUrl, setBackendUrl] = useState<string | null>(null);
@@ -173,6 +183,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
         if (validColor(value.accent)) setAccent(value.accent);
         if (validTheme(value.theme)) setTheme(value.theme);
         setUsageEnabled(value.usageEnabled === true);
+        updateSidebarCollapsed(value.sidebarCollapsed === true);
         setBackendUrl(value.backendUrl);
         setConnection(value.backendUrl || 'http://127.0.0.1:4319');
       })
@@ -199,6 +210,11 @@ export default function AppSettings({ children }: { children: ReactNode }) {
       settings();
     };
   }, []);
+  async function setSidebarCollapsed(value: boolean) {
+    if (window.nextstepDesktop) await window.nextstepDesktop.setSidebarCollapsed(value);
+    updateSidebarCollapsed(value);
+    try { localStorage.setItem(sidebarKey, String(value)); } catch { /* Native settings persist independently. */ }
+  }
   async function chooseTheme(value: ThemePreference) {
     try {
       if (window.nextstepDesktop) await window.nextstepDesktop.setTheme(value);
@@ -237,7 +253,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
     }
   }
   return (
-    <PreferencesContext value={{ backendUrl, resolvedTheme, openSettings, updateAvailable: Boolean(update && ['available','ready'].includes(update.status)) }}>
+    <PreferencesContext value={{ backendUrl, resolvedTheme, sidebarCollapsed, setSidebarCollapsed, openSettings, updateAvailable: Boolean(update && ['available','ready'].includes(update.status)) }}>
       {children}
       {workflowPanel === 'preferences' && <SearchPreferences onClose={() => setWorkflowPanel(null)} onSaved={() => {}}/>}
       {workflowPanel === 'agent' && <AgentConnection onClose={() => setWorkflowPanel(null)} onSetup={() => {setWorkflowPanel(null); window.location.href='/#/agents';}}/>}
@@ -245,6 +261,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
         <Modal
           title="Settings"
           subtitle="Make Nextstep feel like your workspace."
+          className="app-settings-dialog"
           onClose={() => {
             if (!busy) setOpen(false);
           }}
@@ -252,14 +269,14 @@ export default function AppSettings({ children }: { children: ReactNode }) {
           <div className="crm-form-body app-settings">
             <AgentSettings/>
             {update && <section className="app-update-settings">
-              <h3><Download size={18}/>App updates <small>v{update.currentVersion}</small></h3>
-              <output className="update-status">{{idle:'Check for a newer version of Nextstep.',unsupported:'In-app updates are available in the signed macOS app.',checking:'Checking for updates…',current:'You’re up to date.',available:`Nextstep ${update.version} is available.`,downloading:'Downloading and verifying the update…',ready:`Nextstep ${update.version} is ready. Restart to finish updating.`,error:update.error}[update.status]}</output>
+              <h3><Download size={18}/>App updates <small className="settings-version">v{update.currentVersion}</small></h3>
+              <output className={`update-status${update.status === 'error' ? ' settings-error-text' : ''}`}>{{idle:'Check for a newer version of Nextstep.',unsupported:'In-app updates are available in the signed macOS app.',checking:'Checking for updates…',current:'You’re up to date.',available:`Nextstep ${update.version} is available.`,downloading:'Downloading and verifying the update…',ready:`Nextstep ${update.version} is ready. Restart to finish updating.`,error:update.error}[update.status]}</output>
               {update.status !== 'unsupported' && <>
                 <div className="backend-actions">
-                  {update.status === 'ready' ? <button className="crm-button crm-button-primary" onClick={() => void window.nextstepDesktop?.installUpdate().catch(e => setError(errorMessage(e)))}><RefreshCw size={15}/>Restart to update</button> : update.status === 'available' ? <button className="crm-button crm-button-primary" onClick={() => void window.nextstepDesktop?.downloadUpdate().then(setUpdate).catch(e => setError(errorMessage(e)))}><Download size={15}/>Download update</button> : <button className="crm-button" disabled={['checking','downloading'].includes(update.status)} onClick={() => void window.nextstepDesktop?.checkForUpdates().then(setUpdate).catch(e => setError(errorMessage(e)))}><RefreshCw size={15}/>{update.status === 'checking' ? 'Checking…' : update.status === 'downloading' ? 'Downloading…' : 'Check for updates'}</button>}
+                  {update.status === 'ready' ? <AppButton className="crm-button crm-button-primary" onClick={() => void window.nextstepDesktop?.installUpdate().catch(e => setError(errorMessage(e)))}><RefreshCw size={15}/>Restart to update</AppButton> : update.status === 'available' ? <AppButton className="crm-button crm-button-primary" onClick={() => void window.nextstepDesktop?.downloadUpdate().then(setUpdate).catch(e => setError(errorMessage(e)))}><Download size={15}/>Download update</AppButton> : <AppButton className="crm-button" disabled={['checking','downloading'].includes(update.status)} onClick={() => void window.nextstepDesktop?.checkForUpdates().then(setUpdate).catch(e => setError(errorMessage(e)))}><RefreshCw size={15}/>{update.status === 'checking' ? 'Checking…' : update.status === 'downloading' ? 'Downloading…' : 'Check for updates'}</AppButton>}
                 </div>
                 <label className="usage-consent"><input type="checkbox" checked={update.automatic} onChange={event => void window.nextstepDesktop?.setAutomaticUpdates(event.target.checked).then(setUpdate).catch(e => setError(errorMessage(e)))}/><span>Check for updates automatically</span></label>
-                <p className="crm-hint">Checks use Electron’s update service. Downloads start when you choose. Your database stays on this computer or your own server. A downloaded update also installs the next time you quit and reopen Nextstep.</p>
+                <p className="settings-note">Checks use Electron’s update service. Downloads start when you choose. Your database stays on this computer or your own server. A downloaded update also installs the next time you quit and reopen Nextstep.</p>
               </>}
               <a href="https://github.com/martinrajdl/nextstep/releases/latest" target="_blank" rel="noreferrer">Release notes ↗</a>
             </section>}
@@ -271,39 +288,42 @@ export default function AppSettings({ children }: { children: ReactNode }) {
                 Choose a light or dark workspace, or follow your device.
               </p>
               <fieldset className="appearance-modes" aria-label="Color mode">
-                {themes.map(({value,label,icon:Icon}) => <button key={value} type="button" aria-label={`${label} mode`} aria-pressed={theme === value} onClick={() => void chooseTheme(value)}><Icon size={18}/><span>{label}</span>{theme === value && <Check size={14}/>}</button>)}
+                {themes.map(({value,label,icon:Icon}) => <AppButton key={value} type="button" aria-label={`${label} mode`} aria-pressed={theme === value} onClick={() => void chooseTheme(value)}><Icon size={18}/><span>{label}</span>{theme === value && <Check size={14}/>}</AppButton>)}
               </fieldset>
-              <p className="crm-hint">Accent colors work in either mode. The app icon keeps its neutral colors.</p>
-              <div className="appearance-presets" aria-label="Accent colors">
-                {presets.map(([name, color]) => (
-                  <button
-                    key={name}
-                    type="button"
-                    aria-label={`${name} accent`}
-                    aria-pressed={accent === color}
-                    onClick={() => void chooseColor(color)}
-                  >
-                    <span style={{ backgroundColor: color }}>
-                      {accent === color && <Check size={16} />}
-                    </span>
-                    {name}
-                  </button>
-                ))}
-              </div>
-              <label className="custom-accent">
-                Custom accent
-                <input
-                  aria-label="Custom accent color"
-                  type="color"
-                  value={accent}
-                  onChange={(e) => void chooseColor(e.target.value)}
-                />
-                <code>{accent}</code>
-              </label>
-              <p className="crm-hint">
-                Saved on this device. Text and surface shades adapt for
-                readability.
-              </p>
+              <fieldset className="appearance-accents">
+                <legend>Accent color</legend>
+                <p className="settings-note">Accent colors work in either mode. The app icon keeps its neutral colors.</p>
+                <div className="appearance-presets">
+                  {presets.map(([name, color]) => (
+                    <AppButton
+                      key={name}
+                      type="button"
+                      aria-label={`${name} accent`}
+                      aria-pressed={accent === color}
+                      onClick={() => void chooseColor(color)}
+                    >
+                      <span style={{ backgroundColor: color }}>
+                        {accent === color && <Check size={16} />}
+                      </span>
+                      {name}
+                    </AppButton>
+                  ))}
+                </div>
+                <label className="custom-accent">
+                  <span>Custom accent</span>
+                  <input
+                    aria-label="Custom accent color"
+                    type="color"
+                    value={accent}
+                    onChange={(e) => void chooseColor(e.target.value)}
+                  />
+                  <code>{accent}</code>
+                </label>
+                <p className="settings-note">
+                  Saved on this device. Text and surface shades adapt for
+                  readability.
+                </p>
+              </fieldset>
             </section>
             <section>
               <h3>
@@ -345,24 +365,24 @@ export default function AppSettings({ children }: { children: ReactNode }) {
                     />
                   </label>
                   <div className="backend-actions">
-                    <button
+                    <AppButton
                       className="crm-button crm-button-primary"
                       disabled={busy || !connection.trim()}
                       onClick={() => void connect(connection)}
                     >
                       {busy ? 'Connecting…' : 'Connect to backend'}
-                    </button>
+                    </AppButton>
                     {backendUrl && (
-                      <button
+                      <AppButton
                         className="crm-button"
                         disabled={busy}
                         onClick={() => void connect(null)}
                       >
                         Use local database
-                      </button>
+                      </AppButton>
                     )}
                   </div>
-                  <p className="crm-hint">
+                  <p className="settings-note">
                     Finish any open edits before switching. Databases stay
                     separate; switching does not copy or merge records.
                   </p>
@@ -401,8 +421,8 @@ export default function AppSettings({ children }: { children: ReactNode }) {
               <p>No records, contacts, prompts, database paths or agent activity. Turning this off stops reporting and removes the local identifier.</p>
               <a href="https://github.com/martinrajdl/nextstep/blob/main/docs/privacy.md" target="_blank" rel="noreferrer">Exactly what is shared ↗</a>
             </section>}
-            {existingCollection && <section><h3>Connected importer</h3><p>Your existing connection uses {existingCollection}. Its saved preferences and schedule are preserved.</p><div className="backend-actions"><button className="crm-button" onClick={() => {setOpen(false);setWorkflowPanel('preferences');}}>Importer preferences</button><button className="crm-button" onClick={() => {setOpen(false);setWorkflowPanel('agent');}}>Connection & schedule</button></div></section>}
-            <section><h3>About Nextstep</h3><p>An open-source CRM for your agent. You choose which agents have access.</p><a href="https://github.com/martinrajdl/nextstep" target="_blank" rel="noreferrer">View source on GitHub ↗</a></section>
+            {existingCollection && <section><h3><Plug size={18}/>Connected importer</h3><p>Your existing connection uses {existingCollection}. Its saved preferences and schedule are preserved.</p><div className="backend-actions"><AppButton className="crm-button" onClick={() => {setOpen(false);setWorkflowPanel('preferences');}}>Importer preferences</AppButton><AppButton className="crm-button" onClick={() => {setOpen(false);setWorkflowPanel('agent');}}>Connection & schedule</AppButton></div></section>}
+            <section><h3><Info size={18}/>About Nextstep</h3><p>An open-source CRM for your agent. You choose which agents have access.</p><a href="https://github.com/martinrajdl/nextstep" target="_blank" rel="noreferrer">View source on GitHub ↗</a></section>
             {error && (
               <p role="alert" className="crm-error">
                 {error}
@@ -410,13 +430,13 @@ export default function AppSettings({ children }: { children: ReactNode }) {
             )}
           </div>
           <footer>
-            <button
+            <AppButton
               className="crm-button"
               disabled={busy}
               onClick={() => setOpen(false)}
             >
               Done
-            </button>
+            </AppButton>
           </footer>
         </Modal>
       )}

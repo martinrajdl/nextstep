@@ -6,8 +6,10 @@ import { fileURLToPath } from 'node:url';
 
 if (process.platform !== 'darwin') throw new Error('Regenerate the macOS icon on a Mac with sips and iconutil. Packaged builds use the committed .icns file.');
 const root = fileURLToPath(new URL('../',import.meta.url));
-const source = resolve(root,'desktop/icons/nextstep.png');
-const output = resolve(root,'desktop/icons/nextstep.icns');
+const development = process.argv.includes('--dev');
+const name = development ? 'nextstep-dev' : 'nextstep';
+const source = resolve(root,`desktop/icons/${name}.png`);
+const output = resolve(root,`desktop/icons/${name}.icns`);
 const run = (command,args) => execFileSync(command,args,{encoding:'utf8',timeout:30000});
 const metadata = run('/usr/bin/sips',['-g','pixelWidth','-g','pixelHeight','-g','hasAlpha',source]);
 if (!/pixelWidth: 1024\b/.test(metadata) || !/pixelHeight: 1024\b/.test(metadata) || !/hasAlpha: yes\b/.test(metadata)) {
@@ -29,7 +31,7 @@ try {
   const result = resolve(directory,'nextstep.icns');
   run('/usr/bin/iconutil',['--convert','icns','--output',result,iconset]);
   copyFileSync(result,output);
-  run('/usr/bin/sips',['-z','256','256',source,'--out',resolve(root,'desktop/icons/nextstep-ui.png')]);
+  if (!development) run('/usr/bin/sips',['-z','256','256',source,'--out',resolve(root,'desktop/icons/nextstep-ui.png')]);
   console.log(`macOS icon ready: ${output} (16–1024 px, standard and Retina sizes)`);
 } finally {
   rmSync(directory,{recursive:true,force:true});

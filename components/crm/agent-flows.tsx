@@ -1,3 +1,4 @@
+import AppButton from '@/components/app-button';
 import { useEffect, useState } from 'react';
 import {
   ArrowRight,
@@ -58,7 +59,7 @@ export function FlowCard({
   onClick: () => void;
 }) {
   return (
-    <button className="crm-flow-card" onClick={onClick}>
+    <AppButton tooltip={`View progress: ${flow.goal}`} className="crm-flow-card" onClick={onClick}>
       <span className="crm-flow-icon">
         <Bot size={20} />
       </span>
@@ -75,7 +76,7 @@ export function FlowCard({
         {flowLabel(flow)}
       </span>
       <ArrowRight size={16} />
-    </button>
+    </AppButton>
   );
 }
 export default function AgentFlows({
@@ -134,17 +135,6 @@ export default function AgentFlows({
   }, [selectedId]);
   return (
     <>
-      <div className="crm-page-heading">
-        <div className="crm-eyebrow">
-          AGENTS DO THE WORK. YOU SEE IT HAPPEN.
-        </div>
-        <h1>Agent progress</h1>
-        <p>
-          See what your agent is finding, organizing, or updating. Agents report
-          their progress here; Nextstep shows which changes were saved.
-        </p>
-      </div>
-      <FlowLifecycle />
       {error && (
         <p role="alert" className="crm-error">
           {error}
@@ -160,40 +150,34 @@ export default function AgentFlows({
         ))}
       </div>
       {!flows.length && (
-        <div className="crm-empty">
-          <Bot size={36} />
-          <h2>Give your agent a direction.</h2>
-          <p>
-            Find contacts. Build a research library. Keep a project moving. Your
-            agent reports its flow here as it works.
-          </p>
-          <button className="crm-button crm-button-primary" onClick={onConnect}>
-            Connect an agent & write a brief <ArrowRight size={16} />
-          </button>
+        <div className="crm-empty crm-agent-empty">
+          <Bot size={28} />
+          <h2>No activity yet</h2>
+          <p>Your agent’s progress and saved changes will appear here.</p>
+          <AppButton className="crm-button" onClick={onConnect}>
+            Set up an agent <ArrowRight size={16} />
+          </AppButton>
         </div>
       )}
       {(offset > 0 || flows.length === 25) && (
         <div className="crm-pagination">
-          <button
+          <AppButton
             className="crm-button"
             disabled={!offset}
             onClick={() => setOffset((n) => Math.max(0, n - 25))}
           >
             Previous
-          </button>
-          <button
+          </AppButton>
+          <AppButton
             className="crm-button"
             disabled={flows.length < 25}
             onClick={() => setOffset((n) => n + 25)}
           >
             Next
-          </button>
+          </AppButton>
         </div>
       )}
-      <p className="crm-hint">
-        Progress is reported by your connected agent. Nextstep does not run or
-        schedule agents. The last update time shows how fresh each report is.
-      </p>
+      {!!flows.length && <p className="crm-hint">Progress is reported by your agent. Saved changes are verified against your workspace history.</p>}
       {selected && (
         <Modal
           wide
@@ -282,9 +266,9 @@ export default function AgentFlows({
             )}
           </div>
           <footer>
-            <button className="crm-button" onClick={() => setSelected(null)}>
+            <AppButton className="crm-button" onClick={() => setSelected(null)}>
               Close
-            </button>
+            </AppButton>
           </footer>
         </Modal>
       )}

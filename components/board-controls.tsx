@@ -1,3 +1,4 @@
+import AppButton, { ButtonTooltip } from '@/components/app-button';
 import { useEffect, useRef, useState } from 'react';
 import { Menu } from '@base-ui/react/menu';
 import { ArrowRight, ArrowUp, ArrowDown, Archive, MoreHorizontal, RotateCcw, Settings2, Plus } from 'lucide-react';
@@ -73,7 +74,7 @@ export function BoardSettingsButton({ stages, settings, onChange, onAddStage, er
   const ordered = arrangeStages(stages, settings);
   const hidden = stages.filter(s => settings.hiddenStages.includes(s.id)).length;
   return <>
-    <button aria-label={hidden ? `View settings, ${hidden} hidden` : 'View settings'} className="crm-button board-settings-button" onClick={() => setOpen(true)}><Settings2 size={15}/>View settings{hidden > 0 && <span>{hidden} hidden</span>}</button>
+    <AppButton aria-label={hidden ? `View settings, ${hidden} hidden` : 'View settings'} className="crm-button board-settings-button" onClick={() => setOpen(true)}><Settings2 size={15}/>View settings{hidden > 0 && <span>{hidden} hidden</span>}</AppButton>
     {open && <Modal title="View settings" subtitle="Name and order your stages, choose what’s visible, and set quick actions." onClose={() => setOpen(false)}>
       <div className="crm-form-body board-settings-body">
         <fieldset><legend>Visible stages</legend><p>Hiding a stage keeps its records and history. All stages remain available in Actions.</p>
@@ -84,15 +85,15 @@ export function BoardSettingsButton({ stages, settings, onChange, onAddStage, er
               if (name && name !== stage.name) onChange({...settings,stageNames:{...settings.stageNames,[stage.id]:name}});
               else e.target.value=stage.name;
             }}/>
-            <button className="crm-icon-button" aria-label={`Move ${stage.name} earlier`} disabled={index === 0} onClick={() => {const order=ordered.map(s => s.id);[order[index-1],order[index]]=[order[index],order[index-1]];onChange({...settings,stageOrder:order});}}><ArrowUp size={14}/></button>
-            <button className="crm-icon-button" aria-label={`Move ${stage.name} later`} disabled={index === ordered.length-1} onClick={() => {const order=ordered.map(s => s.id);[order[index+1],order[index]]=[order[index],order[index+1]];onChange({...settings,stageOrder:order});}}><ArrowDown size={14}/></button>
+            <AppButton className="crm-icon-button" aria-label={`Move ${stage.name} earlier`} disabled={index === 0} onClick={() => {const order=ordered.map(s => s.id);[order[index-1],order[index]]=[order[index],order[index-1]];onChange({...settings,stageOrder:order});}}><ArrowUp size={14}/></AppButton>
+            <AppButton className="crm-icon-button" aria-label={`Move ${stage.name} later`} disabled={index === ordered.length-1} onClick={() => {const order=ordered.map(s => s.id);[order[index+1],order[index]]=[order[index],order[index+1]];onChange({...settings,stageOrder:order});}}><ArrowDown size={14}/></AppButton>
           </div>)}
-          <button className="crm-text-button" onClick={() => onChange({...settings, hiddenStages: []})}>Show all stages</button>
+          <AppButton className="crm-text-button" onClick={() => onChange({...settings, hiddenStages: []})}>Show all stages</AppButton>
           {onAddStage && <form className="add-stage-form" onSubmit={event => {
             event.preventDefault();if (!newStage.trim() || adding) return;
             setAdding(true);setStageError('');
             onAddStage(newStage.trim()).then(() => setNewStage('')).catch(e => setStageError(e instanceof Error ? e.message : 'Could not add stage.')).finally(() => setAdding(false));
-          }}><input aria-label="New stage name" placeholder="New stage…" maxLength={80} value={newStage} onChange={event => setNewStage(event.target.value)} disabled={adding}/><button className="crm-icon-button" aria-label="Add stage" disabled={adding || !newStage.trim()}><Plus size={16}/></button></form>}
+          }}><input aria-label="New stage name" placeholder="New stage…" maxLength={80} value={newStage} onChange={event => setNewStage(event.target.value)} disabled={adding}/><AppButton className="crm-icon-button" aria-label="Add stage" disabled={adding || !newStage.trim()}><Plus size={16}/></AppButton></form>}
           {stageError && <p className="crm-error" role="alert">{stageError}</p>}
         </fieldset>
         <fieldset><legend>Quick actions</legend><p>Choose up to three stages for the drag action bar.</p>
@@ -100,7 +101,7 @@ export function BoardSettingsButton({ stages, settings, onChange, onAddStage, er
         </fieldset>
         {error && <p className="crm-error" role="alert">{error}</p>}
       </div>
-      <footer><button className="crm-button" onClick={() => setOpen(false)}>Done</button></footer>
+      <footer><AppButton className="crm-button" onClick={() => setOpen(false)}>Done</AppButton></footer>
     </Modal>}
   </>;
 }
@@ -112,7 +113,7 @@ export function RecordActions({ title, stages, current, quickActions, disabled, 
   const quick = stages.filter(s => quickActions.includes(s.id) && s.id !== current);
   const remaining = stages.filter(s => !quick.some(q => q.id === s.id));
   return <Menu.Root>
-    <Menu.Trigger className="record-actions-trigger" aria-label={`Actions for ${title}`} title="Actions" disabled={disabled} onPointerDown={e => e.stopPropagation()} onDragStart={e => e.preventDefault()}><MoreHorizontal size={17}/></Menu.Trigger>
+    <ButtonTooltip label="Actions"><Menu.Trigger className="record-actions-trigger" aria-label={`Actions for ${title}`} disabled={disabled} onPointerDown={e => e.stopPropagation()} onDragStart={e => e.preventDefault()}><MoreHorizontal size={17}/></Menu.Trigger></ButtonTooltip>
     <Menu.Portal><Menu.Positioner side="bottom" align="end" sideOffset={6} className="record-actions-positioner"><Menu.Popup className="record-actions-menu">
       {!archived && <><Menu.Group><Menu.GroupLabel>Quick actions</Menu.GroupLabel>{quick.map(s => <Menu.Item key={s.id} onClick={() => onMove(s.id)}><ArrowRight size={14}/>{s.name}</Menu.Item>)}{!quick.length && <Menu.Item disabled>No quick actions for this stage</Menu.Item>}</Menu.Group>
       <Menu.Group><Menu.GroupLabel>Move to stage</Menu.GroupLabel>{remaining.map(s => <Menu.Item key={s.id} disabled={s.id === current} onClick={() => onMove(s.id)}>{s.name}{s.id === current && <small>Current</small>}</Menu.Item>)}</Menu.Group></>}

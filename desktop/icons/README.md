@@ -6,6 +6,14 @@ Generated with the built-in Imagegen tool, preserving the original folded-ribbon
 
 Rebuild the ICNS and interface PNG on macOS with `pnpm desktop:icon`. The packaging script embeds the ICNS before code signing and includes the PNG for Electron's Dock icon. An artwork change requires a new signed and notarized app for distribution.
 
+`nextstep-dev.png` and `nextstep-dev.icns` are the development variants: a black tile with a blue blueprint drawing of the folded N, without text. Source runs, unsigned packages and automated desktop tests use these; signed production builds keep the neutral artwork. Generate the development ICNS with `pnpm desktop:icon --dev`. Both variants use this repository's MIT license.
+
+## Development edit prompt
+
+Mode: built-in Imagegen, transparent background. Edit target: `nextstep.png`.
+
+Keep the exact recognizable folded-ribbon N silhouette, continuous geometry, black rounded-square tile and transparent outer margin. Simplify the blueprint into only its main contours and essential curved folds. Use bold, smooth, solid electric-blue lines approximately 36 pixels thick on a 1024-pixel canvas, with rounded joins and generous black separation for legibility at 32–64 pixels. Remove all fine construction lines, grids, circles, crosshairs, dashed guides, close parallel lines and the blue tile border. No text, DEV label, numerals, badges, glow, metallic fill, outside shadow or mockup. The generated master is normalized to 1024 × 1024 with macOS sips.
+
 ## Final edit prompt
 
 Mode: built-in Imagegen, transparent background. Edit target: the generated neutral folded-ribbon N icon.

@@ -1,0 +1,343 @@
+/* Settings owns its type scale so compact record-editor styles cannot leak in. */
+.crm-dialog.app-settings-dialog {
+  --settings-title: 20px;
+  --settings-heading: 15px;
+  --settings-body: 13px;
+  --settings-note: 12px;
+  width: min(600px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  font-size: var(--settings-body);
+  line-height: 1.55;
+  scroll-padding-block: 112px 80px;
+}
+
+.crm-dialog.app-settings-dialog > header {
+  padding: 24px 28px 20px;
+}
+
+.crm-dialog.app-settings-dialog > header h2 {
+  font-size: var(--settings-title);
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.3px;
+}
+
+.crm-dialog.app-settings-dialog > header p {
+  margin: 4px 0 0;
+  font-size: var(--settings-body);
+  line-height: 1.55;
+  color: var(--crm-muted);
+}
+
+.crm-dialog.app-settings-dialog > footer {
+  padding: 16px 28px;
+}
+
+.app-settings-dialog .app-settings {
+  display: grid;
+  gap: 24px;
+  padding: 24px 28px;
+}
+
+.app-settings-dialog .app-settings > section {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.app-settings-dialog .app-settings > section + section {
+  padding-top: 24px;
+  border-top: 1px solid var(--crm-line);
+}
+
+.app-settings-dialog h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: var(--settings-heading);
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: -0.1px;
+  color: var(--crm-ink);
+}
+
+.app-settings-dialog h3 > svg {
+  flex-shrink: 0;
+  color: var(--crm-muted);
+}
+
+.app-settings-dialog .app-settings :is(p, output) {
+  margin: 0;
+  font-size: var(--settings-body);
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--crm-muted);
+  overflow-wrap: anywhere;
+}
+
+.app-settings-dialog .app-settings .settings-note,
+.app-settings-dialog .app-settings small {
+  font-size: var(--settings-note);
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--crm-muted);
+}
+
+.app-settings-dialog .settings-version {
+  margin-left: auto;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.crm-dialog.app-settings-dialog label,
+.app-settings-dialog legend {
+  font-size: var(--settings-body);
+  font-weight: 500;
+  line-height: 1.55;
+  color: var(--crm-ink);
+}
+
+.crm-dialog.app-settings-dialog .usage-consent {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.app-settings-dialog .usage-consent input {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: var(--primary);
+}
+
+.crm-dialog.app-settings-dialog input[type='url'] {
+  min-height: 40px;
+  font-size: var(--settings-body);
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--crm-ink);
+}
+
+.app-settings-dialog .crm-button,
+.app-settings-dialog .appearance-modes button,
+.app-settings-dialog .appearance-presets button {
+  min-height: 38px;
+  font-size: var(--settings-body);
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: normal;
+}
+
+.app-settings-dialog .crm-button > svg {
+  flex-shrink: 0;
+}
+
+.app-settings-dialog a:not(.crm-button) {
+  justify-self: start;
+  font-size: var(--settings-body);
+  font-weight: 500;
+  line-height: 1.55;
+  color: var(--crm-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--crm-line);
+}
+
+.app-settings-dialog a:not(.crm-button):hover {
+  text-decoration-color: currentColor;
+}
+
+.app-settings-dialog .settings-group {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.app-settings-dialog .backend-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+
+.app-settings-dialog .backend-status {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--crm-line);
+  border-radius: 8px;
+  background: var(--crm-surface);
+  overflow-wrap: anywhere;
+}
+
+.app-settings-dialog .backend-status strong {
+  font-size: var(--settings-body);
+  font-weight: 500;
+  color: var(--crm-ink);
+}
+
+.app-settings-dialog .appearance-modes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.app-settings-dialog .appearance-modes button {
+  display: flex;
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 24px;
+  border: 1px solid var(--crm-line);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--crm-ink);
+}
+
+.app-settings-dialog .appearance-modes button > svg:last-child:not(:first-child) {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+
+.app-settings-dialog .appearance-accents {
+  min-width: 0;
+  padding: 0;
+  margin: 8px 0 0;
+  border: 0;
+}
+
+.app-settings-dialog .appearance-accents legend {
+  margin-bottom: 8px;
+  padding: 0;
+}
+
+.app-settings-dialog .appearance-presets {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0 16px;
+}
+
+.app-settings-dialog .appearance-presets button {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 12px 4px;
+  border: 1px solid var(--crm-line);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--crm-ink);
+}
+
+.app-settings-dialog .appearance-presets button > span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: white;
+}
+
+.app-settings-dialog :is(.appearance-modes, .appearance-presets) button[aria-pressed='true'] {
+  border-color: var(--crm-strong);
+  background: var(--crm-accent);
+}
+
+.crm-dialog.app-settings-dialog .custom-accent {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.crm-dialog.app-settings-dialog .custom-accent input {
+  width: 40px;
+  height: 32px;
+  padding: 3px;
+  cursor: pointer;
+}
+
+.app-settings-dialog :is(code, pre) {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: var(--settings-note);
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--crm-ink);
+}
+
+.app-settings-dialog .crm-details {
+  margin: 0;
+  font-size: var(--settings-body);
+  line-height: 1.6;
+  color: var(--crm-muted);
+}
+
+.app-settings-dialog .crm-details summary {
+  width: fit-content;
+  font-weight: 500;
+  color: var(--crm-ink);
+  cursor: pointer;
+}
+
+.app-settings-dialog .crm-details > :not(summary) {
+  margin-top: 12px;
+}
+
+.app-settings-dialog .crm-details > a {
+  display: inline-block;
+}
+
+.app-settings-dialog .crm-details pre {
+  padding: 12px 14px;
+  border: 1px solid var(--crm-line);
+  border-radius: 6px;
+  background: var(--crm-surface);
+  font-size: var(--settings-note);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.app-settings-dialog .app-settings :is(.crm-error, .settings-error-text) {
+  color: light-dark(#984131, #efb7aa);
+}
+
+@media (max-width: 480px) {
+  .crm-dialog.app-settings-dialog {
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+  }
+
+  .crm-dialog.app-settings-dialog > header,
+  .crm-dialog.app-settings-dialog > footer,
+  .app-settings-dialog .app-settings {
+    padding-inline: 20px;
+  }
+
+  .app-settings-dialog .appearance-modes button {
+    flex-direction: column;
+    padding: 12px 8px;
+  }
+
+  .app-settings-dialog .appearance-presets {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .crm-dialog.app-settings-dialog input[type='url'] {
+    font-size: 16px;
+  }
+}

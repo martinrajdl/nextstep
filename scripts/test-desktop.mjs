@@ -44,6 +44,7 @@ try {
     args: [...(executablePath ? [] : [root]), '--database', database],
     env: {
       ...process.env,
+      NEXTSTEP_DEV_ICON: '1',
       NEXTSTEP_DB_PATH: '',
       DB_PATH: '',
       NEXTSTEP_DISABLE_UPDATES: '1',
@@ -54,6 +55,7 @@ try {
   });
   const page = await app.firstWindow(),
     errors = [];
+  expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getTitle())).toBe('Nextstep Dev');
   page.on('pageerror', (e) => errors.push(e.message));
   await page
     .getByRole('navigation', { name: 'Collections', exact: true })

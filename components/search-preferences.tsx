@@ -1,3 +1,4 @@
+import AppButton from '@/components/app-button';
 import { useEffect, useState, type SubmitEvent } from 'react';
 import { Check, SlidersHorizontal } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -65,9 +66,9 @@ export default function SearchPreferences({ onClose, onSaved }: Props) {
         <div className="editor-footer">
           {error && <div className="form-error" role="alert">{error}</div>}
           <div className="editor-actions">
-            {!draft && error && <button className="secondary-button" type="button" onClick={() => { setError(''); setAttempt(value => value + 1); }}>Retry loading</button>}
-            <button className="secondary-button cancel-button" type="button" onClick={close} disabled={busy}>Cancel</button>
-            <button className="primary-button" type="submit" disabled={busy || !draft}><Check size={16}/>{busy ? 'Saving…' : 'Save preferences'}</button>
+            {!draft && error && <AppButton className="secondary-button" type="button" onClick={() => { setError(''); setAttempt(value => value + 1); }}>Retry loading</AppButton>}
+            <AppButton className="secondary-button cancel-button" type="button" onClick={close} disabled={busy}>Cancel</AppButton>
+            <AppButton className="primary-button" type="submit" disabled={busy || !draft}><Check size={16}/>{busy ? 'Saving…' : 'Save preferences'}</AppButton>
           </div>
         </div>
       </form>

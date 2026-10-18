@@ -1,6 +1,6 @@
 {
   "name": "nextstep-local-crm",
-  "version": "0.4.5",
+  "version": "0.4.8",
   "private": true,
   "description": "A local, composable CRM for your agents, with optional human review.",
   "license": "MIT",
@@ -21,7 +21,7 @@
     "background:status": "node scripts/background.mjs status",
     "test": "node --test tests/store.test.mjs tests/setup.test.mjs tests/agent.test.mjs tests/mcp.test.mjs tests/macos-release.test.mjs tests/onboarding.test.mjs tests/agent-connector.test.mjs tests/agent-handoff.test.mjs tests/composable.test.mjs tests/crm-mcp.test.mjs tests/backend.test.mjs tests/flows.test.mjs tests/usage.test.mjs tests/updates.test.mjs tests/unified.test.mjs",
     "test:e2e": "playwright test",
-    "lint": "oxlint app components/job-board.tsx components/job-list.tsx components/opportunity-editor.tsx components/search-preferences.tsx components/agent-connection.tsx components/onboarding-wizard.tsx lib/model.ts lib/search-profile.ts lib/agent.ts components/crm lib/crm.ts components/app-settings.tsx components/board-controls.tsx",
+    "lint": "oxlint app components/job-board.tsx components/job-list.tsx components/opportunity-editor.tsx components/search-preferences.tsx components/agent-connection.tsx components/onboarding-wizard.tsx lib/model.ts lib/search-profile.ts lib/agent.ts components/crm lib/crm.ts components/app-settings.tsx components/board-controls.tsx components/app-button.tsx components/ui/button.tsx",
     "format": "oxfmt",
     "desktop": "electron .",
     "desktop:icon": "node scripts/build-macos-icon.mjs",

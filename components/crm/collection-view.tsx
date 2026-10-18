@@ -1,9 +1,13 @@
+import AppButton, { ButtonTooltip } from '@/components/app-button';
 import { useEffect, useState } from 'react';
+import { Menu } from '@base-ui/react/menu';
 import {
   Archive,
   ArrowUpRight,
+  Check,
   Columns3,
   Filter as FilterIcon,
+  MoreHorizontal,
   Plus,
   Search,
   Settings2,
@@ -127,7 +131,7 @@ function ViewEditor({
         </div>
         <footer>
           {view && (
-            <button
+            <AppButton
               type="button"
               className="crm-button crm-archive-button"
               disabled={busy}
@@ -144,14 +148,14 @@ function ViewEditor({
               }}
             >
               Delete view
-            </button>
+            </AppButton>
           )}
-          <button type="button" className="crm-button" onClick={onClose}>
+          <AppButton type="button" className="crm-button" onClick={onClose}>
             Cancel
-          </button>
-          <button className="crm-button crm-button-primary" disabled={busy}>
+          </AppButton>
+          <AppButton className="crm-button crm-button-primary" disabled={busy}>
             Save view
-          </button>
+          </AppButton>
         </footer>
       </form>
     </Modal>
@@ -350,56 +354,34 @@ export default function CollectionView({
   const stageName = (id:string) => boardStages.find(s => s.id===id)?.name || id;
   return (
     <>
-      <div className="crm-collection-heading">
-        <div>
-          <div className="crm-eyebrow">
-            COLLECTION <span style={{ background: collection.color }} />
-          </div>
-          <h1>{collection.name}</h1>
-          <p>
-            {collection.description ||
-              'A space for the information that matters.'}
-          </p>
-        </div>
-        <div className="crm-heading-actions">
-          <button className="crm-button" onClick={onSchema}>
-            <Settings2 size={16} />
-            Edit fields
-          </button>
-          <button className="crm-button crm-button-primary" onClick={onNew}>
-            <Plus size={16} />
-            New record
-          </button>
-        </div>
-      </div>
-      <div className="crm-saved-views">
-        <button
-          aria-pressed={viewId === 'all'}
-          onClick={() => selectView('all')}
-        >
-          <Table2 size={15} />
-          All records
-        </button>
-        {collection.views?.map((view) => (
-          <button
-            key={view.id}
-            aria-pressed={viewId === view.id}
-            onClick={() => selectView(view.id)}
+      <section className="crm-collection-controls" aria-label="Collection controls">
+        <div className="crm-layout-switch" aria-label="View layout">
+          <AppButton
+            aria-label="Table view"
+            aria-pressed={layout === 'table'}
+            title="Table view"
+            onClick={() => setLayout('table')}
           >
-            {view.layout === 'board' ? (
-              <Columns3 size={15} />
-            ) : (
-              <Table2 size={15} />
-            )}{' '}
-            {view.name}
-          </button>
-        ))}
-        <button onClick={() => setViewEditor(true)}>
-          <Plus size={14} />
-          {view ? 'Edit view' : 'Save a view'}
-        </button>
-      </div>
-      <div className="crm-toolbar">
+            <Table2 size={16} />
+          </AppButton>
+          <AppButton
+            aria-label="Board view"
+            aria-pressed={layout === 'board'}
+            disabled={!groupBy}
+            title={groupBy ? 'Board view' : 'Add a select field to use a board'}
+            onClick={() => setLayout('board')}
+          >
+            <Columns3 size={16} />
+          </AppButton>
+        </div>
+        {layout === 'board' && (
+          <label className="crm-board-group">
+            Group by
+            <select aria-label="Board group" value={groupBy} onChange={event => setGroupBy(event.target.value)}>
+              {collection.fields.filter(field => field.type === 'select').map(field => <option key={field.key} value={field.key}>{field.name}</option>)}
+            </select>
+          </label>
+        )}
         <label className="crm-search">
           <Search size={16} />
           <input
@@ -409,15 +391,15 @@ export default function CollectionView({
             onChange={(e) => setQuery(e.target.value)}
           />
         </label>
-        <button
+        <AppButton
           className={`crm-button ${filters.length ? 'crm-button-active' : ''}`}
           aria-expanded={showFilter}
           onClick={() => setShowFilter(!showFilter)}
         >
           <FilterIcon size={14} />
           Filter{filters.length ? ` · ${filters.length}` : ''}
-        </button>
-        <button
+        </AppButton>
+        <AppButton
           className="crm-button"
           aria-pressed={archived}
           onClick={() => {
@@ -427,39 +409,34 @@ export default function CollectionView({
         >
           <Archive size={14} />
           {archived ? 'Archived' : 'Archive'}
-        </button>
+        </AppButton>
         {layout === 'board' && <BoardSettingsButton stages={groups.map(id => ({id, name:id || 'No status'}))} settings={boardPreferences.settings} onChange={value => void boardPreferences.save(value)} onAddStage={async name => {
           if (stageOptions.includes(name)) throw new Error('A stage with that name already exists.');
           await applyChange(`Add ${name} stage`, [{type:'update_collection',id:collection.id,version:collection.version,fields:collection.fields.map(f => f.key === groupBy ? {...f,options:[...(f.options || []),name]} : f)}]);
           await onChanged();
         }} error={boardPreferences.error}/>}
-        <div className="crm-layout-switch" aria-label="View layout">
-          <button
-            aria-label="Table view"
-            aria-pressed={layout === 'table'}
-            onClick={() => setLayout('table')}
-          >
-            <Table2 size={16} />
-          </button>
-          <button
-            aria-label="Board view"
-            aria-pressed={layout === 'board'}
-            disabled={!groupBy}
-            title={groupBy ? 'Board view' : 'Add a select field to use a board'}
-            onClick={() => setLayout('board')}
-          >
-            <Columns3 size={16} />
-          </button>
-        </div>
-        <button
-          className="crm-icon-button"
-          aria-label="Import JSON"
-          title="Import JSON"
-          onClick={onImport}
-        >
-          <Upload size={16} />
-        </button>
-      </div>
+        <Menu.Root>
+          <ButtonTooltip label="Collection actions"><Menu.Trigger className="crm-icon-button" aria-label="Collection actions"><MoreHorizontal size={18}/></Menu.Trigger></ButtonTooltip>
+          <Menu.Portal><Menu.Positioner side="bottom" align="end" sideOffset={6} className="record-actions-positioner"><Menu.Popup className="record-actions-menu">
+            {Boolean(collection.views?.length) && <Menu.Group>
+              <Menu.GroupLabel>Saved views</Menu.GroupLabel>
+              <Menu.RadioGroup value={viewId} onValueChange={selectView}>
+                {[{id:'all',name:'All records'}, ...(collection.views || [])].map(savedView => <Menu.RadioItem key={savedView.id} value={savedView.id} closeOnClick>
+                  {savedView.name}<Menu.RadioItemIndicator><Check size={14}/></Menu.RadioItemIndicator>
+                </Menu.RadioItem>)}
+              </Menu.RadioGroup>
+              <Menu.Separator className="crm-menu-separator"/>
+            </Menu.Group>}
+            <Menu.Item onClick={onSchema}><Settings2 size={14}/>Edit fields</Menu.Item>
+            <Menu.Item onClick={() => setViewEditor(true)}><Plus size={14}/>{view ? 'Edit view' : 'Save a view'}</Menu.Item>
+            <Menu.Item onClick={onImport}><Upload size={14}/>Import JSON</Menu.Item>
+          </Menu.Popup></Menu.Positioner></Menu.Portal>
+        </Menu.Root>
+        <AppButton className="crm-button crm-button-primary crm-new-record" onClick={onNew}>
+          <Plus size={16} />
+          New record
+        </AppButton>
+      </section>
       {showFilter && (
         <div className="crm-filters">
           {filters.map((filter, index) => (
@@ -539,7 +516,7 @@ export default function CollectionView({
                   }}
                 />
               )}
-              <button
+              <AppButton
                 className="crm-icon-button"
                 aria-label={`Remove filter ${index + 1}`}
                 onClick={() => {
@@ -548,10 +525,10 @@ export default function CollectionView({
                 }}
               >
                 <X size={15} />
-              </button>
+              </AppButton>
             </div>
           ))}
-          <button
+          <AppButton
             className="crm-text-button"
             disabled={filters.length >= 10}
             onClick={() =>
@@ -563,7 +540,7 @@ export default function CollectionView({
           >
             <Plus size={14} />
             Add filter
-          </button>
+          </AppButton>
           <label>
             Sort
             <select
@@ -601,31 +578,12 @@ export default function CollectionView({
           </select>
         </div>
       )}
-      {layout === 'board' && (
-        <label className="crm-board-group">
-          Group by
-          <select
-            aria-label="Board group"
-            value={groupBy}
-            onChange={(e) => setGroupBy(e.target.value)}
-          >
-            {collection.fields
-              .filter((f) => f.type === 'select')
-              .map((f) => (
-                <option key={f.key} value={f.key}>
-                  {f.name}
-                </option>
-              ))}
-          </select>
-          <span>Drag a card or open its Actions menu.</span>
-        </label>
-      )}
       {error && (
         <p role="alert" className="crm-error">
           {error}
         </p>
       )}
-      <div aria-busy={loading}>
+      <div className="crm-records-viewport" aria-busy={loading}>
         {loading && !loadedKey ? <BoardSkeleton table={layout === 'table'}/> : !data.records.length ? (
           <div className="crm-empty">
             <Table2 size={32} />
@@ -644,14 +602,16 @@ export default function CollectionView({
                 : 'Add a record yourself, or ask your agent to shape the first batch.'}
             </p>
             {!archived && (
-              <button className="crm-button" onClick={onNew}>
+              <AppButton className="crm-button" onClick={onNew}>
                 <Plus size={15} />
                 Add a record
-              </button>
+              </AppButton>
             )}
           </div>
         ) : layout === 'table' ? (
-          <div className="crm-table-wrap">
+          // The scroll region is focusable so arrow/Page/End keys can scroll without opening a record.
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+          <section className="crm-table-wrap" aria-label="Collection records" tabIndex={0}>
             <table className="crm-table">
               <thead>
                 <tr>
@@ -670,7 +630,7 @@ export default function CollectionView({
                 {data.records.map((record) => (
                   <tr key={record.id}>
                     <th scope="row">
-                      <button disabled={loading} onClick={() => onOpen(record)}>
+                      <AppButton tooltip={`Open ${record.title}`} disabled={loading} onClick={() => onOpen(record)}>
                         <span
                           className="crm-record-mark"
                           style={{
@@ -682,7 +642,7 @@ export default function CollectionView({
                         </span>
                         {record.title}
                         <ArrowUpRight size={13} />
-                      </button>
+                      </AppButton>
                     </th>
                     {visibleFields.map((field) => {
                       const value = record.values[field.key];
@@ -736,7 +696,9 @@ export default function CollectionView({
                 ))}
               </tbody>
             </table>
-          </div>
+          </section>
+        ) : groups.every(g => hiddenStages.includes(g)) ? (
+          <div className="crm-empty"><h2>All stages are hidden.</h2><AppButton className="crm-button" onClick={() => void boardPreferences.save({...boardPreferences.settings, hiddenStages: []})}>Show all stages</AppButton></div>
         ) : (
           <div className="crm-board">
             {boardStages.filter(stage => !hiddenStages.includes(stage.id)).map(({id:group,name}) => (
@@ -764,7 +726,7 @@ export default function CollectionView({
                     className="crm-dot"
                     style={{ background: collection.color }}
                   />
-                  <h2>{name}</h2>
+                  <h2 title={name}>{name}</h2>
                   <span>
                     {
                       data.records.filter(
@@ -773,6 +735,9 @@ export default function CollectionView({
                     }
                   </span>
                 </header>
+                {/* Keyboard users can scroll this column independently of its record buttons. */}
+                {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
+                <section className="crm-board-cards" aria-label={`${name} records`} tabIndex={0}>
                 {data.records
                   .filter((r) => (r.values[groupBy] || '') === group)
                   .map((record) => (
@@ -795,8 +760,8 @@ export default function CollectionView({
                         setDragged(null);
                       }}
                     >
-                      <button onClick={() => onOpen(record)} disabled={loading}>
-                        <strong>{record.title}</strong>
+                      <AppButton tooltip={`Open ${record.title}`} onClick={() => onOpen(record)} disabled={loading}>
+                        <strong title={record.title}>{record.title}</strong>
                         {visibleFields
                           .filter(
                             (f) =>
@@ -806,21 +771,21 @@ export default function CollectionView({
                           )
                           .slice(0, view ? 4 : 2)
                           .map((f) => (
-                            <span key={f.key}>
+                            <span key={f.key} title={`${f.name}: ${displayValue(record.values[f.key])}`}>
                               <small>{f.name}</small>
                               {displayValue(record.values[f.key])}
                             </span>
                           ))}
-                      </button>
+                      </AppButton>
                       {actions(record)}
                     </article>
                   ))}
+                </section>
               </section>
             ))}
           </div>
         )}
       </div>
-      {layout === 'board' && groups.every(g => hiddenStages.includes(g)) && <div className="crm-empty"><h2>All stages are hidden.</h2><button className="crm-button" onClick={() => void boardPreferences.save({...boardPreferences.settings, hiddenStages: []})}>Show all stages</button></div>}
       {dragged && !archived && <div className="board-action-dock" aria-label="Drag actions">
         {[...actionStages.filter(g => groups.includes(g) && g !== dragged.values[groupBy]).map(stage => ({id:stage,label:stageName(stage)})), {id:'__archive__',label:'Archive'}].map(action => (
           // Card actions provide the same operation to keyboard and touch users.
@@ -838,20 +803,20 @@ export default function CollectionView({
             : '0 records'}
           {loading ? ' · Refreshing…' : ''}
         </span>
-        <button
+        <AppButton
           className="crm-button"
           disabled={!offset || loading}
           onClick={() => setOffset(Math.max(0, offset - 50))}
         >
           Previous
-        </button>
-        <button
+        </AppButton>
+        <AppButton
           className="crm-button"
           disabled={data.nextOffset === null || loading}
           onClick={() => setOffset(data.nextOffset!)}
         >
           Next
-        </button>
+        </AppButton>
       </div>
       {viewEditor && (
         <ViewEditor

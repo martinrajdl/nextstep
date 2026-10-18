@@ -1,0 +1,91 @@
+@layer focus {
+  /* One focus treatment for native controls, CRM dialogs and portalled UI primitives.
+     The first cascade layer gives these important rules precedence over component rings and local states. */
+  :root {
+    --focus-surface: light-dark(#e3e3e3, #41434a);
+    --focus-ink: var(--foreground);
+  }
+
+  :focus,
+  :focus::before,
+  :focus::after {
+    outline: none !important;
+  }
+
+  /* Transparent borders keep the control's dimensions stable when focus moves. */
+  :where(
+    button, a[href], input, textarea, select, summary,
+    [contenteditable='true'], [tabindex]:not([tabindex='-1']),
+    [role='button'], [role='tab'], [role='checkbox'], [role='radio'],
+    [role='switch'], [role='slider'], [role='option'],
+    [role='menuitem'], [role='menuitemcheckbox'], [role='menuitemradio']
+  ):focus {
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  :focus::before,
+  :focus::after {
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  :where(
+    button, a[href], input, textarea, select, summary,
+    [contenteditable='true'], [tabindex]:not([tabindex='-1']),
+    [role='button'], [role='tab'], [role='checkbox'], [role='radio'],
+    [role='switch'], [role='slider'], [role='option'],
+    [role='menuitem'], [role='menuitemcheckbox'], [role='menuitemradio']
+  ):focus-visible {
+    background-color: var(--focus-surface) !important;
+    color: var(--focus-ink) !important;
+  }
+
+  /* Composite inputs highlight their shared surface, including their icon/addons. */
+  :where(
+    .crm-search, [data-slot='input-group'], [data-slot='combobox-chips'],
+    [data-slot='attachment'], [data-slot='field-label']:has(> [data-slot='field'])
+  ):focus-within,
+  :where(.crm-board article, .job-card):has(> button:first-child:focus-visible) {
+    outline: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  :where(
+    .crm-search, [data-slot='input-group'], [data-slot='combobox-chips'],
+    [data-slot='attachment'], [data-slot='field-label']:has(> [data-slot='field'])
+  ):has(:focus-visible),
+  label:has(> input:is([type='checkbox'], [type='radio'], [type='color']):focus-visible),
+  :where(.crm-board article, .job-card):has(> button:first-child:focus-visible) {
+    background-color: var(--focus-surface) !important;
+    color: var(--focus-ink) !important;
+  }
+
+  :where(.crm-search, [data-slot='input-group'], [data-slot='combobox-chips'])
+    :is(input, textarea):focus-visible,
+  :where(.crm-board article, .job-card) > button:first-child:focus-visible {
+    background-color: transparent !important;
+  }
+
+  label:has(> input:is([type='checkbox'], [type='radio'], [type='color']):focus-visible) {
+    border-radius: 4px;
+  }
+
+  @media (forced-colors: active) {
+    :root {
+      --focus-surface: Highlight;
+      --focus-ink: HighlightText;
+    }
+
+    :focus-visible,
+    :where(
+      .crm-search, [data-slot='input-group'], [data-slot='combobox-chips'],
+      [data-slot='attachment'], [data-slot='field-label']:has(> [data-slot='field'])
+    ):has(:focus-visible),
+    label:has(> input:is([type='checkbox'], [type='radio'], [type='color']):focus-visible),
+    :where(.crm-board article, .job-card):has(> button:first-child:focus-visible) {
+      forced-color-adjust: none;
+    }
+  }
+}

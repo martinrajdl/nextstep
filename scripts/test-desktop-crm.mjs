@@ -27,6 +27,7 @@ try {
     args: [...(executablePath ? [] : [root]), '--database', database],
     env: {
       ...process.env,
+      NEXTSTEP_DEV_ICON: '1',
       NEXTSTEP_DB_PATH: '',
       DB_PATH: '',
       NEXTSTEP_DISABLE_UPDATES: '1',

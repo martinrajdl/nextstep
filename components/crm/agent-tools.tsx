@@ -1,3 +1,4 @@
+import AppButton from '@/components/app-button';
 import { useEffect, useState } from 'react';
 import {
   ArrowRight,
@@ -182,28 +183,29 @@ export function ChangeWorkbench({
         )}
       </div>
       <footer>
-        <button
+        <AppButton
           className="crm-button"
           onClick={() => void validate()}
           disabled={busy}
         >
           <Code2 size={15} />
           Validate & preview
-        </button>
-        <button
+        </AppButton>
+        <AppButton
           className="crm-button crm-button-primary"
           disabled={!preview || busy}
           onClick={() => void submit()}
         >
           <ArrowRight size={15} />
           Send to review
-        </button>
+        </AppButton>
       </footer>
     </Modal>
   );
 }
-export default function AgentTools({ workspace, onWorkbench, onNewCollection, onReview }: {
+export default function AgentTools({ workspace, onWorkbench, onNewCollection, onReview, embedded = false }: {
   workspace: Workspace;
+  embedded?: boolean;
   onWorkbench: () => void;
   onNewCollection: () => void;
   onReview: () => void;
@@ -237,27 +239,27 @@ export default function AgentTools({ workspace, onWorkbench, onNewCollection, on
     try { await navigator.clipboard.writeText(value); setCopied(label); setError(''); }
     catch { setError('Clipboard unavailable. Select and copy the text below.'); }
   }
-  const awaitingReview = workspace.pendingCount > 0;
-  const progress = workspace.recentFlows[0];
-  return <section className="crm-agent-start">
-    <div className="crm-start-symbol"><Bot size={28}/></div>
+  const awaitingReview = !embedded && workspace.pendingCount > 0;
+  const progress = !embedded && workspace.recentFlows[0];
+  return <section className={`crm-agent-start${embedded ? ' crm-agent-connection' : ''}`}>
+    {!embedded && <><div className="crm-start-symbol"><Bot size={28}/></div>
     <h1>{awaitingReview ? 'Ready for your review.' : 'Connect your agent.'}</h1>
-    <p className="crm-start-description">{awaitingReview ? 'Your agent has proposed changes. Take a look before they become part of your workspace.' : 'Tell it what you want to track. Your agent builds the structure and brings the information here.'}</p>
-    {awaitingReview ? <button className="crm-button crm-button-primary crm-review-start" onClick={onReview}>Review {workspace.pendingCount === 1 ? 'proposed changes' : `${workspace.pendingCount} proposals`}<ArrowRight size={17}/></button> : <div className="crm-connect-options">
+    <p className="crm-start-description">{awaitingReview ? 'Your agent has proposed changes. Take a look before they become part of your workspace.' : 'Tell it what you want to track. Your agent builds the structure and brings the information here.'}</p></>}
+    {awaitingReview ? <AppButton className="crm-button crm-button-primary crm-review-start" onClick={onReview}>Review {workspace.pendingCount === 1 ? 'proposed changes' : `${workspace.pendingCount} proposals`}<ArrowRight size={17}/></AppButton> : <div className="crm-connect-options">
       {(['codex','claude-code'] as const).map(provider => {
         const available = agents.some(agent => agent.provider === provider && agent.canConnect);
-        return <button className="crm-connect-option" key={provider} disabled={!available || Boolean(opening)} onClick={() => void openAgent(provider)}>
+        return <AppButton className="crm-connect-option" key={provider} disabled={!available || Boolean(opening)} onClick={() => void openAgent(provider)}>
           {provider === 'codex' ? <Bot size={23}/> : <Sparkles size={23}/>}<span><strong>{opening === provider ? 'Opening…' : `Connect ${agentLabel(provider)}`}</strong><small>{available ? 'Open a setup conversation' : 'Requires the desktop app'}</small></span><ArrowRight size={17}/>
-        </button>;
+        </AppButton>;
       })}
     </div>}
     <output className="crm-setup-status">
       {progress ? <span><span className="crm-progress-dot"/> {progress.message || 'Your agent is working on your workspace.'}</span> : opened ? <span>Send the prepared request in {agentLabel(opened)}. Your agent will ask what you want to track. Watch your workspace take shape here.</span> : <span>{backendUrl ? 'For a self-hosted workspace, connect over SSH below.' : window.nextstepDesktop ? 'Use an agent you already have. Your information stays on this computer.' : 'Open the Nextstep desktop app for one-click setup, or connect another agent below.'}</span>}
     </output>
     {error && <p className="crm-error" role="alert">{error}</p>}
-    <ol className="crm-start-steps" aria-label="Getting started">
+    {!embedded && <ol className="crm-start-steps" aria-label="Getting started">
       <li><span>1</span>Connect your agent</li><li><span>2</span>Tell it what you need</li><li><span>3</span>Follow its work here</li>
-    </ol>
+    </ol>}
     <details className="crm-advanced-setup">
       <summary>Other agents & advanced setup</summary>
       <div className="crm-advanced-body">
@@ -265,13 +267,13 @@ export default function AgentTools({ workspace, onWorkbench, onNewCollection, on
         <p>Add this connection to your agent’s MCP settings, then send it the setup request below.</p>
         {backendUrl && <label>SSH host<input aria-label="SSH host" value={sshHost} onChange={event => setSshHost(event.target.value.replace(/[^a-zA-Z0-9_.@-]/g,''))}/></label>}
         <pre>{JSON.stringify(configuration,null,2)}</pre>
-        <button className="crm-button" onClick={() => void copy(JSON.stringify(configuration,null,2),'config')}><Copy size={15}/>{copied === 'config' ? 'Copied' : 'Copy connection'}</button>
+        <AppButton className="crm-button" onClick={() => void copy(JSON.stringify(configuration,null,2),'config')}><Copy size={15}/>{copied === 'config' ? 'Copied' : 'Copy connection'}</AppButton>
         <p className="crm-hint">{workspace.policy.reviewRequired ? 'Require review is on. Agent changes wait for your approval.' : 'Your agent can save changes directly. Turn on Require review in Settings if you prefer to approve them first.'}</p>
-        <button className="crm-button" onClick={() => void copy(crmAgentRequest,'prompt')}><Copy size={15}/>{copied === 'prompt' ? 'Copied' : 'Copy setup request'}</button>
+        <AppButton className="crm-button" onClick={() => void copy(crmAgentRequest,'prompt')}><Copy size={15}/>{copied === 'prompt' ? 'Copied' : 'Copy setup request'}</AppButton>
         <details className="crm-details"><summary>Read setup request</summary><p className="crm-generated-brief">{crmAgentRequest}</p></details>
         <hr/>
         <h2>Manual tools</h2>
-        <div className="crm-manual-actions"><button className="crm-button" onClick={onNewCollection}>Create a collection</button><button className="crm-button" onClick={onWorkbench}><FileJson size={16}/>Open JSON workbench</button></div>
+        <div className="crm-manual-actions"><AppButton className="crm-button" onClick={onNewCollection}>Create a collection</AppButton><AppButton className="crm-button" onClick={onWorkbench}><FileJson size={16}/>Open JSON workbench</AppButton></div>
       </div>
     </details>
   </section>;

@@ -1,3 +1,4 @@
+import AppButton from '@/components/app-button';
 import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import Modal from './modal';
@@ -210,7 +211,7 @@ export default function SchemaEditor({
                       ))}
                     </select>
                   </label>
-                  <button
+                  <AppButton
                     type="button"
                     aria-label={`Remove field ${index + 1}`}
                     className="crm-icon-button"
@@ -222,7 +223,7 @@ export default function SchemaEditor({
                     }}
                   >
                     <Trash2 size={16} />
-                  </button>
+                  </AppButton>
                 </div>
                 {['select', 'multiselect'].includes(field.type) && (
                   <label>
@@ -288,7 +289,7 @@ export default function SchemaEditor({
               </div>
             ))}
           </div>
-          <button
+          <AppButton
             type="button"
             className="crm-button crm-button-subtle"
             disabled={fields.length >= 40}
@@ -302,7 +303,7 @@ export default function SchemaEditor({
           >
             <Plus size={15} />
             Add field
-          </button>
+          </AppButton>
           {collection && (
             <p className="crm-hint">
               Changes are checked against every record and saved view. Existing
@@ -316,7 +317,7 @@ export default function SchemaEditor({
           )}
         </div>
         <footer>
-          <button
+          <AppButton
             type="button"
             className="crm-button"
             disabled={busy}
@@ -326,14 +327,14 @@ export default function SchemaEditor({
             }}
           >
             Cancel
-          </button>
-          <button className="crm-button crm-button-primary" disabled={busy}>
+          </AppButton>
+          <AppButton className="crm-button crm-button-primary" disabled={busy}>
             {busy
               ? 'Saving…'
               : collection
                 ? 'Save schema'
                 : 'Create collection'}
-          </button>
+          </AppButton>
         </footer>
       </form>
     </Modal>
