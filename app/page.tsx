@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowDownToLine, ArrowUpRight, Bot, CalendarDays, Columns3, List, Plus, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowUpRight, Bot, CalendarDays, Columns3, List, Plus, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
@@ -153,7 +153,6 @@ export default function Home() {
         <div className="search-wrap"><Search size={15}/><input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Search opportunities…" aria-label="Search opportunities"/>{query && <button className="clear-search" onClick={() => setQuery('')} aria-label="Clear search"><X size={13}/></button>}</div>
         <NativeSelect className="filter-select" aria-label="Filter opportunities" value={filter} onChange={e => setFilter(e.target.value)}><NativeSelectOption value="all">All priorities</NativeSelectOption><NativeSelectOption value="high">High priority</NativeSelectOption><NativeSelectOption value="due">Follow-ups due{dueCount > 0 ? ` (${dueCount})` : ''}</NativeSelectOption></NativeSelect>
         {view === 'list' && <NativeSelect className="sort-select" aria-label="Sort opportunities" value={sort} onChange={e => setSort(e.target.value)}><NativeSelectOption value="manual">Pipeline order</NativeSelectOption><NativeSelectOption value="company">Company A–Z</NativeSelectOption><NativeSelectOption value="due">Follow-up date</NativeSelectOption><NativeSelectOption value="newest">Newest first</NativeSelectOption></NativeSelect>}
-        <a className="export-button" href="/api/export" download title="Export a JSON backup" aria-label="Export a JSON backup"><ArrowDownToLine size={16}/></a>
       </div>
       {loadError && <div className="connection-error" role="alert"><span>Couldn’t connect to your local database. Your saved opportunities are still on this device.</span><button className="secondary-button" onClick={() => { setLoading(true); void refresh(); }}><RefreshCw size={14}/>Retry</button></div>}
       {filtered && <div className="filter-notice"><span>{visible.length} matching {visible.length === 1 ? 'opportunity' : 'opportunities'}</span><button onClick={() => { setQuery('');setFilter('all'); }}>Clear filters <X size={12}/></button></div>}

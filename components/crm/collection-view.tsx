@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   Archive,
-  ArrowDownToLine,
   ArrowUpRight,
   Columns3,
   Filter as FilterIcon,
@@ -339,21 +338,6 @@ export default function CollectionView({
   function actions(record: RecordItem) {
     return <RecordActions title={record.title} stages={boardStages} current={String(record.values[groupBy] || '')} quickActions={actionStages} disabled={moving || loading} archived={archived} onMove={stage => void move(record, stage)} onArchive={() => void archive(record)}/>;
   }
-  function exportRecords() {
-    const payload = JSON.stringify(
-      { collection, records: data.records },
-      null,
-      2,
-    );
-    const url = URL.createObjectURL(
-      new Blob([payload], { type: 'application/json' }),
-    );
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${collection.id}-visible-records.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
   const groups = [
     ...(collection.fields.find(f => f.key === groupBy)?.required ? [] : ['']),
     ...stageOptions,
@@ -470,15 +454,6 @@ export default function CollectionView({
           onClick={onImport}
         >
           <Upload size={16} />
-        </button>
-        <button
-          className="crm-icon-button"
-          aria-label="Export visible records"
-          title="Export visible records"
-          disabled={loading || Boolean(error)}
-          onClick={exportRecords}
-        >
-          <ArrowDownToLine size={16} />
         </button>
       </div>
       {showFilter && (

@@ -87,8 +87,6 @@ h1 { font-size: 36px; font-weight: 620; line-height: 1.15; letter-spacing: -1.5p
 .scope-switch button[aria-pressed=true] { color: light-dark(hsl(var(--accent-hue) calc(24.8% * var(--accent-saturation)) 30.8%), hsl(var(--accent-hue) calc(24.8% * var(--accent-saturation)) 86.5%)); background: light-dark(hsl(var(--accent-hue) calc(30.0% * var(--accent-saturation)) 96.1%), hsl(var(--accent-hue) calc(30.0% * var(--accent-saturation)) 16.3%)); font-weight: 550; }
 .scope-switch button span { font-size: 12px; color: light-dark(hsl(var(--accent-hue) calc(12.3% * var(--accent-saturation)) 63.3%), hsl(var(--accent-hue) calc(12.3% * var(--accent-saturation)) 67.0%)); }
 .filter-select select,.sort-select select { height: 36px; font-size: 13px; border-radius: 7px; }
-.export-button { display: grid; place-items: center; flex-shrink: 0; width: 34px; height: 36px; border: 1px solid var(--border); border-radius: 7px; color: light-dark(hsl(var(--accent-hue) calc(11.9% * var(--accent-saturation)) 53.7%), hsl(var(--accent-hue) calc(11.9% * var(--accent-saturation)) 72.8%)); }
-.export-button:hover { background: light-dark(hsl(var(--accent-hue) calc(47.4% * var(--accent-saturation)) 96.3%), hsl(var(--accent-hue) calc(47.4% * var(--accent-saturation)) 16.2%)); color: var(--primary); }
 .column-visibility-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; flex-shrink: 0; height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: 7px; color: light-dark(hsl(var(--accent-hue) calc(10.7% * var(--accent-saturation)) 50.4%), hsl(var(--accent-hue) calc(10.7% * var(--accent-saturation)) 74.8%)); background: light-dark(white, #1d1f25); font-size: 12px; white-space: nowrap; }
 .column-visibility-button:hover { background: light-dark(hsl(var(--accent-hue) calc(47.4% * var(--accent-saturation)) 96.3%), hsl(var(--accent-hue) calc(47.4% * var(--accent-saturation)) 16.2%)); color: var(--primary); }
 .search-wrap input { padding-right: 30px; }
@@ -206,7 +204,6 @@ h1 { font-size: 36px; font-weight: 620; line-height: 1.15; letter-spacing: -1.5p
 }
 @media(min-width:701px) and (max-width:1150px) { .search-wrap input { width:185px; } }
 @media(min-width:701px) and (max-width:850px) { .search-wrap input { width:145px; } .filter-select { width:125px; } }
-@media(max-width: 700px) { .export-button { display: none; } }
 
 /* Agent connection and search history share the existing editor layout. */
 .agent-sheet .field select,.agent-sheet .field input { width:100%; border:1px solid var(--border); border-radius:6px; padding:10px 12px; background:light-dark(white, #1d1f25); font:inherit; }

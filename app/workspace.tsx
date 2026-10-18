@@ -1,7 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import {
   Activity,
-  ArrowDownToLine,
   ArrowRight,
   Bot,
   ChevronRight,
@@ -333,15 +332,6 @@ export default function WorkspaceApp() {
             >
               <RefreshCw size={15} />
             </button>
-            <a
-              className="crm-icon-button"
-              href="/api/crm/export"
-              download
-              aria-label="Export workspace"
-              title="Export collections, records, proposals and history"
-            >
-              <ArrowDownToLine size={16} />
-            </a>
           </div>
         </header>
         <main id="workspace-content" className={`crm-content ${route === 'legacy-board' ? 'crm-pipeline-content' : ''}`}>

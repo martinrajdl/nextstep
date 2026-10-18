@@ -53,6 +53,8 @@ The MCP connection always includes the selected database's absolute path. Your a
 
 For a full backup, stop the app and any connected MCP helpers, then copy the database and any SQLite `-wal`/`-shm` companion files together. A SQLite backup operation is also safe while the database is open. Workspace JSON export includes collections, records, views, proposals, flows and history; it is not a full database backup.
 
+Data downloads live in **Settings → Data & backend**. **Export collections** includes all records, including archived ones, rather than only the visible page. Separate existing workspaces appear there with their own export when present. Workspace and pipeline toolbars stay focused on browsing and editing.
+
 ## First-run setup
 
 The first launch asks you to **Connect your agent**. Choose **Connect Codex** or **Connect Claude Code**. Nextstep adds a separate `nextstep-crm` MCP connection for the selected database and opens a new local conversation with the setup request prefilled. Review and send it in your agent; Nextstep does not send automatically.

@@ -8,6 +8,8 @@ import {
 import { Check, Download, RefreshCw, Database, Monitor, Moon, Palette, Server, Sun, ShieldCheck } from 'lucide-react';
 import Modal from './crm/modal';
 import { errorMessage, type UpdateState, type ThemePreference } from '@/lib/agent';
+import { request } from '@/lib/model';
+import type { Workspace } from '@/lib/crm';
 import '../app/appearance.css';
 
 const presets = [
@@ -64,6 +66,28 @@ const PreferencesContext = createContext<Preferences>({
   openSettings: () => {},
 });
 export const useAppPreferences = () => useContext(PreferencesContext);
+
+function DataExports() {
+  const [workspaces, setWorkspaces] = useState<NonNullable<Workspace['existingWorkspaces']>>([]);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    request<Workspace>('/api/crm/context')
+      .then(value => { if (!cancelled) setWorkspaces(value.existingWorkspaces || []); })
+      .catch(error => { if (!cancelled) setError(errorMessage(error)); });
+    return () => { cancelled = true; };
+  }, []);
+  return <>
+    <div className="backend-actions">
+      <a className="crm-button" href="/api/crm/export" download><Download size={15}/>Export collections</a>
+      {workspaces.filter(workspace => workspace.id === 'legacy-board').map(workspace =>
+        <a key={workspace.id} className="crm-button" href="/api/export" download><Download size={15}/>Export {workspace.name}</a>
+      )}
+    </div>
+    <p className="crm-hint">Download your data as JSON. Collection exports include all records, views, proposals and history. JSON exports are not a full database backup.</p>
+    {error && <p className="crm-error" role="alert">Couldn’t load workspace exports. {error}</p>}
+  </>;
+}
 
 export default function AppSettings({ children }: { children: ReactNode }) {
   const [update, setUpdate] = useState<UpdateState | null>(null);
@@ -269,6 +293,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
                       : window.location.origin)}
                 </small>
               </div>
+              <DataExports />
               {window.nextstepDesktop ? (
                 <>
                   <p>

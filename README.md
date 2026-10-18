@@ -32,7 +32,7 @@ Automatic connection is available for installed Mac desktop agents. **Other agen
 - **Reviewable changes:** proposals show the values before and after. Approval validates the whole change together; stale proposals cannot overwrite newer decisions. A trusted connection can explicitly enable direct writes.
 - **Visible progress:** see the agent’s reports, sources and pending work alongside confirmed applied changes. Records keep their history and can be archived and restored.
 - **Your appearance:** light, dark or system mode, with a neutral default and optional color accents. Choose in Settings or the native View → Appearance menu. The app icon stays unchanged.
-- **Your data:** local SQLite, complete workspace JSON export and private self-hosting. No built-in model. Optional anonymous usage counts are off by default.
+- **Your data:** local SQLite, JSON exports in Settings → Data & backend, and private self-hosting. No built-in model. Optional anonymous usage counts are off by default.
 
 <details>
 <summary>Pipeline stages, dark mode and appearance settings</summary>
