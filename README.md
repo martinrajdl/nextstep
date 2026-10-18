@@ -6,7 +6,7 @@ Tell your agent what you need to keep track of. It builds the collections, field
 
 Nextstep is a local-first **Electron app** with a SQLite database on your computer. It is open source, works with your own agent, and can connect to a [backend on your own server](docs/self-hosting.md). No Nextstep account, model subscription or API key is required.
 
-**[Download for macOS · Apple silicon](https://github.com/martinrajdl/nextstep/releases/download/v0.4.3/Nextstep-0.4.3-macOS-arm64.zip)** · [Website](https://nextstep-website-lemon.vercel.app/) · [All releases](https://github.com/martinrajdl/nextstep/releases)
+**[Download for macOS · Apple silicon](https://github.com/martinrajdl/nextstep/releases/download/v0.4.4/Nextstep-0.4.4-macOS-arm64.zip)** · [Website](https://nextstep-website-lemon.vercel.app/) · [All releases](https://github.com/martinrajdl/nextstep/releases)
 
 ![A Nextstep collection with fictional people, companies and next steps](docs/images/workspace.png)
 
