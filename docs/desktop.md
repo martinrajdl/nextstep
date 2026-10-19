@@ -4,6 +4,8 @@ Nextstep is primarily a local-first Electron app. It bundles its interface, HTTP
 
 On macOS, reopening the app also works while an agent connector is running. If macOS sends the open request to a windowless connector, it starts or focuses the desktop process using the desktop's saved database/backend selection. The connector keeps its separate database selection and stdio connection.
 
+Table/board layout is remembered for each collection. Browser sessions use local storage; Electron also stores the preference per database/backend so it survives the changing loopback port when the app restarts. This does not change shared saved views or records.
+
 ## Build and run
 
 From a checkout, with Node 24 and the pnpm version in `package.json`:

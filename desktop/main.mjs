@@ -204,6 +204,15 @@ function settingsBridge() {
     if (typeof key !== 'string' || !key || key.length > 300) throw new Error('Invalid view settings key.');
     return createHash('sha256').update(`${service.backendUrl || service.database}:${key}`).digest('hex');
   };
+  ipcMain.handle('nextstep:collection-layout',(event,key) => { validateSender(event); return readPreferences(app.getPath('userData')).collectionLayouts?.[boardKey(key)] || null; });
+  ipcMain.handle('nextstep:set-collection-layout',(event,key,value) => {
+    validateSender(event);
+    const id = boardKey(key);
+    if (value !== 'table' && value !== 'board') throw new Error('Invalid collection layout.');
+    const existing = readPreferences(app.getPath('userData')).collectionLayouts || {};
+    writePreferences(app.getPath('userData'),{collectionLayouts:{...existing,[id]:value}});
+    return value;
+  });
   ipcMain.handle('nextstep:board-settings',(event,key) => { validateSender(event); return readPreferences(app.getPath('userData')).boardSettings?.[boardKey(key)] || null; });
   ipcMain.handle('nextstep:set-board-settings',(event,key,value) => {
     validateSender(event);

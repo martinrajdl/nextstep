@@ -10,6 +10,8 @@ declare global {
   interface Window {
     nextstepDesktop?: {
       platform: string;
+      getCollectionLayout: (key:string) => Promise<'table' | 'board' | null>;
+      setCollectionLayout: (key:string,value:'table' | 'board') => Promise<'table' | 'board'>;
       getBoardSettings: (key:string) => Promise<import('@/components/board-controls').BoardSettings | null>;
       setBoardSettings: (key:string,value:import('@/components/board-controls').BoardSettings) => Promise<import('@/components/board-controls').BoardSettings>;
       getUpdateState: () => Promise<UpdateState>;

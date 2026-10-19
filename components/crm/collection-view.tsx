@@ -1,3 +1,4 @@
+import { useCollectionLayout } from './use-collection-layout';
 import AppButton, { ButtonTooltip } from '@/components/app-button';
 import { useEffect, useState } from 'react';
 import { Menu } from '@base-ui/react/menu';
@@ -191,8 +192,8 @@ export default function CollectionView({
     [archived, setArchived] = useState(false),
     [loadedKey, setLoadedKey] = useState(''),
     [error, setError] = useState('');
-  const [layout, setLayout] = useState<'table' | 'board'>(initialView?.layout || 'table'),
-    [groupBy, setGroupBy] = useState(
+  const [layout, setLayout] = useCollectionLayout(collection.id, initialView?.layout || 'table', collection.fields.some(f => f.type === 'select'));
+  const [groupBy, setGroupBy] = useState(
       initialView?.groupBy || collection.fields.find((f) => f.type === 'select')?.key || '',
     ),
     [viewId, setViewId] = useState(initialView?.id || 'all');

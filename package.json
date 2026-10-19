@@ -28,7 +28,7 @@
     "desktop:package": "pnpm build && node scripts/package-desktop.mjs",
     "desktop:release": "pnpm build && node scripts/package-desktop.mjs darwin --release",
     "mcp": "node mcp/stdio.mjs",
-    "test:desktop": "node scripts/test-desktop.mjs && node scripts/test-desktop-settings.mjs && node scripts/test-desktop-crm.mjs && node scripts/test-desktop-reopen.mjs",
+    "test:desktop": "node scripts/test-desktop.mjs && node scripts/test-desktop-settings.mjs && node scripts/test-desktop-crm.mjs && node scripts/test-desktop-reopen.mjs && node scripts/test-desktop-layout.mjs",
     "crm": "node scripts/crm.mjs",
     "mcp:crm": "node mcp/crm-stdio.mjs"
   },

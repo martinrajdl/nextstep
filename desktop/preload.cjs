@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('nextstepDesktop', Object.freeze({
   connectAgent: provider => ipcRenderer.invoke('nextstep:connect-agent', provider),
   openAgent: (provider,purpose) => ipcRenderer.invoke('nextstep:open-agent', provider,purpose),
   openCrmAgent: provider => ipcRenderer.invoke('nextstep:open-crm-agent',provider),
+  getCollectionLayout: key => ipcRenderer.invoke('nextstep:collection-layout',key),
+  setCollectionLayout: (key,value) => ipcRenderer.invoke('nextstep:set-collection-layout',key,value),
   getBoardSettings: key => ipcRenderer.invoke('nextstep:board-settings',key),
   setBoardSettings: (key,value) => ipcRenderer.invoke('nextstep:set-board-settings',key,value),
   getUpdateState: () => ipcRenderer.invoke('nextstep:update-state'),
