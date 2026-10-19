@@ -2,6 +2,8 @@
 
 Nextstep is primarily a local-first Electron app. It bundles its interface, HTTP server, SQLite runtime, and local MCP connectors. Your agent runs the workflow: sourcing information, shaping collections, saving changes and moving records. You follow progress on the Agent page and can opt into reviewing changes. Connection and setup instructions are optional, expandable tools on that same page. No model key or external database service is needed for local use.
 
+On macOS, reopening the app also works while an agent connector is running. If macOS sends the open request to a windowless connector, it starts or focuses the desktop process using the desktop's saved database/backend selection. The connector keeps its separate database selection and stdio connection.
+
 ## Build and run
 
 From a checkout, with Node 24 and the pnpm version in `package.json`:

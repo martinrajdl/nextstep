@@ -13,6 +13,7 @@ import { backendOrigin } from '../server/backend.mjs';
 import { crmAgentRequest } from '../lib/crm-agent-request.ts';
 import { createUsageReporter } from './usage.mjs';
 import { createUpdater } from './updates.mjs';
+import { forwardDesktopActivation } from './reopen.mjs';
 import { createHash } from 'node:crypto';
 
 app.setName('Nextstep');
@@ -267,6 +268,7 @@ async function main() {
     await app.whenReady();
     if (crmMcpMode) await startCrmMcp(appDatabase(),{requireReview:process.argv.includes('--require-review'),onClose:() => app.quit()});
     else await startMcp(appDatabase(),() => app.quit());
+    if (process.platform === 'darwin') forwardDesktopActivation(app);
     return;
   }
   if (!app.requestSingleInstanceLock()) { app.quit(); return; }
