@@ -1,3 +1,4 @@
+import type {} from '@/lib/agent';
 import { useEffect, useRef, useState } from 'react';
 
 type Layout = 'table' | 'board';
