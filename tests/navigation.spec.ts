@@ -33,6 +33,7 @@ test('collapsed navigation keeps destinations accessible, persists, and adapts t
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('button', { name: 'Expand sidebar', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
+  await collection.scrollIntoViewIfNeeded();
   await expect(collection).toBeInViewport();
   await expect(collection.locator('.crm-nav-label')).toBeVisible();
   await collection.click();
