@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-test('slate dark surfaces stay distinct and readable across collections and settings', async ({ page, request }) => {
-  const id = `slate_${Date.now()}`;
+test('black surfaces stay neutral and readable with aligned records and spaced history', async ({ page, request }) => {
+  const id = `theme_${Date.now()}`;
   expect((await request.post('/api/crm/apply', { data: {
     id: crypto.randomUUID(), title: 'Fictional theme review', operations: [
       { type: 'create_collection', id, name: 'Research', fields: [
@@ -14,6 +14,7 @@ test('slate dark surfaces stay distinct and readable across collections and sett
   await page.addInitScript(() => localStorage.setItem('nextstep-theme-v1', 'dark'));
   await page.goto(`/#/collections/${id}`);
   await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.getByRole('button', { name: 'Collapse sidebar', exact: true }).click();
   await page.getByRole('button', { name: 'Board view', exact: true }).click();
   const surfaces = await page.evaluate(() => {
     const rgb = (color: string) => color.match(/[\d.]+/g)!.slice(0, 3).map(Number);
@@ -25,19 +26,27 @@ test('slate dark surfaces stay distinct and readable across collections and sett
     const shell = getComputedStyle(document.querySelector('.crm-shell')!);
     const card = getComputedStyle(document.querySelector('.crm-board article')!);
     const text = getComputedStyle(document.querySelector('.crm-board article span')!);
-    return { darkestChannel: Math.max(...rgb(shell.backgroundColor)), cardContrast: contrast(card.color, card.backgroundColor), detailContrast: contrast(text.color, card.backgroundColor), distinct: shell.backgroundColor !== card.backgroundColor };
+    const neutralSurfaces = ['.crm-shell', '.crm-sidebar', '.crm-board > section', '.crm-board article'].every(selector => {
+      const channels = rgb(getComputedStyle(document.querySelector(selector)!).backgroundColor);
+      return channels.every(channel => channel === channels[0]);
+    });
+    return { darkestChannel: Math.max(...rgb(shell.backgroundColor)), neutralSurfaces, cardContrast: contrast(card.color, card.backgroundColor), detailContrast: contrast(text.color, card.backgroundColor), distinct: shell.backgroundColor !== card.backgroundColor };
   });
-  expect(surfaces.darkestChannel).toBeLessThanOrEqual(16);
+  expect(surfaces.darkestChannel).toBe(0);
+  expect(surfaces.neutralSurfaces).toBe(true);
   expect(surfaces.distinct).toBe(true);
   expect(surfaces.cardContrast).toBeGreaterThanOrEqual(4.5);
   expect(surfaces.detailContrast).toBeGreaterThanOrEqual(4.5);
-  await page.screenshot({ path: 'test-results/slate-board.png', animations: 'disabled' });
+  await page.screenshot({ path: 'test-results/black-board.png', animations: 'disabled' });
   await page.getByRole('button', { name: 'Table view', exact: true }).click();
   await expect(page.getByRole('table')).toBeVisible();
-  await page.screenshot({ path: 'test-results/slate-table.png', animations: 'disabled' });
+  const markerPositions = await page.locator('.crm-table .crm-record-mark').evaluateAll(markers => markers.map(marker => marker.getBoundingClientRect().left));
+  expect(markerPositions).toHaveLength(3);
+  expect(Math.max(...markerPositions) - Math.min(...markerPositions)).toBeLessThan(1);
+  await page.screenshot({ path: 'test-results/black-table.png', animations: 'disabled' });
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(page.getByRole('checkbox', { name: 'Require review', exact: true })).toHaveCount(1);
-  await page.screenshot({ path: 'test-results/slate-settings.png', animations: 'disabled' });
+  await page.screenshot({ path: 'test-results/black-settings.png', animations: 'disabled' });
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('button', { name: 'New record', exact: true }).click();
@@ -46,11 +55,23 @@ test('slate dark surfaces stay distinct and readable across collections and sett
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Unsaved example');
-  await page.screenshot({ path: 'test-results/slate-record.png', animations: 'disabled' });
+  await page.screenshot({ path: 'test-results/black-record.png', animations: 'disabled' });
   page.once('dialog', dialog => dialog.accept());
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('link', { name: 'History', exact: true }).click();
+  const history = page.locator('.crm-activity-list > button');
+  await expect(history.nth(1)).toBeVisible();
+  const firstEvent = (await history.nth(0).boundingBox())!;
+  const secondEvent = (await history.nth(1).boundingBox())!;
+  expect(secondEvent.y - firstEvent.y - firstEvent.height).toBeGreaterThanOrEqual(6);
+  await page.screenshot({ path: 'test-results/black-history.png', animations: 'disabled' });
+  await history.first().click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.goto(`/#/collections/${id}`);
+  await expect(page.getByRole('table')).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({ path: 'test-results/slate-mobile.png', animations: 'disabled' });
+  await page.screenshot({ path: 'test-results/black-mobile.png', animations: 'disabled' });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

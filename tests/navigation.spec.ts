@@ -12,8 +12,8 @@ test('collapsed navigation keeps destinations accessible, persists, and adapts t
   const collapse = page.getByRole('button', { name: 'Collapse sidebar', exact: true });
   await collapse.click();
   await expect(page.getByRole('button', { name: 'Expand sidebar', exact: true })).toHaveAttribute('aria-expanded', 'false');
-  expect((await page.locator('.crm-sidebar').boundingBox())!.width).toBe(64);
-  expect((await page.locator('.crm-main').boundingBox())!.x).toBe(64);
+  expect((await page.locator('.crm-sidebar').boundingBox())!.width).toBe(52);
+  expect((await page.locator('.crm-main').boundingBox())!.x).toBe(52);
   const collection = page.getByRole('navigation', { name: 'Collections', exact: true }).getByRole('link', { name: 'Design projects', exact: true });
   await collection.hover();
   await expect(page.getByRole('tooltip')).toHaveText('Design projects');

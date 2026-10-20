@@ -65,13 +65,17 @@ try {
   await expect(page.locator('html')).toHaveAttribute('data-accent', '#4473cf');
   await app.evaluate(({ Menu }) => Menu.getApplicationMenu().getMenuItemById('theme-dark').click());
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(0, 0, 0)');
   expect(await app.evaluate(({ nativeTheme }) => nativeTheme.themeSource)).toBe('dark');
   await expect(page.locator('.desktop-titlebar')).toHaveCount(0);
   expect((await page.locator('.crm-sidebar').boundingBox()).y).toBe(0);
   await expect(page.locator('.crm-brand img')).toHaveAttribute('src', icon);
   await page.getByRole('button', { name: 'Collapse sidebar', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Expand sidebar', exact: true })).toBeVisible();
-  expect((await page.locator('.crm-sidebar').boundingBox()).width).toBe(process.platform === 'darwin' ? 84 : 64);
+  expect((await page.locator('.crm-sidebar').boundingBox()).width).toBe(52);
+  if (process.platform === 'darwin') {
+    expect((await page.getByRole('link', { name: 'Workspace home', exact: true }).boundingBox()).x).toBeGreaterThanOrEqual(96);
+  }
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByLabel('Backend tunnel address').fill(upstream.url);
   await page

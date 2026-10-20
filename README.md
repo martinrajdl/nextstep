@@ -6,7 +6,7 @@ Tell your agent what you need to keep track of. It builds the collections, field
 
 Nextstep is a local-first **Electron app** with a SQLite database on your computer. It is open source, works with your own agent, and can connect to a [backend on your own server](docs/self-hosting.md). No Nextstep account, model subscription or API key is required.
 
-**[Download for macOS · Apple silicon](https://github.com/martinrajdl/nextstep/releases/download/v0.4.10/Nextstep-0.4.10-macOS-arm64.zip)** · [Website](https://www.nextstepcrm.com/) · [All releases](https://github.com/martinrajdl/nextstep/releases)
+**[Download for macOS · Apple silicon](https://github.com/martinrajdl/nextstep/releases/download/v0.4.11/Nextstep-0.4.11-macOS-arm64.zip)** · [Website](https://www.nextstepcrm.com/) · [All releases](https://github.com/martinrajdl/nextstep/releases)
 
 ![A Nextstep collection with fictional people, companies and next steps](docs/images/workspace.png)
 
@@ -114,7 +114,7 @@ node scripts/capture-screenshots.mjs  # Fictional documentation screenshots
 
 Node 22.13+ supports the SQLite runtime; Node 24 is recommended and used in CI. Dependencies are pinned. Tests never seed the selected user database. For contributor guidance, see [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md).
 
-The interface uses shared shadcn components in `components/ui/` for controls, dialogs, menus, tooltips, tables and navigation. `app/theme.css` owns the light and dark semantic color tokens. Dark mode pairs a near-black canvas with slate surfaces; accent preferences affect actions without tinting the workspace. Domain layouts use these same tokens, and `app/focus.css` provides the shared keyboard focus treatment.
+The interface uses shared shadcn components in `components/ui/` for controls, dialogs, menus, tooltips, tables and navigation. `app/theme.css` owns the light and dark semantic color tokens. Dark mode pairs a black canvas with neutral charcoal surfaces; accent preferences affect actions without tinting the workspace. Domain layouts use these same tokens, and `app/focus.css` provides the shared keyboard focus treatment.
 
 ## License
 

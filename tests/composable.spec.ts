@@ -510,7 +510,7 @@ test('light, dark and system modes persist across Jobs and collections without c
   await page.getByRole('button',{name:'Settings',exact:true}).click();
   await page.getByRole('button',{name:'Dark mode',exact:true}).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
-  await expect(page.locator('body')).toHaveCSS('background-color','rgb(9, 12, 16)');
+  await expect(page.locator('body')).toHaveCSS('background-color','rgb(0, 0, 0)');
   await page.getByRole('button',{name:'Blue accent',exact:true}).click();
   await expect(page.locator('html')).toHaveAttribute('data-accent','#4473cf');
   await page.screenshot({path:'test-results/settings-dark.png'});

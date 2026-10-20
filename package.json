@@ -1,6 +1,6 @@
 {
   "name": "nextstep-local-crm",
-  "version": "0.4.10",
+  "version": "0.4.11",
   "private": true,
   "description": "A local, composable CRM for your agents, with optional human review.",
   "license": "MIT",

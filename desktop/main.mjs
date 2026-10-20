@@ -100,7 +100,7 @@ function external(url) {
 }
 async function showWindow() {
   if (window && !window.isDestroyed()) { window.show(); window.focus(); return; }
-  window = new BrowserWindow({width:1450,height:980,minWidth:750,minHeight:600,title:windowTitle,icon:iconPath(),backgroundColor:nativeTheme.shouldUseDarkColors ? '#090c10' : '#ffffff',...(process.platform === 'darwin' ? {titleBarStyle:'hiddenInset',trafficLightPosition:{x:14,y:11}} : {}),webPreferences:{preload:resolve(import.meta.dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  window = new BrowserWindow({width:1450,height:980,minWidth:750,minHeight:600,title:windowTitle,icon:iconPath(),backgroundColor:nativeTheme.shouldUseDarkColors ? '#000000' : '#ffffff',...(process.platform === 'darwin' ? {titleBarStyle:'hiddenInset',trafficLightPosition:{x:14,y:11}} : {}),webPreferences:{preload:resolve(import.meta.dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
   if (developmentIcon) window.on('page-title-updated',event => event.preventDefault());
   window.on('focus',() => { void usage?.checkIn().catch(() => {}); });
   window.webContents.setWindowOpenHandler(({url}) => { external(url); return {action:'deny'}; });
@@ -289,7 +289,7 @@ async function main() {
   const usageTimer = setInterval(() => { void usage.checkIn().catch(() => {}); },60*60*1000);
   usageTimer.unref();
   nativeTheme.themeSource = preferences().theme;
-  nativeTheme.on('updated',() => window?.setBackgroundColor(nativeTheme.shouldUseDarkColors ? '#090c10' : '#ffffff'));
+  nativeTheme.on('updated',() => window?.setBackgroundColor(nativeTheme.shouldUseDarkColors ? '#000000' : '#ffffff'));
   const selected = readPreferences(app.getPath('userData')).backendUrl;
   if (process.platform === 'darwin') {
     app.dock?.setIcon(iconPath());

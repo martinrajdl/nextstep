@@ -159,7 +159,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.dataset.theme = resolvedTheme;
     document.documentElement.classList.toggle('dark', resolvedTheme === 'dark');
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolvedTheme === 'dark' ? '#090c10' : '#ffffff');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolvedTheme === 'dark' ? '#000000' : '#ffffff');
     try { localStorage.setItem(themeKey, theme); } catch { /* Native settings are independent. */ }
   }, [theme, resolvedTheme]);
   useEffect(() => {
@@ -296,7 +296,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
               </fieldset>
               <fieldset className="appearance-accents">
                 <legend>Accent color</legend>
-                <p className="settings-note">Accent colors highlight actions in either mode. Surfaces use the same slate palette.</p>
+                <p className="settings-note">Accent colors highlight actions. Dark mode uses black and neutral gray surfaces.</p>
                 <div className="appearance-presets">
                   {presets.map(([name, color]) => (
                     <AppButton

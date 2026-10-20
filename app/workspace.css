@@ -400,7 +400,7 @@
   font-size: 10px;
   color: var(--muted-foreground);
   box-shadow: 0 6px 20px
-    rgb(2 6 23 / 0.024);
+    rgb(0 0 0 / 0.024);
   z-index: 2;
 }
 .art-one {
@@ -834,6 +834,7 @@
   text-align: left;
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 10px;
   font-size: 12px;
   color: var(--foreground);
@@ -1065,7 +1066,7 @@
   border-radius: 6px;
   margin-bottom: 10px;
   box-shadow: 0 1px 3px
-    rgb(2 6 23 / 0.016);
+    rgb(0 0 0 / 0.016);
 }
 .crm-board article > button:not(.record-actions-trigger) {
   display: flex;
@@ -1132,6 +1133,10 @@
 .crm-view-tabs button[aria-pressed='true'] {
   color: var(--foreground);
   border-color: var(--primary);
+}
+.crm-activity-list {
+  display: grid;
+  gap: 8px;
 }
 .crm-review-list > button,
 .crm-activity-list > button {
@@ -1320,7 +1325,7 @@
   max-height: calc(100vh - 56px);
   background: var(--card);
   box-shadow: 0 30px 100px
-    rgb(2 6 23 / 0.145);
+    rgb(0 0 0 / 0.145);
   font-family: var(--font-sans);
   font-size: 12px;
   margin: 0;
@@ -1770,7 +1775,7 @@
     position: fixed;
     inset: 0;
     z-index: 15;
-    background: rgb(2 6 23 / 0.314);
+    background: rgb(0 0 0 / 0.314);
   }
   .crm-topbar {
     height: 57px;
@@ -2256,9 +2261,10 @@
 .crm-sidebar-close { margin-left:auto; }
 .crm-collection-dot > span { display:none; }
 .crm-sidebar .crm-nav-label { overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block; }
-.crm-shell.is-sidebar-collapsed { --crm-sidebar-width:64px; }
-html[data-desktop='darwin'] .crm-shell.is-sidebar-collapsed { --crm-sidebar-width:84px; }
-.is-sidebar-collapsed .crm-sidebar { padding-inline:8px; }
+.crm-shell.is-sidebar-collapsed { --crm-sidebar-width:52px; }
+.is-sidebar-collapsed .crm-sidebar { padding-inline:4px; }
+html[data-desktop='darwin'] .is-sidebar-collapsed .crm-topbar { padding-left:calc(96px - var(--crm-sidebar-width)); }
+html[data-desktop='darwin'] .is-sidebar-collapsed .crm-sidebar::before { width:96px; }
 .is-sidebar-collapsed .crm-sidebar-brand-row { justify-content:center;padding:0; }
 .is-sidebar-collapsed .crm-brand,
 .is-sidebar-collapsed .crm-nav-label,
