@@ -5,6 +5,10 @@ import { spawn } from 'node:child_process';
 export function forwardDesktopActivation(app, { launch = spawn, executable = process.execPath, env = process.env, now = Date.now, report = console.error } = {}) {
   let lastLaunch = -Infinity;
   const activate = () => {
+    // macOS can promote a hidden connector back into the Dock when its bundle
+    // is opened. Reset its policy even inside the debounce: dock.hide() can
+    // ignore calls made less than a second apart.
+    app.setActivationPolicy('accessory');
     if (now() - lastLaunch < 1000) return;
     lastLaunch = now();
     const desktopEnv = { ...env };

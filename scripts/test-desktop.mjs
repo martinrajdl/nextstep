@@ -56,6 +56,7 @@ try {
   const page = await app.firstWindow(),
     errors = [];
   expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getTitle())).toBe('Nextstep Dev');
+  if (process.platform === 'darwin') expect(await app.evaluate(({ app }) => app.dock.isVisible())).toBe(true);
   page.on('pageerror', (e) => errors.push(e.message));
   await page
     .getByRole('navigation', { name: 'Collections', exact: true })

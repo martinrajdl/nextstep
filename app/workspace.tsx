@@ -385,7 +385,21 @@ export default function WorkspaceApp() {
               <div className="crm-page-heading crm-home-heading"><div><h1>Your workspace</h1><p>Your agent organizes the information. You keep the overview.</p></div><AppButton className="crm-button" onClick={() => navigate('agents')}><Bot size={16}/>Agent</AppButton></div>
               {workspace.pendingCount > 0 && <AppButton tooltip="Review proposed changes" className="crm-review-banner" onClick={() => navigate('review')}><Inbox size={20}/><span><strong>{workspace.pendingCount} {workspace.pendingCount === 1 ? 'change is' : 'changes are'} ready for review</strong><small>See what your agent wants to add or update.</small></span><ArrowRight size={18}/></AppButton>}
               <section className="crm-overview-section">
-                <div className="crm-collection-cards">{workspace.collections.map(c => <AppButton tooltip={`Open ${c.name}`} key={c.id} onClick={() => navigate(`collections/${c.id}`)}><span style={{background:`${c.color}18`,color:c.color}}><Folder size={21}/></span><h2>{c.name}</h2><p>{c.description || `${c.fields.length} fields · ${c.recordCount} records`}</p><small>{c.recordCount} records<ArrowRight size={15}/></small></AppButton>)}</div>
+                <div className="crm-collection-cards">
+                  {workspace.collections.map(c => (
+                    <AppButton key={c.id} aria-label={`Open ${c.name}`} onClick={() => navigate(`collections/${c.id}`)}>
+                      <div className="crm-collection-card-heading">
+                        <span className="crm-collection-card-icon" aria-hidden="true" style={{background:`${c.color}18`,color:c.color}}><Folder size={19}/></span>
+                        <h2>{c.name}</h2>
+                      </div>
+                      {c.description && <p>{c.description}</p>}
+                      <small>
+                        <span>{c.recordCount} {c.recordCount === 1 ? 'record' : 'records'} · {c.fields.length} {c.fields.length === 1 ? 'field' : 'fields'}</span>
+                        <ArrowRight size={15} aria-hidden="true"/>
+                      </small>
+                    </AppButton>
+                  ))}
+                </div>
               </section>
               {workspace.recentFlows.length > 0 && <section className="crm-overview-section"><div className="crm-section-label"><h2>Agent progress</h2><AppButton className="crm-text-button" onClick={() => navigate('agents')}>View all<ArrowRight size={14}/></AppButton></div><div className="crm-flow-list">{workspace.recentFlows.slice(0,3).map(flow => <FlowCard key={flow.id} flow={flow} onClick={() => navigate('agents')}/>)}</div></section>}
               <details className="crm-home-tools"><summary>Manual tools</summary><div className="crm-manual-actions"><AppButton className="crm-button" onClick={() => setSchema({})}>Create a collection</AppButton><AppButton className="crm-button" onClick={() => setWorkbench({})}>Open JSON workbench</AppButton></div></details>

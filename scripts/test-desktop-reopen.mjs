@@ -23,9 +23,12 @@ for (const mode of ['--mcp', '--crm-mcp']) {
   try {
     helper = await electron.launch({ ...(executablePath ? {executablePath} : {}), args: [...(executablePath ? [] : [root]), mode, '--database', connectorDatabase], env: {...process.env, NEXTSTEP_USER_DATA:userData, NEXTSTEP_DISABLE_UPDATES:'1', NEXTSTEP_DISABLE_USAGE:'1', NEXTSTEP_DB_PATH:connectorDatabase, DB_PATH:'', NEXTSTEP_AGENT_CONFIG_HOME:join(directory,'agents')}, timeout:30000 });
     expect(await helper.evaluate(({BrowserWindow}) => BrowserWindow.getAllWindows().length)).toBe(0);
+    expect(await helper.evaluate(({app}) => app.dock.isVisible())).toBe(false);
     expect(children()).toEqual([]);
     for (let attempt = 0; attempt < 2; attempt++) {
-      await helper.evaluate(({app}) => app.emit('activate', {}, false));
+      // LaunchServices can promote the background process when opening its bundle.
+      await helper.evaluate(({app}) => { app.setActivationPolicy('regular'); app.emit('activate', {}, false); });
+      await expect.poll(() => helper.evaluate(({app}) => app.dock.isVisible())).toBe(false);
       await expect.poll(() => children().length, {timeout:15000}).toBe(1);
       childPid = children()[0];
       let port;
@@ -35,14 +38,20 @@ for (const mode of ['--mcp', '--crm-mcp']) {
       const result = await (await fetch(`http://127.0.0.1:${port}/api/opportunities`)).json();
       expect(result.opportunities.map(row => row.company)).toEqual(['Fictional Saved Choice']);
       expect(await helper.evaluate(({BrowserWindow}) => BrowserWindow.getAllWindows().length)).toBe(0);
+      await new Promise(resolve => setTimeout(resolve, 1100));
+      await helper.evaluate(({app}) => { app.setActivationPolicy('regular'); app.emit('activate', {}, false); });
+      await expect.poll(() => helper.evaluate(({app}) => app.dock.isVisible())).toBe(false);
+      await expect.poll(() => children(), {timeout:15000}).toEqual([childPid]);
       process.kill(childPid, 'SIGTERM');
       await expect.poll(() => children().length, {timeout:15000}).toBe(0); childPid = null;
       // Allow the activation debounce to expire before simulating another user open.
       await new Promise(resolve => setTimeout(resolve, 1100));
     }
-    console.log(`${mode}: background start stays windowless; two reopen cycles load the saved database.`);
+    console.log(`${mode}: background activation stays out of the Dock; repeated opens reuse the desktop and preserve the saved database.`);
   } finally {
-    if (childPid) { try { process.kill(childPid, 'SIGTERM'); } catch {} }
+    // An assertion may fail before childPid is assigned; close every desktop
+    // launched by this isolated helper before removing its temporary database.
+    for (const pid of helper ? children() : []) { try { process.kill(pid, 'SIGTERM'); } catch {} }
     await helper?.close(); rmSync(directory,{recursive:true,force:true});
   }
 }

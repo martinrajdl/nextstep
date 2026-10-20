@@ -23,6 +23,8 @@ const mcpMode = process.argv.includes('--mcp') || crmMcpMode;
 const developmentPackage = app.isPackaged && JSON.parse(readFileSync(resolve(app.getAppPath(),'package.json'),'utf8')).nextstepDevelopment === true;
 const developmentIcon = !app.isPackaged || developmentPackage || process.env.NEXTSTEP_DEV_ICON === '1';
 const windowTitle = developmentIcon ? 'Nextstep Dev' : 'Nextstep';
+// Only the desktop process holding the single-instance lock should join the Dock.
+if (process.platform === 'darwin') app.setActivationPolicy('accessory');
 let service;
 let window;
 let usage;
@@ -273,8 +275,8 @@ function settingsBridge() {
 }
 async function main() {
   if (mcpMode) {
-    app.dock?.hide();
     await app.whenReady();
+    if (process.platform === 'darwin') app.setActivationPolicy('accessory');
     if (crmMcpMode) await startCrmMcp(appDatabase(),{requireReview:process.argv.includes('--require-review'),onClose:() => app.quit()});
     else await startMcp(appDatabase(),() => app.quit());
     if (process.platform === 'darwin') forwardDesktopActivation(app);
@@ -306,6 +308,7 @@ async function main() {
   agentBridge();
   settingsBridge();
   buildMenu();
+  await app.dock?.show();
   await showWindow();
   const firstUpdateCheck = setTimeout(() => { void updater.automaticCheck(); },10000);
   const updateTimer = setInterval(() => { void updater.automaticCheck(); },6*60*60*1000);
