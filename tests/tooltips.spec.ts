@@ -59,7 +59,7 @@ test('compact view toggle and shared tooltips work with mouse, keyboard, menus a
     await expect(tooltip).toHaveText('Close dialog');
     expect(await tooltip.evaluate(node => {
       const rect = node.getBoundingClientRect();
-      return Boolean(node.closest('dialog')) && document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)?.closest('[role="tooltip"]') === node;
+      return Boolean(node.closest('[role=dialog]')) && document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)?.closest('[role="tooltip"]') === node;
     })).toBe(true);
     await page.screenshot({ path: `test-results/tooltip-settings-${theme.toLowerCase()}.png` });
     await page.keyboard.press('Escape');

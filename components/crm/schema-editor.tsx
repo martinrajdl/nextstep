@@ -1,3 +1,8 @@
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Checkbox } from '@/components/ui/checkbox';
 import AppButton from '@/components/app-button';
 import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
@@ -99,9 +104,9 @@ export default function SchemaEditor({
       <form onSubmit={save}>
         <div className="crm-form-body">
           <div className="crm-form-grid">
-            <label>
+            <Label>
               Collection name
-              <input
+              <Input
                 required
                 maxLength={80}
                 value={name}
@@ -112,10 +117,10 @@ export default function SchemaEditor({
                   setDirty(true);
                 }}
               />
-            </label>
-            <label>
+            </Label>
+            <Label>
               Collection key
-              <input
+              <Input
                 required
                 pattern="[a-z][a-z0-9_]{0,63}"
                 value={id}
@@ -127,11 +132,11 @@ export default function SchemaEditor({
                 }}
               />
               <small>Stable key used by your agents.</small>
-            </label>
+            </Label>
           </div>
-          <label>
+          <Label>
             Description
-            <textarea
+            <Textarea
               rows={2}
               value={description}
               maxLength={2000}
@@ -141,10 +146,10 @@ export default function SchemaEditor({
                 setDirty(true);
               }}
             />
-          </label>
-          <label className="crm-color-label">
+          </Label>
+          <Label className="crm-color-label">
             Collection color
-            <input
+            <Input
               type="color"
               value={color}
               onChange={(e) => {
@@ -152,7 +157,7 @@ export default function SchemaEditor({
                 setDirty(true);
               }}
             />
-          </label>
+          </Label>
           <div className="crm-section-label">
             <h3>Fields</h3>
             <span>Every record already has a title.</span>
@@ -161,9 +166,9 @@ export default function SchemaEditor({
             {fields.map((field, index) => (
               <div className="crm-schema-field" key={index}>
                 <div className="crm-field-row">
-                  <label>
+                  <Label>
                     Field name
-                    <input
+                    <Input
                       aria-label={`Field ${index + 1} name`}
                       value={field.name}
                       required
@@ -177,10 +182,10 @@ export default function SchemaEditor({
                         })
                       }
                     />
-                  </label>
-                  <label>
+                  </Label>
+                  <Label>
                     Key
-                    <input
+                    <Input
                       aria-label={`Field ${index + 1} key`}
                       value={field.key}
                       required
@@ -191,10 +196,10 @@ export default function SchemaEditor({
                         patchField(index, { key: e.target.value })
                       }
                     />
-                  </label>
-                  <label>
+                  </Label>
+                  <Label>
                     Type
-                    <select
+                    <NativeSelect
                       aria-label={`Field ${index + 1} type`}
                       value={field.type}
                       onChange={(e) =>
@@ -205,12 +210,12 @@ export default function SchemaEditor({
                       }
                     >
                       {Object.entries(labels).map(([value, label]) => (
-                        <option key={value} value={value}>
+                        <NativeSelectOption key={value} value={value}>
                           {label}
-                        </option>
+                        </NativeSelectOption>
                       ))}
-                    </select>
-                  </label>
+                    </NativeSelect>
+                  </Label>
                   <AppButton
                     type="button"
                     aria-label={`Remove field ${index + 1}`}
@@ -226,9 +231,9 @@ export default function SchemaEditor({
                   </AppButton>
                 </div>
                 {['select', 'multiselect'].includes(field.type) && (
-                  <label>
+                  <Label>
                     Options, separated by commas
-                    <input
+                    <Input
                       aria-label={`Field ${index + 1} options`}
                       value={(field.options || []).join(',')}
                       placeholder="New, In progress, Done"
@@ -238,52 +243,50 @@ export default function SchemaEditor({
                         })
                       }
                     />
-                  </label>
+                  </Label>
                 )}
                 {field.type === 'relation' && (
-                  <label>
+                  <Label>
                     Related collection
-                    <select
+                    <NativeSelect
                       required
                       value={field.collection || ''}
                       onChange={(e) =>
                         patchField(index, { collection: e.target.value })
                       }
                     >
-                      <option value="">Choose collection</option>
+                      <NativeSelectOption value="">Choose collection</NativeSelectOption>
                       {workspace.collections.map((c) => (
-                        <option key={c.id} value={c.id}>
+                        <NativeSelectOption key={c.id} value={c.id}>
                           {c.name}
-                        </option>
+                        </NativeSelectOption>
                       ))}
                       {!collection && id && (
-                        <option value={id}>{name || 'This collection'}</option>
+                        <NativeSelectOption value={id}>{name || 'This collection'}</NativeSelectOption>
                       )}
-                    </select>
-                  </label>
+                    </NativeSelect>
+                  </Label>
                 )}
                 <div className="crm-field-flags">
-                  <label>
-                    <input
-                      type="checkbox"
+                  <Label>
+                    <Checkbox
                       checked={field.required || false}
-                      onChange={(e) =>
-                        patchField(index, { required: e.target.checked })
+                      onCheckedChange={(e) =>
+                        patchField(index, { required: e })
                       }
                     />
                     Required
-                  </label>
+                  </Label>
                   {['text', 'email', 'url', 'number'].includes(field.type) && (
-                    <label>
-                      <input
-                        type="checkbox"
+                    <Label>
+                      <Checkbox
                         checked={field.unique || false}
-                        onChange={(e) =>
-                          patchField(index, { unique: e.target.checked })
+                        onCheckedChange={(e) =>
+                          patchField(index, { unique: e })
                         }
                       />
                       Unique
-                    </label>
+                    </Label>
                   )}
                 </div>
               </div>

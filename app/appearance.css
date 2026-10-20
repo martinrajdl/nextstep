@@ -1,20 +1,3 @@
-:root {
-  --crm-ink: light-dark(#292929, #ededed);
-  --crm-muted: light-dark(#666666, #cfcfcf);
-  --crm-line: light-dark(#e5e5e5, #404040);
-  --crm-surface: light-dark(#fafafa, #1d1f25);
-  --crm-accent: light-dark(hsl(
-    var(--accent-hue) calc(50% * var(--accent-saturation))
-      calc(94% - 16% * min(1, var(--accent-saturation)))
-  ), hsl(
-    var(--accent-hue) calc(50% * var(--accent-saturation))
-      calc(23% + 8% * min(1, var(--accent-saturation)))
-  ));
-  --crm-strong: light-dark(hsl(var(--accent-hue) calc(25% * var(--accent-saturation)) 31%), hsl(var(--accent-hue) calc(25% * var(--accent-saturation)) 86.4%));
-  --accent-hue: 0;
-  --accent-saturation: 0;
-  --primary: hsl(var(--accent-hue) calc(35% * var(--accent-saturation)) 32%);
-}
 .crm-settings-button {
   display: flex;
   align-items: center;
@@ -28,14 +11,10 @@
   margin-bottom: 12px;
 }
 .crm-settings-button:hover {
-  background: light-dark(hsl(var(--accent-hue) calc(20% * var(--accent-saturation)) 92%), hsl(var(--accent-hue) calc(20% * var(--accent-saturation)) 18.8%));
+  background: var(--accent);
 }
 
 /* The selected scheme is shared by native controls, both workspaces and portals. */
-:root { color-scheme:light; }
-:root[data-theme='dark'] { color-scheme:dark; --background:#17191e; --card:#1d1f25; }
-:root[data-theme='dark'] .crm-shell { background:#17191e; }
-:root[data-theme='dark'] .crm-dialog { color:#dedede; }
 /* The sidebar owns the native title-bar space; no separate strip. */
 html[data-desktop='darwin'] .crm-sidebar { padding-top:38px; }
 html[data-desktop='darwin'] .crm-sidebar::before { content:'';position:fixed;top:0;left:0;width:var(--crm-sidebar-width);height:32px;-webkit-app-region:drag; }
@@ -43,8 +22,5 @@ html[data-desktop='darwin'] .crm-topbar { -webkit-app-region:drag; }
 html[data-desktop='darwin'] .crm-topbar :is(a,button,input,select) { -webkit-app-region:no-drag; }
 @media (max-width:800px) { html[data-desktop='darwin'] .crm-topbar { padding-left:94px; } }
 [data-theme='dark'] .job-card,[data-theme='dark'] .crm-board article { box-shadow:0 1px 3px #0004; }
-[data-theme='dark'] .drag-handle { background:#1d1f25ed; }
+[data-theme='dark'] .drag-handle { background:var(--card); }
 .company-mark { color:light-dark(var(--company-color),color-mix(in srgb,var(--company-color) 65%,white));background:color-mix(in srgb,var(--company-color) 10%,transparent); }
-[data-theme='dark'] { --primary:hsl(var(--accent-hue) calc(45% * var(--accent-saturation)) 76%);--color-primary-foreground:#17191e; }
-[data-theme='dark'] .primary-button { color:#17191e; }
-[data-theme='dark'] .primary-button:hover { background:color-mix(in srgb,var(--primary) 88%,white); }

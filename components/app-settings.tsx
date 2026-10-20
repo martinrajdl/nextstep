@@ -1,3 +1,7 @@
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import AppButton, { AppLink } from '@/components/app-button';
 import {
   createContext,
@@ -111,7 +115,7 @@ function AgentSettings() {
   }
   return <section>
     <h3><ShieldCheck size={18}/>Agent changes</h3>
-    <label className="usage-consent"><input type="checkbox" checked={policy?.reviewRequired ?? false} disabled={!policy || saving} onChange={event => void change(event.target.checked)}/><span>Require review</span></label>
+    <Label className="usage-consent"><Checkbox checked={policy?.reviewRequired ?? false} disabled={!policy || saving} onCheckedChange={event => void change(event)}/><span>Require review</span></Label>
     {saving && <output className="settings-note">Saving…</output>}
     <p>Off by default. Your connected agents can create and update your workspace directly. Turn this on to approve their changes before they are saved.</p>
     <p className="settings-note">Applies to this database and its connected agents. Existing proposals still need a decision. Every applied change keeps its history.</p>
@@ -155,7 +159,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.dataset.theme = resolvedTheme;
     document.documentElement.classList.toggle('dark', resolvedTheme === 'dark');
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolvedTheme === 'dark' ? '#17191e' : '#ffffff');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolvedTheme === 'dark' ? '#090c10' : '#ffffff');
     try { localStorage.setItem(themeKey, theme); } catch { /* Native settings are independent. */ }
   }, [theme, resolvedTheme]);
   useEffect(() => {
@@ -275,7 +279,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
                 <div className="backend-actions">
                   {update.status === 'ready' ? <AppButton className="crm-button crm-button-primary" onClick={() => void window.nextstepDesktop?.installUpdate().catch(e => setError(errorMessage(e)))}><RefreshCw size={15}/>Restart to update</AppButton> : update.status === 'available' ? <AppButton className="crm-button crm-button-primary" onClick={() => void window.nextstepDesktop?.downloadUpdate().then(setUpdate).catch(e => setError(errorMessage(e)))}><Download size={15}/>Download update</AppButton> : <AppButton className="crm-button" disabled={['checking','downloading'].includes(update.status)} onClick={() => void window.nextstepDesktop?.checkForUpdates().then(setUpdate).catch(e => setError(errorMessage(e)))}><RefreshCw size={15}/>{update.status === 'checking' ? 'Checking…' : update.status === 'downloading' ? 'Downloading…' : 'Check for updates'}</AppButton>}
                 </div>
-                <label className="usage-consent"><input type="checkbox" checked={update.automatic} onChange={event => void window.nextstepDesktop?.setAutomaticUpdates(event.target.checked).then(setUpdate).catch(e => setError(errorMessage(e)))}/><span>Check for updates automatically</span></label>
+                <Label className="usage-consent"><Checkbox checked={update.automatic} onCheckedChange={event => void window.nextstepDesktop?.setAutomaticUpdates(event).then(setUpdate).catch(e => setError(errorMessage(e)))}/><span>Check for updates automatically</span></Label>
                 <p className="settings-note">Checks use Electron’s update service. Downloads start when you choose. Your database stays on this computer or your own server. A downloaded update also installs the next time you quit and reopen Nextstep.</p>
               </>}
               <a href="https://github.com/martinrajdl/nextstep/releases/latest" target="_blank" rel="noreferrer">Release notes ↗</a>
@@ -292,7 +296,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
               </fieldset>
               <fieldset className="appearance-accents">
                 <legend>Accent color</legend>
-                <p className="settings-note">Accent colors work in either mode. The app icon keeps its neutral colors.</p>
+                <p className="settings-note">Accent colors highlight actions in either mode. Surfaces use the same slate palette.</p>
                 <div className="appearance-presets">
                   {presets.map(([name, color]) => (
                     <AppButton
@@ -309,19 +313,18 @@ export default function AppSettings({ children }: { children: ReactNode }) {
                     </AppButton>
                   ))}
                 </div>
-                <label className="custom-accent">
+                <Label className="custom-accent">
                   <span>Custom accent</span>
-                  <input
+                  <Input
                     aria-label="Custom accent color"
                     type="color"
                     value={accent}
                     onChange={(e) => void chooseColor(e.target.value)}
                   />
                   <code>{accent}</code>
-                </label>
+                </Label>
                 <p className="settings-note">
-                  Saved on this device. Text and surface shades adapt for
-                  readability.
+                  Saved on this device. Your choice applies across the workspace.
                 </p>
               </fieldset>
             </section>
@@ -353,9 +356,9 @@ export default function AppSettings({ children }: { children: ReactNode }) {
                     The desktop interface stays on this computer; records stay
                     on the selected backend.
                   </p>
-                  <label>
+                  <Label>
                     Backend tunnel address
-                    <input
+                    <Input
                       aria-label="Backend tunnel address"
                       type="url"
                       value={connection}
@@ -363,7 +366,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
                       placeholder="http://127.0.0.1:4319"
                       disabled={busy}
                     />
-                  </label>
+                  </Label>
                   <div className="backend-actions">
                     <AppButton
                       className="crm-button crm-button-primary"
@@ -386,8 +389,8 @@ export default function AppSettings({ children }: { children: ReactNode }) {
                     Finish any open edits before switching. Databases stay
                     separate; switching does not copy or merge records.
                   </p>
-                  <details className="crm-details">
-                    <summary>How to self-host</summary>
+                  <Collapsible className="crm-details">
+                    <CollapsibleTrigger>How to self-host</CollapsibleTrigger><CollapsibleContent>
                     <p>
                       Run Nextstep on your server with port 4319, then keep this
                       tunnel open on your computer:
@@ -404,7 +407,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
                     >
                       Self-hosting guide ↗
                     </a>
-                  </details>
+                  </CollapsibleContent></Collapsible>
                 </>
               ) : (
                 <p>
@@ -416,7 +419,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
             </section>
             {window.nextstepDesktop && <section>
               <h3><ShieldCheck size={18}/>Privacy</h3>
-              <label className="usage-consent"><input type="checkbox" checked={usageEnabled} disabled={savingUsage} onChange={event => void chooseUsage(event.target.checked)}/><span>Share anonymous usage</span></label>
+              <Label className="usage-consent"><Checkbox checked={usageEnabled} disabled={savingUsage} onCheckedChange={event => void chooseUsage(event)}/><span>Share anonymous usage</span></Label>
               <p>Optional and off by default. Send one daily check-in while using the app, with its version, operating system and a random identifier that changes each day. This helps us count active installations.</p>
               <p>No records, contacts, prompts, database paths or agent activity. Turning this off stops reporting and removes the local identifier.</p>
               <a href="https://github.com/martinrajdl/nextstep/blob/main/docs/privacy.md" target="_blank" rel="noreferrer">Exactly what is shared ↗</a>

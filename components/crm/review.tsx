@@ -1,3 +1,4 @@
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import AppButton from '@/components/app-button';
 import { useEffect, useState } from 'react';
 import { ArrowRight, Check, CheckCheck, Code2, Inbox, X } from 'lucide-react';
@@ -266,10 +267,10 @@ export default function Review({
             {selected.result.map((diff, index) => (
               <DiffView key={index} diff={diff} />
             ))}
-            <details className="crm-details">
-              <summary>Inspect JSON</summary>
+            <Collapsible className="crm-details">
+              <CollapsibleTrigger>Inspect JSON</CollapsibleTrigger><CollapsibleContent>
               <pre>{JSON.stringify(selected.operations, null, 2)}</pre>
-            </details>
+            </CollapsibleContent></Collapsible>
             {error && (
               <p className="crm-error" role="alert">
                 {error}

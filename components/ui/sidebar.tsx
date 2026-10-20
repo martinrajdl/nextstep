@@ -166,7 +166,7 @@ function Sidebar({
 
   if (collapsible === 'none') {
     return (
-      <div
+      <aside
         data-slot="sidebar"
         className={cn(
           'flex h-full w-(--sidebar-width) flex-col bg-sidebar text-sidebar-foreground',
@@ -175,7 +175,7 @@ function Sidebar({
         {...props}
       >
         {children}
-      </div>
+      </aside>
     );
   }
 

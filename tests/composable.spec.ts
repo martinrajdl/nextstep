@@ -386,6 +386,7 @@ test('appearance persists across workspaces while the neutral icon stays unchang
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('data-accent', '#777777');
   const icon = await page.locator('.crm-brand img').getAttribute('src');
+  const primary = await page.locator('html').evaluate(el => getComputedStyle(el).getPropertyValue('--primary'));
   const surface = await page
     .locator('.crm-sidebar')
     .evaluate((el) => getComputedStyle(el).backgroundColor);
@@ -396,7 +397,8 @@ test('appearance persists across workspaces while the neutral icon stays unchang
     await page
       .locator('.crm-sidebar')
       .evaluate((el) => getComputedStyle(el).backgroundColor),
-  ).not.toBe(surface);
+  ).toBe(surface);
+  expect(await page.locator('html').evaluate(el => getComputedStyle(el).getPropertyValue('--primary'))).not.toBe(primary);
   await expect(page.locator('.crm-brand img')).toHaveAttribute('src', icon!);
   await page.screenshot({
     path: 'test-results/composable-settings-blue.png',
@@ -508,7 +510,7 @@ test('light, dark and system modes persist across Jobs and collections without c
   await page.getByRole('button',{name:'Settings',exact:true}).click();
   await page.getByRole('button',{name:'Dark mode',exact:true}).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
-  await expect(page.locator('body')).toHaveCSS('background-color','rgb(23, 25, 30)');
+  await expect(page.locator('body')).toHaveCSS('background-color','rgb(9, 12, 16)');
   await page.getByRole('button',{name:'Blue accent',exact:true}).click();
   await expect(page.locator('html')).toHaveAttribute('data-accent','#4473cf');
   await page.screenshot({path:'test-results/settings-dark.png'});

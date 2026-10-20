@@ -114,6 +114,8 @@ node scripts/capture-screenshots.mjs  # Fictional documentation screenshots
 
 Node 22.13+ supports the SQLite runtime; Node 24 is recommended and used in CI. Dependencies are pinned. Tests never seed the selected user database. For contributor guidance, see [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md).
 
+The interface uses shared shadcn components in `components/ui/` for controls, dialogs, menus, tooltips, tables and navigation. `app/theme.css` owns the light and dark semantic color tokens. Dark mode pairs a near-black canvas with slate surfaces; accent preferences affect actions without tinting the workspace. Domain layouts use these same tokens, and `app/focus.css` provides the shared keyboard focus treatment.
+
 ## License
 
 [MIT](LICENSE). React, TypeScript, Vite, SQLite and Electron. See [third-party notices](THIRD_PARTY_NOTICES.md).

@@ -1,11 +1,15 @@
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { useCollectionLayout } from './use-collection-layout';
 import AppButton, { ButtonTooltip } from '@/components/app-button';
 import { useEffect, useState } from 'react';
-import { Menu } from '@base-ui/react/menu';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import {
   Archive,
   ArrowUpRight,
-  Check,
   Columns3,
   Filter as FilterIcon,
   MoreHorizontal,
@@ -96,32 +100,31 @@ function ViewEditor({
     >
       <form onSubmit={save}>
         <div className="crm-form-body">
-          <label>
+          <Label>
             View name
-            <input
+            <Input
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={80}
             />
-          </label>
+          </Label>
           <fieldset className="crm-multiselect">
             <legend>Visible fields</legend>
             {collection.fields.map((field) => (
-              <label key={field.key}>
-                <input
-                  type="checkbox"
+              <Label key={field.key}>
+                <Checkbox
                   checked={columns.includes(field.key)}
-                  onChange={(e) =>
+                  onCheckedChange={(e) =>
                     setColumns(
-                      e.target.checked
+                      e
                         ? [...columns, field.key]
                         : columns.filter((k) => k !== field.key),
                     )
                   }
                 />
                 {field.name}
-              </label>
+              </Label>
             ))}
           </fieldset>
           {error && (
@@ -376,22 +379,22 @@ export default function CollectionView({
           </AppButton>
         </div>
         {layout === 'board' && (
-          <label className="crm-board-group">
+          <Label className="crm-board-group">
             Group by
-            <select aria-label="Board group" value={groupBy} onChange={event => setGroupBy(event.target.value)}>
-              {collection.fields.filter(field => field.type === 'select').map(field => <option key={field.key} value={field.key}>{field.name}</option>)}
-            </select>
-          </label>
+            <NativeSelect aria-label="Board group" value={groupBy} onChange={event => setGroupBy(event.target.value)}>
+              {collection.fields.filter(field => field.type === 'select').map(field => <NativeSelectOption key={field.key} value={field.key}>{field.name}</NativeSelectOption>)}
+            </NativeSelect>
+          </Label>
         )}
-        <label className="crm-search">
+        <Label className="crm-search">
           <Search size={16} />
-          <input
+          <Input
             aria-label="Search records"
             value={query}
             placeholder="Search this collection…"
             onChange={(e) => setQuery(e.target.value)}
           />
-        </label>
+        </Label>
         <AppButton
           className={`crm-button ${filters.length ? 'crm-button-active' : ''}`}
           aria-expanded={showFilter}
@@ -416,23 +419,23 @@ export default function CollectionView({
           await applyChange(`Add ${name} stage`, [{type:'update_collection',id:collection.id,version:collection.version,fields:collection.fields.map(f => f.key === groupBy ? {...f,options:[...(f.options || []),name]} : f)}]);
           await onChanged();
         }} error={boardPreferences.error}/>}
-        <Menu.Root>
-          <ButtonTooltip label="Collection actions"><Menu.Trigger className="crm-icon-button" aria-label="Collection actions"><MoreHorizontal size={18}/></Menu.Trigger></ButtonTooltip>
-          <Menu.Portal><Menu.Positioner side="bottom" align="end" sideOffset={6} className="record-actions-positioner"><Menu.Popup className="record-actions-menu">
-            {Boolean(collection.views?.length) && <Menu.Group>
-              <Menu.GroupLabel>Saved views</Menu.GroupLabel>
-              <Menu.RadioGroup value={viewId} onValueChange={selectView}>
-                {[{id:'all',name:'All records'}, ...(collection.views || [])].map(savedView => <Menu.RadioItem key={savedView.id} value={savedView.id} closeOnClick>
-                  {savedView.name}<Menu.RadioItemIndicator><Check size={14}/></Menu.RadioItemIndicator>
-                </Menu.RadioItem>)}
-              </Menu.RadioGroup>
-              <Menu.Separator className="crm-menu-separator"/>
-            </Menu.Group>}
-            <Menu.Item onClick={onSchema}><Settings2 size={14}/>Edit fields</Menu.Item>
-            <Menu.Item onClick={() => setViewEditor(true)}><Plus size={14}/>{view ? 'Edit view' : 'Save a view'}</Menu.Item>
-            <Menu.Item onClick={onImport}><Upload size={14}/>Import JSON</Menu.Item>
-          </Menu.Popup></Menu.Positioner></Menu.Portal>
-        </Menu.Root>
+        <DropdownMenu>
+          <ButtonTooltip label="Collection actions"><DropdownMenuTrigger className="crm-icon-button" aria-label="Collection actions"><MoreHorizontal size={18}/></DropdownMenuTrigger></ButtonTooltip>
+          <DropdownMenuContent align="end" sideOffset={6} className="record-actions-menu">
+            {Boolean(collection.views?.length) && <DropdownMenuGroup>
+              <DropdownMenuLabel>Saved views</DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={viewId} onValueChange={selectView}>
+                {[{id:'all',name:'All records'}, ...(collection.views || [])].map(savedView => <DropdownMenuRadioItem key={savedView.id} value={savedView.id} closeOnClick>
+                  {savedView.name}
+                </DropdownMenuRadioItem>)}
+              </DropdownMenuRadioGroup>
+              <DropdownMenuSeparator className="crm-menu-separator"/>
+            </DropdownMenuGroup>}
+            <DropdownMenuItem onClick={onSchema}><Settings2 size={14}/>Edit fields</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setViewEditor(true)}><Plus size={14}/>{view ? 'Edit view' : 'Save a view'}</DropdownMenuItem>
+            <DropdownMenuItem onClick={onImport}><Upload size={14}/>Import JSON</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <AppButton className="crm-button crm-button-primary crm-new-record" onClick={onNew}>
           <Plus size={16} />
           New record
@@ -442,7 +445,7 @@ export default function CollectionView({
         <div className="crm-filters">
           {filters.map((filter, index) => (
             <div key={index}>
-              <select
+              <NativeSelect
                 aria-label={`Filter ${index + 1} field`}
                 value={filter.field}
                 onChange={(e) => {
@@ -456,14 +459,14 @@ export default function CollectionView({
                   setOffset(0);
                 }}
               >
-                <option value="title">Title</option>
+                <NativeSelectOption value="title">Title</NativeSelectOption>
                 {collection.fields.map((f) => (
-                  <option key={f.key} value={f.key}>
+                  <NativeSelectOption key={f.key} value={f.key}>
                     {f.name}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
-              <select
+              </NativeSelect>
+              <NativeSelect
                 aria-label={`Filter ${index + 1} operator`}
                 value={filter.op}
                 onChange={(e) => {
@@ -485,13 +488,13 @@ export default function CollectionView({
                   ['gte', 'at least'],
                   ['lte', 'at most'],
                 ].map(([value, label]) => (
-                  <option key={value} value={value}>
+                  <NativeSelectOption key={value} value={value}>
                     {label}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
+              </NativeSelect>
               {!['empty', 'not_empty'].includes(filter.op) && (
-                <input
+                <Input
                   aria-label={`Filter ${index + 1} value`}
                   value={String(filter.value ?? '')}
                   onChange={(e) => {
@@ -542,9 +545,9 @@ export default function CollectionView({
             <Plus size={14} />
             Add filter
           </AppButton>
-          <label>
+          <Label>
             Sort
-            <select
+            <NativeSelect
               aria-label="Sort field"
               value={sort.field}
               onChange={(e) => {
@@ -552,18 +555,18 @@ export default function CollectionView({
                 setOffset(0);
               }}
             >
-              <option value="updatedAt">Last updated</option>
-              <option value="position">Pipeline order</option>
-              <option value="createdAt">Created</option>
-              <option value="title">Title</option>
+              <NativeSelectOption value="updatedAt">Last updated</NativeSelectOption>
+              <NativeSelectOption value="position">Pipeline order</NativeSelectOption>
+              <NativeSelectOption value="createdAt">Created</NativeSelectOption>
+              <NativeSelectOption value="title">Title</NativeSelectOption>
               {collection.fields.map((f) => (
-                <option key={f.key} value={f.key}>
+                <NativeSelectOption key={f.key} value={f.key}>
                   {f.name}
-                </option>
+                </NativeSelectOption>
               ))}
-            </select>
-          </label>
-          <select
+            </NativeSelect>
+          </Label>
+          <NativeSelect
             aria-label="Sort direction"
             value={sort.direction}
             onChange={(e) => {
@@ -574,9 +577,9 @@ export default function CollectionView({
               setOffset(0);
             }}
           >
-            <option value="asc">Ascending</option>
-            <option value="desc">Descending</option>
-          </select>
+            <NativeSelectOption value="asc">Ascending</NativeSelectOption>
+            <NativeSelectOption value="desc">Descending</NativeSelectOption>
+          </NativeSelect>
         </div>
       )}
       {error && (
@@ -613,24 +616,24 @@ export default function CollectionView({
           // The scroll region is focusable so arrow/Page/End keys can scroll without opening a record.
           // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
           <section className="crm-table-wrap" aria-label="Collection records" tabIndex={0}>
-            <table className="crm-table">
-              <thead>
-                <tr>
-                  <th scope="col">
+            <Table className="crm-table" containerClassName="crm-table-container">
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">
                     Title <span>{data.total}</span>
-                  </th>
+                  </TableHead>
                   {visibleFields.map((field) => (
-                    <th scope="col" key={field.key}>
+                    <TableHead scope="col" key={field.key}>
                       {field.name}
-                    </th>
+                    </TableHead>
                   ))}
-                  <th scope="col">Updated</th><th scope="col"><span className="sr-only">Actions</span></th>
-                </tr>
-              </thead>
-              <tbody>
+                  <TableHead scope="col">Updated</TableHead><TableHead scope="col"><span className="sr-only">Actions</span></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {data.records.map((record) => (
-                  <tr key={record.id}>
-                    <th scope="row">
+                  <TableRow key={record.id}>
+                    <TableHead scope="row">
                       <AppButton tooltip={`Open ${record.title}`} disabled={loading} onClick={() => onOpen(record)}>
                         <span
                           className="crm-record-mark"
@@ -644,11 +647,11 @@ export default function CollectionView({
                         {record.title}
                         <ArrowUpRight size={13} />
                       </AppButton>
-                    </th>
+                    </TableHead>
                     {visibleFields.map((field) => {
                       const value = record.values[field.key];
                       return (
-                        <td key={field.key}>
+                        <TableCell key={field.key}>
                           {field.type === 'relation' && Array.isArray(value) ? (
                             <div className="crm-relation-pills">
                               {value.slice(0, 3).map((id) => (
@@ -684,19 +687,19 @@ export default function CollectionView({
                               {displayValue(value)}
                             </span>
                           )}
-                        </td>
+                        </TableCell>
                       );
                     })}
-                    <td className="crm-muted">
+                    <TableCell className="crm-muted">
                       {new Date(record.updatedAt).toLocaleDateString(
                         undefined,
                         { month: 'short', day: 'numeric' },
                       )}
-                    </td><td className="crm-table-actions">{actions(record)}</td>
-                  </tr>
+                    </TableCell><TableCell className="crm-table-actions">{actions(record)}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </section>
         ) : groups.every(g => hiddenStages.includes(g)) ? (
           <div className="crm-empty"><h2>All stages are hidden.</h2><AppButton className="crm-button" onClick={() => void boardPreferences.save({...boardPreferences.settings, hiddenStages: []})}>Show all stages</AppButton></div>

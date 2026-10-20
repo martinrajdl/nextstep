@@ -1,3 +1,9 @@
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import AppButton from '@/components/app-button';
 import { useEffect, useState } from 'react';
 import { Archive, History, RotateCcw } from 'lucide-react';
@@ -75,7 +81,7 @@ function RelationInput({
         {field.name}
         {field.required ? ' *' : ''}
       </legend>
-      <input
+      <Input
         aria-label={`Search ${field.name}`}
         placeholder="Find a record to link…"
         value={search}
@@ -83,13 +89,12 @@ function RelationInput({
       />
       <div className="crm-relation-options">
         {options.map((record) => (
-          <label key={record.id}>
-            <input
-              type="checkbox"
+          <Label key={record.id}>
+            <Checkbox
               checked={value.includes(record.id)}
-              onChange={(e) =>
+              onCheckedChange={(e) =>
                 onChange(
-                  e.target.checked
+                  e
                     ? [...value, record.id]
                     : value.filter((id) => id !== record.id),
                 )
@@ -97,7 +102,7 @@ function RelationInput({
             />
             {record.title}
             {record.archivedAt && <small>Archived</small>}
-          </label>
+          </Label>
         ))}
         {!options.length && (
           <p className="crm-hint">
@@ -216,9 +221,9 @@ export default function RecordEditor({
             disabled={busy || Boolean(record?.archivedAt)}
             className="crm-record-fields"
           >
-            <label>
+            <Label>
               Title
-              <input
+              <Input
                 required
                 maxLength={300}
                 placeholder="Give this record a name"
@@ -228,7 +233,7 @@ export default function RecordEditor({
                   setDirty(true);
                 }}
               />
-            </label>
+            </Label>
             {collection.fields.map((field) => {
               const value = values[field.key];
               if (field.type === 'relation')
@@ -242,14 +247,13 @@ export default function RecordEditor({
                 );
               if (field.type === 'checkbox')
                 return (
-                  <label className="crm-checkbox-label" key={field.key}>
-                    <input
-                      type="checkbox"
+                  <Label className="crm-checkbox-label" key={field.key}>
+                    <Checkbox
                       checked={value === true}
-                      onChange={(e) => setValue(field.key, e.target.checked)}
+                      onCheckedChange={(e) => setValue(field.key, e)}
                     />
                     {field.name}
-                  </label>
+                  </Label>
                 );
               if (field.type === 'multiselect')
                 return (
@@ -259,16 +263,15 @@ export default function RecordEditor({
                       {field.required ? ' *' : ''}
                     </legend>
                     {field.options?.map((option) => (
-                      <label key={option}>
-                        <input
-                          type="checkbox"
+                      <Label key={option}>
+                        <Checkbox
                           checked={
                             Array.isArray(value) && value.includes(option)
                           }
-                          onChange={(e) =>
+                          onCheckedChange={(e) =>
                             setValue(
                               field.key,
-                              e.target.checked
+                              e
                                 ? [
                                     ...(Array.isArray(value) ? value : []),
                                     option,
@@ -280,16 +283,16 @@ export default function RecordEditor({
                           }
                         />
                         {option}
-                      </label>
+                      </Label>
                     ))}
                   </fieldset>
                 );
               return (
-                <label key={field.key}>
+                <Label key={field.key}>
                   {field.name}
                   {field.required ? ' *' : ''}
                   {field.type === 'longtext' ? (
-                    <textarea
+                    <Textarea
                       aria-label={field.name}
                       rows={4}
                       maxLength={20000}
@@ -298,7 +301,7 @@ export default function RecordEditor({
                       onChange={(e) => setValue(field.key, e.target.value)}
                     />
                   ) : field.type === 'select' ? (
-                    <select
+                    <NativeSelect
                       aria-label={field.name}
                       required={field.required}
                       value={String(value ?? '')}
@@ -306,13 +309,13 @@ export default function RecordEditor({
                         setValue(field.key, e.target.value || null)
                       }
                     >
-                      <option value="">No value</option>
+                      <NativeSelectOption value="">No value</NativeSelectOption>
                       {field.options?.map((option) => (
-                        <option key={option}>{option}</option>
+                        <NativeSelectOption key={option}>{option}</NativeSelectOption>
                       ))}
-                    </select>
+                    </NativeSelect>
                   ) : (
-                    <input
+                    <Input
                       aria-label={field.name}
                       required={field.required}
                       type={
@@ -334,14 +337,14 @@ export default function RecordEditor({
                       }
                     />
                   )}
-                </label>
+                </Label>
               );
             })}
-            <details className="crm-details">
-              <summary>Source identity</summary>
-              <label>
+            <Collapsible className="crm-details">
+              <CollapsibleTrigger>Source identity</CollapsibleTrigger><CollapsibleContent>
+              <Label>
                 External key
-                <input
+                <Input
                   value={externalKey}
                   maxLength={300}
                   onChange={(e) => {
@@ -353,8 +356,8 @@ export default function RecordEditor({
                   A stable source ID prevents duplicate imports, including
                   archived records.
                 </small>
-              </label>
-            </details>
+              </Label>
+            </CollapsibleContent></Collapsible>
           </fieldset>
           {record && (
             <section className="crm-record-history">

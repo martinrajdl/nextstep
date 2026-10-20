@@ -1,3 +1,5 @@
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { SidebarProvider, Sidebar, SidebarHeader, SidebarFooter } from '@/components/ui/sidebar';
 import AppButton, { AppLink } from '@/components/app-button';
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import {
@@ -246,7 +248,7 @@ export default function WorkspaceApp() {
       if (url.origin !== location.origin || !['/', '/jobs'].includes(url.pathname) || (url.pathname === '/' && url.hash && !url.hash.startsWith('#/'))) return;
       // Preserve the shell, loaded styles and native window while navigating.
       // A modal draft must be closed explicitly before its route can disappear.
-      if (document.querySelector('dialog[open]')) { event.preventDefault(); return; }
+      if (document.querySelector('[role=dialog], [role=alertdialog]')) { event.preventDefault(); return; }
       event.preventDefault();
       history.pushState(null, '', url.pathname + url.hash);
       setRoute(currentRoute());
@@ -254,12 +256,12 @@ export default function WorkspaceApp() {
       void refresh();
   }
   return (
-    <div className={`crm-shell${collapsed ? ' is-sidebar-collapsed' : ''}`}>
+    <SidebarProvider open={!sidebarCollapsed} onOpenChange={open => void setSidebarCollapsed(!open).catch(e => setError(errorMessage(e)))} className={`crm-shell${collapsed ? ' is-sidebar-collapsed' : ''}`}>
       <AppLink href="#workspace-content" className="crm-skip">
         Skip to content
       </AppLink>
-      <aside id="workspace-sidebar" className={`crm-sidebar ${navOpen ? 'is-open' : ''}`}>
-        <div className="crm-sidebar-brand-row">
+      <Sidebar collapsible="none" id="workspace-sidebar" className={`crm-sidebar ${navOpen ? 'is-open' : ''}`}>
+        <SidebarHeader className="crm-sidebar-brand-row">
         <AppLink onClick={followLink} className="crm-brand" href="/#/overview" aria-label="Nextstep home">
           <img src={nextstepIcon} alt="" width={30} height={30} />
           <span>nextstep<span className="crm-brand-dot">.</span></span>
@@ -272,7 +274,7 @@ export default function WorkspaceApp() {
           onClick={() => void setSidebarCollapsed(!sidebarCollapsed).catch(e => setError(errorMessage(e)))}
         >{collapsed ? <PanelLeftOpen size={17}/> : <PanelLeftClose size={17}/>}</AppButton>}
         <AppButton aria-label="Close navigation" className="crm-icon-button crm-mobile-only crm-sidebar-close" onClick={() => setNavOpen(false)}><X size={17}/></AppButton>
-        </div>
+        </SidebarHeader>
         <nav aria-label="Workspace navigation">
           {[
             { id: 'overview', label: 'Home', icon: LayoutGrid },
@@ -299,13 +301,13 @@ export default function WorkspaceApp() {
           <div className="crm-sidebar-caption"><span>COLLECTIONS</span></div>
           <nav aria-label="Collections">{workspace?.collections.map(c => <AppLink onClick={followLink} key={c.id} href={`/#/collections/${c.id}`} aria-label={c.name} aria-current={collection?.id === c.id ? 'page' : undefined}><span className="crm-collection-dot" aria-hidden="true" style={{background:collapsed ? `${c.color}18` : c.color,color:c.color}}><span>{c.name.trim().split(/\s+/).map(word => word[0]).slice(0,2).join('').toUpperCase()}</span></span><span className="crm-nav-label">{c.name}</span><small aria-hidden="true">{c.recordCount}</small></AppLink>)}</nav>
         </>}
-        <div className="crm-sidebar-bottom">
+        <SidebarFooter className="crm-sidebar-bottom">
           <AppButton aria-label="Settings" title={updateAvailable ? 'Settings · update available' : 'Settings'} className="crm-settings-button" onClick={openSettings}>
             <Settings size={17} /><span className="crm-nav-label">Settings</span>{updateAvailable && <span className="settings-update-dot" aria-label="Update available"/>}
           </AppButton>
 
-        </div>
-      </aside>
+        </SidebarFooter>
+      </Sidebar>
       {navOpen && (
         <AppButton
           className="crm-nav-scrim"
@@ -402,7 +404,7 @@ export default function WorkspaceApp() {
                 </div>
               </section>
               {workspace.recentFlows.length > 0 && <section className="crm-overview-section"><div className="crm-section-label"><h2>Agent progress</h2><AppButton className="crm-text-button" onClick={() => navigate('agents')}>View all<ArrowRight size={14}/></AppButton></div><div className="crm-flow-list">{workspace.recentFlows.slice(0,3).map(flow => <FlowCard key={flow.id} flow={flow} onClick={() => navigate('agents')}/>)}</div></section>}
-              <details className="crm-home-tools"><summary>Manual tools</summary><div className="crm-manual-actions"><AppButton className="crm-button" onClick={() => setSchema({})}>Create a collection</AppButton><AppButton className="crm-button" onClick={() => setWorkbench({})}>Open JSON workbench</AppButton></div></details>
+              <Collapsible className="crm-home-tools"><CollapsibleTrigger>Manual tools</CollapsibleTrigger><CollapsibleContent><div className="crm-manual-actions"><AppButton className="crm-button" onClick={() => setSchema({})}>Create a collection</AppButton><AppButton className="crm-button" onClick={() => setWorkbench({})}>Open JSON workbench</AppButton></div></CollapsibleContent></Collapsible>
             </>
           )}
         </main>
@@ -442,6 +444,6 @@ export default function WorkspaceApp() {
           }}
         />
       )}
-    </div>
+    </SidebarProvider>
   );
 }

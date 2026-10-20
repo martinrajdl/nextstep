@@ -1,3 +1,4 @@
+import { Label } from '@/components/ui/label';
 import AppButton from '@/components/app-button';
 import { useEffect, useState, type SubmitEvent } from 'react';
 import { Check, SlidersHorizontal } from 'lucide-react';
@@ -56,7 +57,7 @@ export default function SearchPreferences({ onClose, onSaved }: Props) {
         <div className="editor-scroll">
           {draft ? <fieldset disabled={busy}>
             {profileFields.map(({key, label, hint, maxLength}) => <div className="field" key={key}>
-              <label htmlFor={`profile-${key}`}>{label}</label>
+              <Label htmlFor={`profile-${key}`}>{label}</Label>
               <p className="field-hint" id={`profile-${key}-hint`}>{hint}</p>
               <Textarea id={`profile-${key}`} aria-describedby={`profile-${key}-hint`} rows={key === 'experience' ? 3 : 2} maxLength={maxLength} value={draft[key]} onChange={event => setDraft(current => current && ({...current, [key]: event.target.value}))}/>
             </div>)}

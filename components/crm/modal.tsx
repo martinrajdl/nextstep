@@ -1,6 +1,7 @@
 import AppButton from '@/components/app-button';
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { X } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 export default function Modal({
   title,
   subtitle,
@@ -18,16 +19,9 @@ export default function Modal({
   dirty?: boolean;
   className?: string;
 }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  const titleId = useId();
   const close = () => {
     if (!dirty || window.confirm('Discard your unsaved changes?')) onClose();
   };
-  useEffect(() => {
-    const dialog = ref.current;
-    dialog?.showModal();
-    return () => dialog?.close();
-  }, []);
   useEffect(() => {
     if (!dirty) return;
     const handler = (event: BeforeUnloadEvent) => {
@@ -37,20 +31,15 @@ export default function Modal({
     return () => window.removeEventListener('beforeunload', handler);
   }, [dirty]);
   return (
-    <dialog
+    <Dialog open onOpenChange={(open) => { if (!open) close(); }}>
+    <DialogContent
       className={`crm-dialog ${wide ? 'crm-dialog-wide' : ''} ${className}`}
-      ref={ref}
-      aria-labelledby={titleId}
-      aria-modal="true"
-      onCancel={(event) => {
-        event.preventDefault();
-        close();
-      }}
+      showCloseButton={false}
     >
       <header>
         <div>
-          <h2 id={titleId}>{title}</h2>
-          {subtitle && <p>{subtitle}</p>}
+          <DialogTitle>{title}</DialogTitle>
+          {subtitle && <DialogDescription>{subtitle}</DialogDescription>}
         </div>
         <AppButton
           type="button"
@@ -62,6 +51,7 @@ export default function Modal({
         </AppButton>
       </header>
       {children}
-    </dialog>
+    </DialogContent>
+    </Dialog>
   );
 }

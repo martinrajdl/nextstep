@@ -107,7 +107,7 @@
   cursor: pointer;
 }
 
-.app-settings-dialog .usage-consent input {
+.app-settings-dialog .usage-consent [data-slot='checkbox'] {
   flex: 0 0 16px;
   width: 16px;
   height: 16px;
@@ -286,14 +286,14 @@
   color: var(--crm-muted);
 }
 
-.app-settings-dialog .crm-details summary {
+.app-settings-dialog .crm-details [data-slot='collapsible-trigger'] {
   width: fit-content;
   font-weight: 500;
   color: var(--crm-ink);
   cursor: pointer;
 }
 
-.app-settings-dialog .crm-details > :not(summary) {
+.app-settings-dialog .crm-details > :not([data-slot='collapsible-trigger']) {
   margin-top: 12px;
 }
 
@@ -313,7 +313,7 @@
 }
 
 .app-settings-dialog .app-settings :is(.crm-error, .settings-error-text) {
-  color: light-dark(#984131, #efb7aa);
+  color: var(--destructive);
 }
 
 @media (max-width: 480px) {

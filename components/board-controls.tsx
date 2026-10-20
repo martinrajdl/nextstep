@@ -1,6 +1,9 @@
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import AppButton, { ButtonTooltip } from '@/components/app-button';
 import { useEffect, useRef, useState } from 'react';
-import { Menu } from '@base-ui/react/menu';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { ArrowRight, ArrowUp, ArrowDown, Archive, MoreHorizontal, RotateCcw, Settings2, Plus } from 'lucide-react';
 import Modal from './crm/modal';
 
@@ -79,8 +82,8 @@ export function BoardSettingsButton({ stages, settings, onChange, onAddStage, er
       <div className="crm-form-body board-settings-body">
         <fieldset><legend>Visible stages</legend><p>Hiding a stage keeps its records and history. All stages remain available in Actions.</p>
           {ordered.map((stage,index) => <div className="stage-settings-row" key={stage.id}>
-            <input type="checkbox" aria-label={`Show ${stage.name} stage`} checked={!settings.hiddenStages.includes(stage.id)} onChange={e => onChange({...settings, hiddenStages: e.target.checked ? settings.hiddenStages.filter(s => s !== stage.id) : [...settings.hiddenStages, stage.id]})}/>
-            <input className="stage-name-input" aria-label={`Stage name for ${stage.name}`} defaultValue={stage.name} maxLength={80} onBlur={e => {
+            <Checkbox aria-label={`Show ${stage.name} stage`} checked={!settings.hiddenStages.includes(stage.id)} onCheckedChange={e => onChange({...settings, hiddenStages: e ? settings.hiddenStages.filter(s => s !== stage.id) : [...settings.hiddenStages, stage.id]})}/>
+            <Input className="stage-name-input" aria-label={`Stage name for ${stage.name}`} defaultValue={stage.name} maxLength={80} onBlur={e => {
               const name=e.target.value.trim();
               if (name && name !== stage.name) onChange({...settings,stageNames:{...settings.stageNames,[stage.id]:name}});
               else e.target.value=stage.name;
@@ -93,11 +96,11 @@ export function BoardSettingsButton({ stages, settings, onChange, onAddStage, er
             event.preventDefault();if (!newStage.trim() || adding) return;
             setAdding(true);setStageError('');
             onAddStage(newStage.trim()).then(() => setNewStage('')).catch(e => setStageError(e instanceof Error ? e.message : 'Could not add stage.')).finally(() => setAdding(false));
-          }}><input aria-label="New stage name" placeholder="New stage…" maxLength={80} value={newStage} onChange={event => setNewStage(event.target.value)} disabled={adding}/><AppButton className="crm-icon-button" aria-label="Add stage" disabled={adding || !newStage.trim()}><Plus size={16}/></AppButton></form>}
+          }}><Input aria-label="New stage name" placeholder="New stage…" maxLength={80} value={newStage} onChange={event => setNewStage(event.target.value)} disabled={adding}/><AppButton className="crm-icon-button" aria-label="Add stage" disabled={adding || !newStage.trim()}><Plus size={16}/></AppButton></form>}
           {stageError && <p className="crm-error" role="alert">{stageError}</p>}
         </fieldset>
         <fieldset><legend>Quick actions</legend><p>Choose up to three stages for the drag action bar.</p>
-          {ordered.filter(s => s.id).map(stage => <label key={stage.id}><input type="checkbox" aria-label={`${stage.name} quick action`} checked={settings.actionStages.includes(stage.id)} disabled={!settings.actionStages.includes(stage.id) && settings.actionStages.length >= 3} onChange={e => onChange({...settings, actionStages: e.target.checked ? [...settings.actionStages, stage.id] : settings.actionStages.filter(s => s !== stage.id)})}/>{stage.name}</label>)}
+          {ordered.filter(s => s.id).map(stage => <Label key={stage.id}><Checkbox aria-label={`${stage.name} quick action`} checked={settings.actionStages.includes(stage.id)} disabled={!settings.actionStages.includes(stage.id) && settings.actionStages.length >= 3} onCheckedChange={e => onChange({...settings, actionStages: e ? [...settings.actionStages, stage.id] : settings.actionStages.filter(s => s !== stage.id)})}/>{stage.name}</Label>)}
         </fieldset>
         {error && <p className="crm-error" role="alert">{error}</p>}
       </div>
@@ -112,14 +115,14 @@ export function RecordActions({ title, stages, current, quickActions, disabled, 
 }) {
   const quick = stages.filter(s => quickActions.includes(s.id) && s.id !== current);
   const remaining = stages.filter(s => !quick.some(q => q.id === s.id));
-  return <Menu.Root>
-    <ButtonTooltip label="Actions"><Menu.Trigger className="record-actions-trigger" aria-label={`Actions for ${title}`} disabled={disabled} onPointerDown={e => e.stopPropagation()} onDragStart={e => e.preventDefault()}><MoreHorizontal size={17}/></Menu.Trigger></ButtonTooltip>
-    <Menu.Portal><Menu.Positioner side="bottom" align="end" sideOffset={6} className="record-actions-positioner"><Menu.Popup className="record-actions-menu">
-      {!archived && <><Menu.Group><Menu.GroupLabel>Quick actions</Menu.GroupLabel>{quick.map(s => <Menu.Item key={s.id} onClick={() => onMove(s.id)}><ArrowRight size={14}/>{s.name}</Menu.Item>)}{!quick.length && <Menu.Item disabled>No quick actions for this stage</Menu.Item>}</Menu.Group>
-      <Menu.Group><Menu.GroupLabel>Move to stage</Menu.GroupLabel>{remaining.map(s => <Menu.Item key={s.id} disabled={s.id === current} onClick={() => onMove(s.id)}>{s.name}{s.id === current && <small>Current</small>}</Menu.Item>)}</Menu.Group></>}
-      {onArchive && <Menu.Item onClick={onArchive}>{archived ? <RotateCcw size={14}/> : <Archive size={14}/>} {archived ? 'Restore record' : 'Archive record'}</Menu.Item>}
-    </Menu.Popup></Menu.Positioner></Menu.Portal>
-  </Menu.Root>;
+  return <DropdownMenu>
+    <ButtonTooltip label="Actions"><DropdownMenuTrigger className="record-actions-trigger" aria-label={`Actions for ${title}`} disabled={disabled} onPointerDown={e => e.stopPropagation()} onDragStart={e => e.preventDefault()}><MoreHorizontal size={17}/></DropdownMenuTrigger></ButtonTooltip>
+    <DropdownMenuContent align="end" sideOffset={6} className="record-actions-menu">
+      {!archived && <><DropdownMenuGroup><DropdownMenuLabel>Quick actions</DropdownMenuLabel>{quick.map(s => <DropdownMenuItem key={s.id} onClick={() => onMove(s.id)}><ArrowRight size={14}/>{s.name}</DropdownMenuItem>)}{!quick.length && <DropdownMenuItem disabled>No quick actions for this stage</DropdownMenuItem>}</DropdownMenuGroup>
+      <DropdownMenuGroup><DropdownMenuLabel>Move to stage</DropdownMenuLabel>{remaining.map(s => <DropdownMenuItem key={s.id} disabled={s.id === current} onClick={() => onMove(s.id)}>{s.name}{s.id === current && <small>Current</small>}</DropdownMenuItem>)}</DropdownMenuGroup></>}
+      {onArchive && <DropdownMenuItem onClick={onArchive}>{archived ? <RotateCcw size={14}/> : <Archive size={14}/>} {archived ? 'Restore record' : 'Archive record'}</DropdownMenuItem>}
+    </DropdownMenuContent>
+  </DropdownMenu>;
 }
 
 export function BoardSkeleton({ table = false }: {table?: boolean}) {

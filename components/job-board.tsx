@@ -1,3 +1,4 @@
+import AppButton from '@/components/app-button';
 import { useState, type CSSProperties } from 'react';
 import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, closestCorners, pointerWithin, useDroppable, useSensor, useSensors, type DragEndEvent, type CollisionDetection, type KeyboardCoordinateGetter } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -22,17 +23,17 @@ function JobCard({ job, busy, onOpen, onMove, actionStages, allStages }: { job: 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: job.id, data: { stage: job.stage }, disabled: busy });
   const style: CSSProperties = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? .25 : 1 };
   return <article ref={setNodeRef} style={style} className="job-card" data-job-id={job.id} {...listeners}>
-    <button className="card-open" aria-label={`Open ${job.company}`} onClick={() => onOpen(job)}><CardContent job={job}/></button>
+    <AppButton className="card-open" aria-label={`Open ${job.company}`} onClick={() => onOpen(job)}><CardContent job={job}/></AppButton>
     <RecordActions title={job.company} stages={allStages} current={job.stage} quickActions={actionStages} disabled={busy} onMove={stage => onMove(job,stage as StageId,null)}/>
-    <button {...attributes} {...listeners} className="drag-handle" aria-label={`Move ${job.company}`} title="Drag to move. Or use Space, arrow keys, then Space." style={{ touchAction: 'none' }}><GripVertical size={16}/></button>
+    <AppButton {...attributes} {...listeners} className="drag-handle" aria-label={`Move ${job.company}`} title="Drag to move. Or use Space, arrow keys, then Space." style={{ touchAction: 'none' }}><GripVertical size={16}/></AppButton>
   </article>;
 }
 function Column({ stage, jobs, busy, filtered, onAdd, onOpen, onMove, actionStages, allStages }: { stage: PipelineStage; jobs: Opportunity[] } & Pick<Props,'busy'|'filtered'|'onAdd'|'onOpen'|'onMove'|'actionStages'|'allStages'>) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id, data: { stage: stage.id } });
-  return <section className="board-column" aria-label={`${stage.name} stage`}><div className="column-heading"><span className="stage-dot" style={{ background: stage.color }}/><h2>{stage.name}</h2><span className="column-count">{jobs.length}</span><button className="icon-button" aria-label={`Add to ${stage.name}`} onClick={() => onAdd(stage.id)}><Plus size={17}/></button></div><div ref={setNodeRef} className={`column-body ${isOver ? 'drop-over' : ''}`} data-stage={stage.id}>
+  return <section className="board-column" aria-label={`${stage.name} stage`}><div className="column-heading"><span className="stage-dot" style={{ background: stage.color }}/><h2>{stage.name}</h2><span className="column-count">{jobs.length}</span><AppButton className="icon-button" aria-label={`Add to ${stage.name}`} onClick={() => onAdd(stage.id)}><Plus size={17}/></AppButton></div><div ref={setNodeRef} className={`column-body ${isOver ? 'drop-over' : ''}`} data-stage={stage.id}>
     <SortableContext items={jobs.map(job => job.id)} strategy={verticalListSortingStrategy}>{jobs.map(job => <JobCard key={job.id} job={job} busy={busy} onOpen={onOpen} onMove={onMove} actionStages={actionStages} allStages={allStages}/>)}</SortableContext>
     {jobs.length === 0 && <Empty className="column-empty"><span className="empty-stage-number">0{allStages.findIndex(s => s.id===stage.id)+1}</span><EmptyTitle>{filtered ? 'No matches here' : 'No opportunities yet'}</EmptyTitle><EmptyDescription>{stage.hint}</EmptyDescription></Empty>}
-    <button className="add-card" onClick={() => onAdd(stage.id)}><Plus size={15}/>Add opportunity</button>
+    <AppButton className="add-card" onClick={() => onAdd(stage.id)}><Plus size={15}/>Add opportunity</AppButton>
   </div></section>;
 }
 function ActionDropTarget({ stage }: { stage: PipelineStage }) {

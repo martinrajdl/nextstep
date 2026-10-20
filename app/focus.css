@@ -1,10 +1,6 @@
 @layer focus {
   /* One focus treatment for native controls, CRM dialogs and portalled UI primitives.
      The first cascade layer gives these important rules precedence over component rings and local states. */
-  :root {
-    --focus-surface: light-dark(#e3e3e3, #41434a);
-    --focus-ink: var(--foreground);
-  }
 
   :focus,
   :focus::before,
@@ -56,7 +52,7 @@
     .crm-search, [data-slot='input-group'], [data-slot='combobox-chips'],
     [data-slot='attachment'], [data-slot='field-label']:has(> [data-slot='field'])
   ):has(:focus-visible),
-  label:has(> input:is([type='checkbox'], [type='radio'], [type='color']):focus-visible),
+  label:has(> :is(input:is([type='checkbox'], [type='radio'], [type='color']), [role='checkbox'], [role='switch']):focus-visible),
   :where(.crm-board article, .job-card):has(> button:first-child:focus-visible) {
     background-color: var(--focus-surface) !important;
     color: var(--focus-ink) !important;
@@ -68,7 +64,7 @@
     background-color: transparent !important;
   }
 
-  label:has(> input:is([type='checkbox'], [type='radio'], [type='color']):focus-visible) {
+  label:has(> :is(input:is([type='checkbox'], [type='radio'], [type='color']), [role='checkbox'], [role='switch']):focus-visible) {
     border-radius: 4px;
   }
 
@@ -83,7 +79,7 @@
       .crm-search, [data-slot='input-group'], [data-slot='combobox-chips'],
       [data-slot='attachment'], [data-slot='field-label']:has(> [data-slot='field'])
     ):has(:focus-visible),
-    label:has(> input:is([type='checkbox'], [type='radio'], [type='color']):focus-visible),
+    label:has(> :is(input:is([type='checkbox'], [type='radio'], [type='color']), [role='checkbox'], [role='switch']):focus-visible),
     :where(.crm-board article, .job-card):has(> button:first-child:focus-visible) {
       forced-color-adjust: none;
     }

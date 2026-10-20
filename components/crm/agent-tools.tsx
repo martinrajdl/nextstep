@@ -1,3 +1,7 @@
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import AppButton from '@/components/app-button';
 import { useEffect, useState } from 'react';
 import {
@@ -122,9 +126,9 @@ export function ChangeWorkbench({
       dirty={dirty}
     >
       <div className="crm-form-body">
-        <label className="crm-file-input">
+        <Label className="crm-file-input">
           Load a JSON file
-          <input
+          <Input
             aria-label="Load JSON file"
             type="file"
             accept=".json,application/json"
@@ -144,10 +148,10 @@ export function ChangeWorkbench({
               }
             }}
           />
-        </label>
-        <label>
+        </Label>
+        <Label>
           Change set
-          <textarea
+          <Textarea
             aria-label="Change set"
             className="crm-code-input"
             rows={12}
@@ -159,7 +163,7 @@ export function ChangeWorkbench({
               setDirty(true);
             }}
           />
-        </label>
+        </Label>
         <p className="crm-hint">
           {collection
             ? 'Import { "records": [{ "title": "…", "values": { … }, "externalKey": "…" }] } or a full change set.'
@@ -260,21 +264,21 @@ export default function AgentTools({ workspace, onWorkbench, onNewCollection, on
     {!embedded && <ol className="crm-start-steps" aria-label="Getting started">
       <li><span>1</span>Connect your agent</li><li><span>2</span>Tell it what you need</li><li><span>3</span>Follow its work here</li>
     </ol>}
-    <details className="crm-advanced-setup">
-      <summary>Other agents & advanced setup</summary>
+    <Collapsible className="crm-advanced-setup">
+      <CollapsibleTrigger>Other agents & advanced setup</CollapsibleTrigger><CollapsibleContent>
       <div className="crm-advanced-body">
         <h2>Connect another agent</h2>
         <p>Add this connection to your agent’s MCP settings, then send it the setup request below.</p>
-        {backendUrl && <label>SSH host<input aria-label="SSH host" value={sshHost} onChange={event => setSshHost(event.target.value.replace(/[^a-zA-Z0-9_.@-]/g,''))}/></label>}
+        {backendUrl && <Label>SSH host<Input aria-label="SSH host" value={sshHost} onChange={event => setSshHost(event.target.value.replace(/[^a-zA-Z0-9_.@-]/g,''))}/></Label>}
         <pre>{JSON.stringify(configuration,null,2)}</pre>
         <AppButton className="crm-button" onClick={() => void copy(JSON.stringify(configuration,null,2),'config')}><Copy size={15}/>{copied === 'config' ? 'Copied' : 'Copy connection'}</AppButton>
         <p className="crm-hint">{workspace.policy.reviewRequired ? 'Require review is on. Agent changes wait for your approval.' : 'Your agent can save changes directly. Turn on Require review in Settings if you prefer to approve them first.'}</p>
         <AppButton className="crm-button" onClick={() => void copy(crmAgentRequest,'prompt')}><Copy size={15}/>{copied === 'prompt' ? 'Copied' : 'Copy setup request'}</AppButton>
-        <details className="crm-details"><summary>Read setup request</summary><p className="crm-generated-brief">{crmAgentRequest}</p></details>
+        <Collapsible className="crm-details"><CollapsibleTrigger>Read setup request</CollapsibleTrigger><CollapsibleContent><p className="crm-generated-brief">{crmAgentRequest}</p></CollapsibleContent></Collapsible>
         <hr/>
         <h2>Manual tools</h2>
         <div className="crm-manual-actions"><AppButton className="crm-button" onClick={onNewCollection}>Create a collection</AppButton><AppButton className="crm-button" onClick={onWorkbench}><FileJson size={16}/>Open JSON workbench</AppButton></div>
       </div>
-    </details>
+    </CollapsibleContent></Collapsible>
   </section>;
 }

@@ -1,3 +1,4 @@
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import AppButton from '@/components/app-button';
 import { useEffect, useState } from 'react';
 import {
@@ -246,10 +247,10 @@ export default function AgentFlows({
               {!selected.updates && <p>Loading progress…</p>}
             </section>
             {!!selected.sources?.length && (
-              <details className="crm-details">
-                <summary>
+              <Collapsible className="crm-details">
+                <CollapsibleTrigger>
                   All reported sources ({selected.sources.length})
-                </summary>
+                </CollapsibleTrigger><CollapsibleContent>
                 {selected.sources.map((source) => (
                   <a
                     className="crm-flow-source"
@@ -262,7 +263,7 @@ export default function AgentFlows({
                     <ExternalLink size={12} />
                   </a>
                 ))}
-              </details>
+              </CollapsibleContent></Collapsible>
             )}
           </div>
           <footer>
