@@ -6,7 +6,7 @@ Tell your agent what you need to keep track of. It builds the collections, field
 
 Nextstep is a local-first **Electron app** with a SQLite database on your computer. It is open source, works with your own agent, and can connect to a [backend on your own server](docs/self-hosting.md). No Nextstep account, model subscription or API key is required.
 
-**[Download for macOS · Apple silicon](https://github.com/martinrajdl/nextstep/releases/download/v0.4.11/Nextstep-0.4.11-macOS-arm64.zip)** · [Website](https://www.nextstepcrm.com/) · [All releases](https://github.com/martinrajdl/nextstep/releases)
+**[Download for macOS · Apple silicon](https://github.com/martinrajdl/nextstep/releases/download/v0.5.0/Nextstep-0.5.0-macOS-arm64.zip)** · [Website](https://www.nextstepcrm.com/) · [All releases](https://github.com/martinrajdl/nextstep/releases)
 
 ![A Nextstep collection with fictional people, companies and next steps](docs/images/workspace.png)
 
@@ -32,6 +32,7 @@ Automatic connection is available for installed Mac desktop agents. The **Agent*
 - **Direct writes, optional review:** agents save changes by default. Enable Require review in Settings to receive proposals instead. Proposals show before and after values; stale proposals cannot overwrite newer decisions.
 - **Visible progress:** see the agent’s reports, sources and pending work alongside confirmed applied changes. Records keep their history and can be archived and restored.
 - **Your appearance:** light, dark or system mode, with a neutral default and optional color accents. Choose in Settings or the native View → Appearance menu. The app icon stays unchanged.
+- **Notes alongside your work:** a focused Markdown editor, source mode, tags, search, pinning, links to CRM records, history and recoverable trash. Agents can read, create, append and edit through typed MCP tools with optional review. [Notes and folder sync](docs/notes-development.md).
 - **Your data:** local SQLite, JSON exports in Settings → Data & backend, and private self-hosting. No built-in model. Optional anonymous usage counts are off by default.
 
 <details>

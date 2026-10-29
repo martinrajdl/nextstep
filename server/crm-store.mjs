@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { createNotesStore, noteOperations } from './notes-store.mjs';
 import { AppError } from './errors.mjs';
 import { CRM_TEMPLATES } from './crm-templates.mjs';
 import { createFlowStore } from './crm-flows.mjs';
@@ -535,12 +536,12 @@ export function createComposableStore(db) {
       input.operations.length > 100
     )
       fail('A change needs 1–100 operations.');
-    if (Buffer.byteLength(JSON.stringify(input)) > 512000)
-      fail('A change must be smaller than 500 KB.');
+    if (Buffer.byteLength(JSON.stringify(input)) > 2097152)
+      fail('A change must be smaller than 2 MiB.');
     const operations = input.operations.map((operation, index) => {
       object(operation, 'Operation');
       const value = structuredClone(operation);
-      if (['create_record', 'create_view'].includes(value.type))
+      if (['create_record', 'create_view', 'create_note'].includes(value.type))
         value.id ??= stableId(id, index);
       return value;
     });
@@ -551,6 +552,7 @@ export function createComposableStore(db) {
       now = new Date().toISOString();
     for (const op of change.operations) {
       const spec = {
+        ...noteOperations,
         create_collection: [
           'type',
           'id',
@@ -624,6 +626,7 @@ export function createComposableStore(db) {
       }[op.type];
       if (!spec) fail(`Unknown operation: ${op.type}.`);
       allowed(op, spec, 'operation');
+      if (noteOperations[op.type]) { diffs.push(notes.execute(op)); continue; }
       let before = null,
         after = null,
         entityType;
@@ -812,6 +815,7 @@ export function createComposableStore(db) {
           }
         }
       }
+      if (entityType === 'record') notes.markDirty(op.id);
       diffs.push({
         action: op.type,
         entityType,
@@ -988,7 +992,9 @@ export function createComposableStore(db) {
         .get().n,
       templates: CRM_TEMPLATES,
       fieldTypes: FIELD_TYPES,
+      notes: {libraryId: notes.libraryId()},
       capabilities: {
+        notes: true,
         relations: true,
         review: true,
         history: true,
@@ -1005,6 +1011,7 @@ export function createComposableStore(db) {
       version: 3,
       policy: policy(),
       agentFlows: flows.export(),
+      notes: notes.export(),
       exportedAt: new Date().toISOString(),
       collections: collections(),
       records: db
@@ -1035,6 +1042,7 @@ export function createComposableStore(db) {
         })),
     };
   }
+  const notes = transaction(() => createNotesStore(db, {getRecord, transaction}));
   const flows = createFlowStore(db, transaction, getChange);
   function policy() {
     const row = db.prepare('SELECT * FROM crm_policy WHERE id=1').get();
@@ -1050,6 +1058,7 @@ export function createComposableStore(db) {
     });
   }
   return {
+    notes,
     flows,
     context,
     collections,

@@ -71,7 +71,7 @@ for (const theme of ['light', 'dark']) {
     await card.locator('button').first().click();
     await focusWithKeyboard(page, page.getByLabel('Title', { exact: true }));
     await focusWithKeyboard(page, page.getByLabel('Status', { exact: true }));
-    await focusWithKeyboard(page, page.getByLabel('Notes', { exact: true }));
+    await focusWithKeyboard(page, page.getByRole('textbox', { name: 'Notes', exact: true }));
     await page.screenshot({ path: `test-results/focus-${theme}-editor.png` });
     await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Settings', exact: true }).click();

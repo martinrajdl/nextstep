@@ -138,13 +138,14 @@ async function openDatabase() {
 function createService(database) {
   if (existsSync(database)) assertNextstepDatabase(database);
   const args = app.isPackaged ? ['--mcp'] : [app.getAppPath(),'--mcp'];
-  return startServer({port:0,database,dist:resolve(app.getAppPath(),'dist'),agentCommand:{command:process.execPath,args},crmAgentCommand:{command:process.execPath,args:app.isPackaged ? ['--crm-mcp'] : [app.getAppPath(),'--crm-mcp']}});
+  return startServer({port:0,database,notesFolderSelection:true,dist:resolve(app.getAppPath(),'dist'),agentCommand:{command:process.execPath,args},crmAgentCommand:{command:process.execPath,args:app.isPackaged ? ['--crm-mcp'] : [app.getAppPath(),'--crm-mcp']}});
 }
 function agentBridge() {
   const testHome = process.env.NEXTSTEP_AGENT_CONFIG_HOME;
   const connector = createAgentConnector({home:testHome || app.getPath('home'),env:testHome ? {...process.env,CODEX_HOME:resolve(testHome,'.codex'),CLAUDE_CONFIG_DIR:''} : process.env});
   const validate = validateSender;
   let connecting = false;
+  ipcMain.handle('nextstep:notes-folder',async event=>{validate(event);const active=service;if(active.backendUrl)throw new Error('Choose a local database to use a notes folder.');const result=await dialog.showOpenDialog(window,{title:'Choose a folder for your notes',message:'Nextstep creates a Nextstep Notes subfolder. Choose a folder in iCloud Drive to sync through your own account.',properties:['openDirectory','createDirectory']});if(result.canceled||!result.filePaths[0])return null;if(active!==service)throw new Error('The selected database changed. Choose the folder again.');return active.notesSync.connect(result.filePaths[0]);});
   ipcMain.handle('nextstep:agents',event => { validate(event); return service.backendUrl ? [] : connector.detect(); });
   ipcMain.handle('nextstep:open-crm-agent',async (event,provider) => {
     validate(event);
@@ -321,6 +322,7 @@ async function main() {
     clearInterval(usageTimer);
     clearTimeout(firstUpdateCheck); clearInterval(updateTimer); updater.stop();
     usage.stop();
+    service.stopSync?.();
     service.server.closeAllConnections();
     service.store?.close();
   });

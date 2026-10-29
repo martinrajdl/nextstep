@@ -1,3 +1,4 @@
+import { createNotesSync } from './notes-sync.mjs';
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { resolve, extname, sep } from 'node:path';
@@ -5,10 +6,11 @@ import { openStore, AppError } from './store.mjs';
 import { root, databasePath } from './config.mjs';
 import { connectionConfig, setupInstructions, searchInstructions } from './agent-instructions.mjs';
 import { checkBackend } from './backend.mjs';
-export async function startServer({port = Number(process.env.PORT || 4317), database = databasePath(), dist = resolve(root,'dist'), agentCommand = {command:process.execPath,args:[resolve(root,'mcp/stdio.mjs')]}, crmAgentCommand = {command:process.execPath,args:[resolve(root,'mcp/crm-stdio.mjs')]}, developmentOrigins = [], backendUrl = null} = {}) {
+export async function startServer({port = Number(process.env.PORT || 4317), database = databasePath(), dist = resolve(root,'dist'), agentCommand = {command:process.execPath,args:[resolve(root,'mcp/stdio.mjs')]}, crmAgentCommand = {command:process.execPath,args:[resolve(root,'mcp/crm-stdio.mjs')]}, developmentOrigins = [], backendUrl = null, notesFolderSelection = false} = {}) {
 if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('Choose a valid local port.');
 const backend = backendUrl ? await checkBackend(backendUrl) : null;
 const store = backend ? null : openStore(database);
+const notesSync = store ? createNotesSync(store.crm.notes, {canChooseFolder:notesFolderSelection}) : null;
 const agentState = () => ({...store.agentStatus(),connection:connectionConfig({database,...agentCommand}),database});
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.ico': 'image/x-icon' };
 function json(res, status, value) { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(value)); }
@@ -20,7 +22,7 @@ async function body(req, limit = 65536) {
 const server = createServer(async (req, res) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'no-referrer');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
   try {
     const activePort = server.address()?.port;
     const allowedHosts = new Set([`localhost:${activePort}`,`127.0.0.1:${activePort}`]);
@@ -31,7 +33,7 @@ const server = createServer(async (req, res) => {
     if (path === '/api/health' && req.method === 'GET') return json(res, 200, { status: 'ok', app: 'nextstep', pid: process.pid, backend:backend ? 'self-hosted' : 'local' });
     if (backend && path.startsWith('/api/')) {
       if (!['GET','POST','PATCH','DELETE'].includes(req.method)) throw new AppError('Method not allowed.',405);
-      const payload = req.method === 'GET' ? undefined : JSON.stringify(await body(req,524288));
+      const payload = req.method === 'GET' ? undefined : JSON.stringify(await body(req,8388608));
       let upstream;
       try {
         const target = backend + path + new URL(req.url,'http://localhost').search;
@@ -44,6 +46,12 @@ const server = createServer(async (req, res) => {
     }
     const crm = store?.crm;
     const params = new URL(req.url, 'http://localhost').searchParams;
+    if (path === '/api/notes' && req.method === 'GET') return json(res,200,crm.notes.list({search:params.get('search') || '',tag:params.get('tag') || '',state:params.get('state') || 'active',linkedTo:params.get('linkedTo') || '',limit:Number(params.get('limit') || 100),offset:Number(params.get('offset') || 0)}));
+    if (path === '/api/notes/sync' && req.method === 'GET') return json(res,200,notesSync.status());
+    if (path === '/api/notes/sync' && req.method === 'PATCH') return json(res,200,await notesSync.configure(await body(req)));
+    if (path === '/api/notes/sync/run' && req.method === 'POST') return json(res,200,await notesSync.run());
+    const noteMatch=path.match(/^\/api\/notes\/([a-fA-F0-9-]{36})$/);
+    if (noteMatch && req.method === 'GET') return json(res,200,crm.notes.get(noteMatch[1]));
     if (path === '/api/crm/flows' && req.method === 'GET') return json(res,200,{flows:crm.flows.list({limit:Number(params.get('limit') || 50),offset:Number(params.get('offset') || 0)})});
     if (path === '/api/crm/flows/report' && req.method === 'POST') return json(res,200,crm.flows.report(await body(req,262144)));
     if (path.startsWith('/api/crm/flows/') && req.method === 'GET') return json(res,200,crm.flows.get(decodeURIComponent(path.slice('/api/crm/flows/'.length))));
@@ -51,9 +59,9 @@ const server = createServer(async (req, res) => {
     if (path === '/api/crm/policy' && req.method === 'GET') return json(res,200,crm.policy());
     if (path === '/api/crm/policy' && req.method === 'PATCH') return json(res,200,crm.setPolicy(await body(req)));
     if (path === '/api/crm/query' && req.method === 'POST') return json(res,200,crm.query(await body(req)));
-    if (path === '/api/crm/preview' && req.method === 'POST') return json(res,200,crm.preview(await body(req,524288)));
-    if (path === '/api/crm/proposals' && req.method === 'POST') return json(res,201,crm.propose(await body(req,524288)));
-    if (path === '/api/crm/apply' && req.method === 'POST') return json(res,200,crm.apply({...await body(req,524288),actor:'You'}));
+    if (path === '/api/crm/preview' && req.method === 'POST') return json(res,200,crm.preview(await body(req,8388608)));
+    if (path === '/api/crm/proposals' && req.method === 'POST') return json(res,201,crm.propose(await body(req,8388608)));
+    if (path === '/api/crm/apply' && req.method === 'POST') return json(res,200,crm.apply({...await body(req,8388608),actor:'You'}));
     if (path === '/api/crm/changes' && req.method === 'GET') return json(res,200,{changes:crm.changes({status:params.get('status') || undefined,limit:Number(params.get('limit') || 100),offset:Number(params.get('offset') || 0)})});
     if (path === '/api/crm/history' && req.method === 'GET') return json(res,200,{events:crm.history({entityId:params.get('entityId') || undefined,after:Number(params.get('after') || 0),limit:Number(params.get('limit') || 100)})});
     if (path === '/api/crm/export' && req.method === 'GET') { res.setHeader('Content-Disposition','attachment; filename="nextstep-workspace.json"'); return json(res,200,crm.export()); }
@@ -108,9 +116,10 @@ await new Promise((resolve,reject) => {
   server.listen(port,'127.0.0.1',resolve);
 }).catch(error => { store?.close(); throw error; });
 let closing;
-return {server,store,database:backend ? null : database,backendUrl:backend,url:`http://127.0.0.1:${server.address().port}`,close() {
+return {server,store,notesSync,stopSync:()=>notesSync?.stop(),database:backend ? null : database,backendUrl:backend,url:`http://127.0.0.1:${server.address().port}`,close() {
   if (!closing) closing = new Promise((resolve,reject) => {
-    server.close(error => { store?.close(); error ? reject(error) : resolve(); });
+    void notesSync?.close().then(() => server.close(error => { store?.close(); error ? reject(error) : resolve(); }));
+    if (!notesSync) server.close(error => { error ? reject(error) : resolve(); });
     server.closeIdleConnections();
   });
   return closing;
