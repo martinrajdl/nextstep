@@ -10,6 +10,7 @@ declare global {
   interface Window {
     nextstepDesktop?: {
       platform: string;
+      chooseNotesFolder: () => Promise<import('./notes').NotesSync|null>;
       getCollectionLayout: (key:string) => Promise<'table' | 'board' | null>;
       setCollectionLayout: (key:string,value:'table' | 'board') => Promise<'table' | 'board'>;
       getBoardSettings: (key:string) => Promise<import('@/components/board-controls').BoardSettings | null>;

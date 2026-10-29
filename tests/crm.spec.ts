@@ -52,7 +52,7 @@ test('existing records and every collection share navigation, fields, actions an
     .first()
     .click();
   await page
-    .getByLabel('Notes', { exact: true })
+    .getByRole('textbox', { name: 'Notes', exact: true })
     .fill('Updated through the shared editor');
   await page.getByRole('button', { name: 'Save record', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -202,7 +202,7 @@ test('an external agent edit cannot be overwritten by a stale editor', async ({
     .locator(`article[aria-label="${row.company}"] > button`)
     .first()
     .click();
-  await page.getByLabel('Notes', { exact: true }).fill('Stale edit');
+  await page.getByRole('textbox', { name: 'Notes', exact: true }).fill('Stale edit');
   expect(
     (
       await request.patch(`/api/opportunities/${row.id}`, {

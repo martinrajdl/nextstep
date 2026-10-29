@@ -95,6 +95,7 @@ export type Event = Diff & {
   createdAt: string;
 };
 export type Workspace = {
+  notes?: {libraryId:string|null};
   compatibilityCollectionId: string | null;
   policy: {reviewRequired: boolean; version: number};
   recentFlows: AgentFlow[];

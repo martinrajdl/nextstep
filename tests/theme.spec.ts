@@ -62,9 +62,10 @@ test('black surfaces stay neutral and readable with aligned records and spaced h
   await page.getByRole('link', { name: 'History', exact: true }).click();
   const history = page.locator('.crm-activity-list > button');
   await expect(history.nth(1)).toBeVisible();
-  const firstEvent = (await history.nth(0).boundingBox())!;
-  const secondEvent = (await history.nth(1).boundingBox())!;
-  expect(secondEvent.y - firstEvent.y - firstEvent.height).toBeGreaterThanOrEqual(6);
+  await expect.poll(() => history.evaluateAll(events => {
+    const first = events[0].getBoundingClientRect(), second = events[1].getBoundingClientRect();
+    return second.top - first.bottom;
+  })).toBeGreaterThanOrEqual(6);
   await page.screenshot({ path: 'test-results/black-history.png', animations: 'disabled' });
   await history.first().click();
   await expect(page.getByRole('dialog')).toBeVisible();

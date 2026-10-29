@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Database,
   Folder,
+  FileText,
   Inbox,
   Layers2,
   LayoutGrid,
@@ -21,6 +22,7 @@ import {
 } from 'lucide-react';
 import { request } from '@/lib/model';
 import {
+  applyChange,
   dateTime,
   displayValue,
   errorMessage,
@@ -42,6 +44,8 @@ import { FlowCard } from '@/components/crm/agent-flows';
 import AgentPage from '@/components/crm/agent-page';
 import { BoardSkeleton } from '@/components/board-controls';
 import './workspace.css';
+import { lazy, Suspense } from 'react';
+const NotesWorkspace = lazy(() => import('@/components/crm/notes-workspace'));
 const currentRoute = () =>
   window.location.pathname === '/jobs' ? 'legacy-board' : window.location.hash.replace(/^#\/?/, '').split('?')[0] || 'overview';
 function ActivityView({ revision }: { revision: number }) {
@@ -221,9 +225,11 @@ export default function WorkspaceApp() {
     };
   }, [refresh, schema, recordEditor, workbench]);
   const navigate = (path: string) => {
+    if (!window.dispatchEvent(new window.Event('nextstep:before-navigate', {cancelable:true}))) return;
     window.history.pushState(null, '', `/#/${path}`);
     setRoute(currentRoute());
     setNavOpen(false);
+    window.dispatchEvent(new window.Event('nextstep:notes-route'));
   };
   const activeCollectionId = route === 'legacy-board' ? workspace?.compatibilityCollectionId : route.startsWith('collections/') ? route.slice('collections/'.length) : null;
   const collection = workspace?.collections.find(c => c.id === activeCollectionId);
@@ -233,6 +239,7 @@ export default function WorkspaceApp() {
       overview: 'Workspace home',
       review: 'Review changes',
       activity: 'History',
+      notes: 'Notes',
       agents: 'Agent',
       flows: 'Agent',
     }[route] ||
@@ -250,6 +257,7 @@ export default function WorkspaceApp() {
       // A modal draft must be closed explicitly before its route can disappear.
       if (document.querySelector('[role=dialog], [role=alertdialog]')) { event.preventDefault(); return; }
       event.preventDefault();
+      if (!window.dispatchEvent(new window.Event('nextstep:before-navigate', {cancelable:true}))) return;
       history.pushState(null, '', url.pathname + url.hash);
       setRoute(currentRoute());
       setNavOpen(false);
@@ -278,6 +286,7 @@ export default function WorkspaceApp() {
         <nav aria-label="Workspace navigation">
           {[
             { id: 'overview', label: 'Home', icon: LayoutGrid },
+            { id: 'notes', label: 'Notes', icon: FileText },
             { id: 'agents', label: 'Agent', icon: Bot },
             { id: 'review', label: 'Review changes', icon: Inbox },
             { id: 'activity', label: 'History', icon: Activity },
@@ -297,9 +306,9 @@ export default function WorkspaceApp() {
             </AppLink>
           ))}
         </nav>
-        {Boolean(workspace?.collections.length) && <>
+        {Boolean(workspace?.collections.some(c=>c.id!==workspace.notes?.libraryId)) && <>
           <div className="crm-sidebar-caption"><span>COLLECTIONS</span></div>
-          <nav aria-label="Collections">{workspace?.collections.map(c => <AppLink onClick={followLink} key={c.id} href={`/#/collections/${c.id}`} aria-label={c.name} aria-current={collection?.id === c.id ? 'page' : undefined}><span className="crm-collection-dot" aria-hidden="true" style={{background:collapsed ? `${c.color}18` : c.color,color:c.color}}><span>{c.name.trim().split(/\s+/).map(word => word[0]).slice(0,2).join('').toUpperCase()}</span></span><span className="crm-nav-label">{c.name}</span><small aria-hidden="true">{c.recordCount}</small></AppLink>)}</nav>
+          <nav aria-label="Collections">{workspace?.collections.filter(c=>c.id!==workspace.notes?.libraryId).map(c => <AppLink onClick={followLink} key={c.id} href={`/#/collections/${c.id}`} aria-label={c.name} aria-current={collection?.id === c.id ? 'page' : undefined}><span className="crm-collection-dot" aria-hidden="true" style={{background:collapsed ? `${c.color}18` : c.color,color:c.color}}><span>{c.name.trim().split(/\s+/).map(word => word[0]).slice(0,2).join('').toUpperCase()}</span></span><span className="crm-nav-label">{c.name}</span><small aria-hidden="true">{c.recordCount}</small></AppLink>)}</nav>
         </>}
         <SidebarFooter className="crm-sidebar-bottom">
           <AppButton aria-label="Settings" title={updateAvailable ? 'Settings · update available' : 'Settings'} className="crm-settings-button" onClick={openSettings}>
@@ -342,7 +351,7 @@ export default function WorkspaceApp() {
             </AppButton>
           </div>
         </header>
-        <main id="workspace-content" className={`crm-content${collection ? ' crm-collection-content' : ''}`}>
+        <main id="workspace-content" className={`crm-content${collection ? ' crm-collection-content' : ''}${route==='notes'?' crm-notes-content':''}`}>
           {error && (
             <div className="crm-error" role="alert">
               {error}
@@ -357,6 +366,8 @@ export default function WorkspaceApp() {
           {!workspace ? (
             error ? <div className="crm-empty"><Database size={28}/><h1>Workspace unavailable</h1></div> : <BoardSkeleton table/>
 
+          ) : route === 'notes' ? (
+            <Suspense fallback={<BoardSkeleton table/>}><NotesWorkspace revision={revision} onChanged={changed} onRecord={id => void request<{record:RecordItem}>(`/api/crm/records/${id}`).then(({record}) => {const target=workspace.collections.find(c=>c.id===record.collectionId);if(target)setRecordEditor({collection:target,record});}).catch(e=>setError(errorMessage(e)))}/></Suspense>
           ) : collection ? (
             <CollectionView
               key={collection.id}
@@ -388,7 +399,7 @@ export default function WorkspaceApp() {
               {workspace.pendingCount > 0 && <AppButton tooltip="Review proposed changes" className="crm-review-banner" onClick={() => navigate('review')}><Inbox size={20}/><span><strong>{workspace.pendingCount} {workspace.pendingCount === 1 ? 'change is' : 'changes are'} ready for review</strong><small>See what your agent wants to add or update.</small></span><ArrowRight size={18}/></AppButton>}
               <section className="crm-overview-section">
                 <div className="crm-collection-cards">
-                  {workspace.collections.map(c => (
+                  {workspace.collections.filter(c=>c.id!==workspace.notes?.libraryId).map(c => (
                     <AppButton key={c.id} aria-label={`Open ${c.name}`} onClick={() => navigate(`collections/${c.id}`)}>
                       <div className="crm-collection-card-heading">
                         <span className="crm-collection-card-icon" aria-hidden="true" style={{background:`${c.color}18`,color:c.color}}><Folder size={19}/></span>
@@ -426,6 +437,7 @@ export default function WorkspaceApp() {
         <RecordEditor
           collection={recordEditor.collection}
           record={recordEditor.record}
+          onNote={async id => {try{let noteId=id;if(!noteId&&recordEditor.record){noteId=crypto.randomUUID();await applyChange('Create linked note',[{type:'create_note',id:noteId,title:`Notes on ${recordEditor.record.title}`.slice(0,200),links:[recordEditor.record.id]}]);}setRecordEditor(null);navigate(`notes?note=${noteId}`);await refresh();}catch(e){setError(errorMessage(e));}}}
           onClose={() => setRecordEditor(null)}
           onSaved={async () => {
             setRecordEditor(null);

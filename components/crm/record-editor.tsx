@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import AppButton from '@/components/app-button';
 import { useEffect, useState } from 'react';
-import { Archive, History, RotateCcw } from 'lucide-react';
+import { Archive, History, RotateCcw, FileText, Plus } from 'lucide-react';
 import Modal from './modal';
 import { request } from '@/lib/model';
 import {
@@ -123,12 +123,16 @@ export default function RecordEditor({
   record,
   onClose,
   onSaved,
+  onNote,
 }: {
   collection: Collection;
   record: RecordItem | null;
   onClose: () => void;
   onSaved: () => Promise<void>;
+  onNote?: (id?:string) => void;
 }) {
+  const [linkedNotes,setLinkedNotes] = useState<{id:string;title:string}[]>([]);
+  useEffect(()=>{let cancelled=false;if(record)void request<{notes:{id:string;title:string}[]}>(`/api/notes?linkedTo=${record.id}`).then(r=>{if(!cancelled)setLinkedNotes(r.notes);}).catch(()=>{});return()=>{cancelled=true;};},[record]);
   const [id] = useState(record?.id || crypto.randomUUID());
   const [title, setTitle] = useState(record?.title || ''),
     [values, setValues] = useState<Record<string, Value>>(record?.values || {}),
@@ -359,6 +363,7 @@ export default function RecordEditor({
               </Label>
             </CollapsibleContent></Collapsible>
           </fieldset>
+          {record && onNote && <section className="crm-record-history"><h3>Notes</h3>{linkedNotes.map(n=><AppButton type="button" className="crm-text-button" key={n.id} onClick={()=>{if(!dirty||window.confirm('Discard unsaved record edits and open the note?'))onNote(n.id);}}><FileText size={14}/>{n.title}</AppButton>)}<AppButton type="button" className="crm-text-button" onClick={()=>{if(!dirty||window.confirm('Discard unsaved record edits and create a note?'))onNote();}}><Plus size={14}/>Add note</AppButton></section>}
           {record && (
             <section className="crm-record-history">
               <AppButton
