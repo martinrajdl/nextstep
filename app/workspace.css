@@ -2373,3 +2373,19 @@ html[data-desktop='darwin'] .is-sidebar-collapsed .crm-sidebar::before { width:9
 .crm-board article [data-slot='button'] { justify-content: flex-start; }
 
 .crm-shell [data-slot='checkbox'] { border: 1px solid var(--input); }
+
+
+/* Sidebar spacing, collection icons and shared workspace header. */
+.crm-shell { --crm-sidebar-width:232px; }
+.crm-sidebar { padding:10px 8px 12px; }
+.crm-brand { font-size:18px;letter-spacing:-.5px;gap:8px; }
+.crm-brand > img { width:24px;height:24px; }
+.crm-sidebar-brand-row { min-height:36px;margin-bottom:18px; }
+.crm-sidebar nav {gap:2px;}
+.crm-sidebar nav a {min-height:34px;padding:7px 10px;gap:10px;border-radius:7px;}
+.crm-sidebar-caption {font-size:11px;font-weight:500;letter-spacing:0;padding:26px 10px 8px;}
+.crm-collection-dot {display:grid;place-items:center;width:20px;height:20px;margin:0;border-radius:5px;flex-shrink:0;}
+.crm-collection-dot > span,.is-sidebar-collapsed .crm-collection-dot > span {display:none;}
+.is-sidebar-collapsed .crm-collection-dot {width:28px;height:28px;}
+.crm-topbar {height:52px;padding:0 20px;}
+.crm-topbar .crm-current-location {font-size:13px;font-weight:550;}

@@ -307,8 +307,8 @@ export default function WorkspaceApp() {
           ))}
         </nav>
         {Boolean(workspace?.collections.some(c=>c.id!==workspace.notes?.libraryId)) && <>
-          <div className="crm-sidebar-caption"><span>COLLECTIONS</span></div>
-          <nav aria-label="Collections">{workspace?.collections.filter(c=>c.id!==workspace.notes?.libraryId).map(c => <AppLink onClick={followLink} key={c.id} href={`/#/collections/${c.id}`} aria-label={c.name} aria-current={collection?.id === c.id ? 'page' : undefined}><span className="crm-collection-dot" aria-hidden="true" style={{background:collapsed ? `${c.color}18` : c.color,color:c.color}}><span>{c.name.trim().split(/\s+/).map(word => word[0]).slice(0,2).join('').toUpperCase()}</span></span><span className="crm-nav-label">{c.name}</span><small aria-hidden="true">{c.recordCount}</small></AppLink>)}</nav>
+          <div className="crm-sidebar-caption"><span>Collections</span></div>
+          <nav aria-label="Collections">{workspace?.collections.filter(c=>c.id!==workspace.notes?.libraryId).map(c => <AppLink onClick={followLink} key={c.id} href={`/#/collections/${c.id}`} aria-label={c.name} aria-current={collection?.id === c.id ? 'page' : undefined}><span className="crm-collection-dot" aria-hidden="true" style={{background:`${c.color}15`,color:c.color}}><Folder size={13}/><span>{c.name.trim().split(/\s+/).map(word => word[0]).slice(0,2).join('').toUpperCase()}</span></span><span className="crm-nav-label">{c.name}</span><small aria-hidden="true">{c.recordCount}</small></AppLink>)}</nav>
         </>}
         <SidebarFooter className="crm-sidebar-bottom">
           <AppButton aria-label="Settings" title={updateAvailable ? 'Settings · update available' : 'Settings'} className="crm-settings-button" onClick={openSettings}>

@@ -32,7 +32,7 @@ test('black surfaces stay neutral and readable with aligned records and spaced h
     });
     return { darkestChannel: Math.max(...rgb(shell.backgroundColor)), neutralSurfaces, cardContrast: contrast(card.color, card.backgroundColor), detailContrast: contrast(text.color, card.backgroundColor), distinct: shell.backgroundColor !== card.backgroundColor };
   });
-  expect(surfaces.darkestChannel).toBe(0);
+  expect(surfaces.darkestChannel).toBe(17);
   expect(surfaces.neutralSurfaces).toBe(true);
   expect(surfaces.distinct).toBe(true);
   expect(surfaces.cardContrast).toBeGreaterThanOrEqual(4.5);

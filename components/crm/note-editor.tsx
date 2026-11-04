@@ -1,4 +1,4 @@
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, useEditorState, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from '@tiptap/markdown';
 import Image from '@tiptap/extension-image';
@@ -9,6 +9,9 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import {
   Bold,
+  Check,
+  ChevronDown,
+  FileText,
   Italic,
   Heading2,
   List,
@@ -127,7 +130,7 @@ export default function NoteEditor({
     [insertUrl, setInsertUrl] = useState(''),
     [insertLabel, setInsertLabel] = useState('');
   const composing = useRef(false);
-  const titleInput = useRef<HTMLInputElement>(null),
+  const titleInput = useRef<HTMLTextAreaElement>(null),
     insertInput = useRef<HTMLInputElement>(null);
   const newDocument = useRef(note.title === 'Untitled' && !note.body);
   useEffect(() => {
@@ -136,6 +139,22 @@ export default function NoteEditor({
   useEffect(() => {
     if (insert) insertInput.current?.focus();
   }, [insert]);
+  useEffect(() => {
+    const input = titleInput.current;
+    if (input) {
+      input.style.height = 'auto';
+      input.style.height = `${input.scrollHeight}px`;
+      let width = input.clientWidth;
+      const observer = new ResizeObserver(() => {
+        if (width === input.clientWidth) return;
+        width = input.clientWidth;
+        input.style.height = 'auto';
+        input.style.height = `${input.scrollHeight}px`;
+      });
+      observer.observe(input);
+      return () => observer.disconnect();
+    }
+  }, [draft.title]);
   const sourceOnly = requiresSource(draft.body);
   const usingSource = source || sourceOnly;
   const busy = useRef<Promise<boolean> | null>(null),
@@ -183,6 +202,20 @@ export default function NoteEditor({
       setError('');
     },
     shouldRerenderOnTransaction: false,
+  });
+  const formatting = useEditorState({
+    editor,
+    selector: ({ editor: current }) => ({
+      bold: current?.isActive('bold') || false,
+      italic: current?.isActive('italic') || false,
+      bullet: current?.isActive('bulletList') || false,
+      task: current?.isActive('taskList') || false,
+      heading: current?.isActive('heading')
+        ? Number(current.getAttributes('heading').level)
+        : 0,
+      words: (current?.getText() || '').trim().split(/\s+/u).filter(Boolean)
+        .length,
+    }),
   });
   const syncEditor = (body: string) => {
     editor?.commands.setContent(body, {
@@ -330,12 +363,20 @@ export default function NoteEditor({
         .slice(0, 30),
     );
   }
-  const action = (title: string, run: () => void, Icon: typeof Bold) => (
+  const action = (
+    title: string,
+    run: () => void,
+    Icon: typeof Bold,
+    pressed?: boolean,
+    shortcut?: string,
+  ) => (
     <AppButton
       key={title}
       className="crm-icon-button"
       aria-label={title}
-      title={title}
+      title={shortcut ? `${title} · ${shortcut}` : title}
+      aria-pressed={pressed}
+      onMouseDown={(event) => event.preventDefault()}
       onClick={run}
     >
       <Icon size={16} />
@@ -358,207 +399,193 @@ export default function NoteEditor({
   };
   return (
     <article className="notes-document">
-      <div className="notes-document-toolbar">
-        <output className={state === 'Not saved' ? 'crm-error' : ''}>
-          {changed && state === 'Saved' ? 'Unsaved' : state}
-        </output>
-        <div>
-          <AppButton
-            className="crm-text-button"
-            disabled={sourceOnly}
-            title={
-              sourceOnly
-                ? 'Extended Markdown stays in source mode'
-                : 'Toggle Markdown source'
-            }
-            aria-pressed={usingSource}
-            onClick={() => {
-              setSource(!usingSource);
-              if (usingSource && !sourceOnly) syncEditor(draft.body);
-            }}
-          >
-            {usingSource ? 'Write' : 'Markdown'}
-          </AppButton>
-          {action(
-            draft.pinned ? 'Unpin note' : 'Pin note',
-            () => mutate({ pinned: !draft.pinned }),
-            Pin,
-          )}
-          {action(
-            focus ? 'Exit focus mode' : 'Focus mode',
-            onFocus,
-            focus ? Minimize2 : Maximize2,
-          )}
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <AppButton
-                  className="crm-icon-button"
-                  aria-label="Note actions"
-                  title="Note actions"
-                >
-                  <MoreHorizontal size={17} />
-                </AppButton>
-              }
+      <div className="notes-editor-chrome">
+        <div className="notes-document-toolbar">
+          <div className="notes-save-state">
+            <Check
+              size={13}
+              aria-hidden="true"
+              className={changed ? 'is-pending' : ''}
             />
-            <DropdownMenuContent align="end" className="crm-menu-popup">
-              <DropdownMenuGroup>
-                <DropdownMenuItem
-                  onClick={() =>
-                    void request<{ events: Event[] }>(
-                      `/api/crm/history?entityId=${note.id}`,
-                    )
-                      .then((r) => setHistory(r.events))
-                      .catch((e) => setError(errorMessage(e)))
+            <output className={state === 'Not saved' ? 'crm-error' : ''}>
+              {changed && state === 'Saved' ? 'Unsaved' : state}
+            </output>
+          </div>
+          <div>
+            <div className="notes-mode-switch" aria-label="Editor mode">
+              <AppButton
+                aria-pressed={!usingSource}
+                disabled={sourceOnly}
+                title={
+                  sourceOnly
+                    ? 'Extended Markdown stays in source mode'
+                    : 'Visual editor'
+                }
+                onClick={() => {
+                  if (!sourceOnly) {
+                    syncEditor(draft.body);
+                    setSource(false);
                   }
-                >
-                  <History size={14} />
-                  Note history
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={download}>
-                  <Download size={14} />
-                  Export Markdown
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() =>
-                    mutate({
-                      state: draft.state === 'archived' ? 'active' : 'archived',
-                    })
-                  }
-                >
-                  <Archive size={14} />
-                  {draft.state === 'archived'
-                    ? 'Unarchive note'
-                    : 'Archive note'}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() =>
-                    mutate({
-                      state: draft.state === 'trash' ? 'active' : 'trash',
-                    })
-                  }
-                >
-                  <Trash2 size={14} />
-                  {draft.state === 'trash'
-                    ? 'Restore note'
-                    : 'Move note to trash'}
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-      {incoming && (
-        <div className="notes-conflict" role="alert">
-          <strong>
-            This note changed elsewhere. Your writing is preserved.
-          </strong>
-          <p>
-            Compare your text below with the incoming version. Save both to keep
-            your work as a separate note.
-          </p>
-          <details>
-            <summary>Incoming version</summary>
-            <pre>
-              {incoming.title}
-              {'\n\n'}
-              {incoming.body}
-            </pre>
-          </details>
-          <AppButton
-            className="crm-button"
-            onClick={() =>
-              void applyChange('Preserve conflicting note', [
-                {
-                  type: 'create_note',
-                  ...draft,
-                  title: `${draft.title.slice(0, 175)} (conflict copy)`,
-                },
-              ])
-                .then(() => {
-                  base.current = incoming;
-                  saved.current = JSON.stringify(draftOf(incoming));
-                  setDraft(draftOf(incoming));
-                  syncEditor(incoming.body);
-                  setIncoming(null);
-                  setError('');
-                  setState('Saved');
-                  onSaved(incoming);
-                })
-                .catch((e) => setError(errorMessage(e)))
-            }
-          >
-            Save both
-          </AppButton>
-        </div>
-      )}
-      {error && (
-        <div className="crm-error" role="alert">
-          {error}
-          <AppButton
-            className="crm-text-button"
-            onClick={() => {
-              setError('');
-              void flushRef.current();
-            }}
-          >
-            Retry save
-          </AppButton>
-          <AppButton
-            className="crm-text-button"
-            onClick={() =>
-              void navigator.clipboard.writeText(
-                `${draft.title}\n\n${draft.body}`,
-              )
-            }
-          >
-            Copy my text
-          </AppButton>
-        </div>
-      )}
-      <div className="notes-paper">
-        <Input
-          ref={titleInput}
-          className="notes-title"
-          aria-label="Note title"
-          placeholder="Untitled"
-          value={draft.title === 'Untitled' ? '' : draft.title}
-          maxLength={200}
-          onChange={(e) => mutate({ title: e.target.value })}
-        />
-        <div className="notes-meta">
-          {dateTime(note.updatedAt)}
-          {note.conflictOf && <span> · Recovered conflict copy</span>}
-          {draft.state !== 'active' && (
-            <span> · {draft.state === 'trash' ? 'In trash' : 'Archived'}</span>
-          )}
+                }}
+              >
+                <FileText size={13} />
+                Write
+              </AppButton>
+              <AppButton
+                aria-pressed={usingSource}
+                title="Edit Markdown source"
+                onClick={() => setSource(true)}
+              >
+                <Code size={13} />
+                Markdown
+              </AppButton>
+            </div>
+            {action(
+              draft.pinned ? 'Unpin note' : 'Pin note',
+              () => mutate({ pinned: !draft.pinned }),
+              Pin,
+              draft.pinned,
+            )}
+            {action(
+              focus ? 'Exit focus mode' : 'Focus mode',
+              onFocus,
+              focus ? Minimize2 : Maximize2,
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <AppButton
+                    className="crm-icon-button"
+                    aria-label="Note actions"
+                    title="Note actions"
+                  >
+                    <MoreHorizontal size={17} />
+                  </AppButton>
+                }
+              />
+              <DropdownMenuContent align="end" className="crm-menu-popup">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    onClick={() =>
+                      void request<{ events: Event[] }>(
+                        `/api/crm/history?entityId=${note.id}`,
+                      )
+                        .then((r) => setHistory(r.events))
+                        .catch((e) => setError(errorMessage(e)))
+                    }
+                  >
+                    <History size={14} />
+                    Note history
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={download}>
+                    <Download size={14} />
+                    Export Markdown
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() =>
+                      mutate({
+                        state:
+                          draft.state === 'archived' ? 'active' : 'archived',
+                      })
+                    }
+                  >
+                    <Archive size={14} />
+                    {draft.state === 'archived'
+                      ? 'Unarchive note'
+                      : 'Archive note'}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() =>
+                      mutate({
+                        state: draft.state === 'trash' ? 'active' : 'trash',
+                      })
+                    }
+                  >
+                    <Trash2 size={14} />
+                    {draft.state === 'trash'
+                      ? 'Restore note'
+                      : 'Move note to trash'}
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
         {!usingSource && (
-          <div className="notes-formatting" aria-label="Formatting">
+          <fieldset className="notes-formatting" aria-label="Formatting">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <AppButton
+                    className="notes-block-picker"
+                    aria-label="Text style"
+                  >
+                    <span>
+                      {formatting?.heading
+                        ? `Heading ${formatting.heading}`
+                        : 'Text'}
+                    </span>
+                    <ChevronDown size={12} />
+                  </AppButton>
+                }
+              />
+              <DropdownMenuContent
+                className="crm-menu-popup"
+                finalFocus={() =>
+                  insertInput.current || editor?.view.dom || false
+                }
+              >
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    onClick={() => editor?.chain().focus().setParagraph().run()}
+                  >
+                    Text
+                  </DropdownMenuItem>
+                  {[1, 2, 3, 4, 5, 6].map((level) => (
+                    <DropdownMenuItem
+                      key={level}
+                      onClick={() =>
+                        editor
+                          ?.chain()
+                          .focus()
+                          .setHeading({ level: level as 1 | 2 | 3 | 4 | 5 | 6 })
+                          .run()
+                      }
+                    >
+                      <Heading2 size={14} />
+                      Heading {level}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <span className="notes-format-divider" aria-hidden="true" />
             {action(
               'Bold',
               () => editor?.chain().focus().toggleBold().run(),
               Bold,
+              formatting?.bold,
+              '⌘B',
             )}
             {action(
               'Italic',
               () => editor?.chain().focus().toggleItalic().run(),
               Italic,
+              formatting?.italic,
+              '⌘I',
             )}
-            {action(
-              'Heading',
-              () => editor?.chain().focus().toggleHeading({ level: 2 }).run(),
-              Heading2,
-            )}
+            <span className="notes-format-divider" aria-hidden="true" />
             {action(
               'Bullet list',
               () => editor?.chain().focus().toggleBulletList().run(),
               List,
+              formatting?.bullet,
             )}
             {action(
               'Checklist',
               () => editor?.chain().focus().toggleTaskList().run(),
               ListTodo,
+              formatting?.task,
             )}
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -572,25 +599,13 @@ export default function NoteEditor({
                   </AppButton>
                 }
               />
-              <DropdownMenuContent className="crm-menu-popup">
+              <DropdownMenuContent
+                className="crm-menu-popup"
+                finalFocus={() =>
+                  insertInput.current || editor?.view.dom || false
+                }
+              >
                 <DropdownMenuGroup>
-                  {[1, 2, 3, 4, 5, 6].map((level) => (
-                    <DropdownMenuItem
-                      key={level}
-                      onClick={() =>
-                        editor
-                          ?.chain()
-                          .focus()
-                          .toggleHeading({
-                            level: level as 1 | 2 | 3 | 4 | 5 | 6,
-                          })
-                          .run()
-                      }
-                    >
-                      <Heading2 size={14} />
-                      Heading {level}
-                    </DropdownMenuItem>
-                  ))}
                   <DropdownMenuItem
                     onClick={() =>
                       editor?.chain().focus().toggleOrderedList().run()
@@ -670,8 +685,114 @@ export default function NoteEditor({
                 void addLinkSearch('').catch((e) => setError(errorMessage(e))),
               Link2,
             )}
-          </div>
+          </fieldset>
         )}
+      </div>
+      {incoming && (
+        <div className="notes-conflict" role="alert">
+          <strong>
+            This note changed elsewhere. Your writing is preserved.
+          </strong>
+          <p>
+            Compare your text below with the incoming version. Save both to keep
+            your work as a separate note.
+          </p>
+          <details>
+            <summary>Incoming version</summary>
+            <pre>
+              {incoming.title}
+              {'\n\n'}
+              {incoming.body}
+            </pre>
+          </details>
+          <AppButton
+            className="crm-button"
+            onClick={() =>
+              void applyChange('Preserve conflicting note', [
+                {
+                  type: 'create_note',
+                  ...draft,
+                  title: `${draft.title.slice(0, 175)} (conflict copy)`,
+                },
+              ])
+                .then(() => {
+                  base.current = incoming;
+                  saved.current = JSON.stringify(draftOf(incoming));
+                  setDraft(draftOf(incoming));
+                  syncEditor(incoming.body);
+                  setIncoming(null);
+                  setError('');
+                  setState('Saved');
+                  onSaved(incoming);
+                })
+                .catch((e) => setError(errorMessage(e)))
+            }
+          >
+            Save both
+          </AppButton>
+        </div>
+      )}
+      {error && (
+        <div className="crm-error" role="alert">
+          {error}
+          <AppButton
+            className="crm-text-button"
+            onClick={() => {
+              setError('');
+              void flushRef.current();
+            }}
+          >
+            Retry save
+          </AppButton>
+          <AppButton
+            className="crm-text-button"
+            onClick={() =>
+              void navigator.clipboard.writeText(
+                `${draft.title}\n\n${draft.body}`,
+              )
+            }
+          >
+            Copy my text
+          </AppButton>
+        </div>
+      )}
+      <div className="notes-paper">
+        <header className="notes-document-heading">
+          <Textarea
+            ref={titleInput}
+            rows={1}
+            className="notes-title"
+            aria-label="Note title"
+            placeholder="Untitled"
+            value={draft.title === 'Untitled' ? '' : draft.title}
+            maxLength={200}
+            onChange={(e) =>
+              mutate({ title: e.target.value.replace(/[\r\n]+/g, ' ') })
+            }
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                if (usingSource)
+                  document
+                    .querySelector<HTMLTextAreaElement>('.notes-source')
+                    ?.focus();
+                else editor?.commands.focus('start');
+              }
+            }}
+          />
+          <div className="notes-meta">
+            <time dateTime={note.updatedAt}>
+              Edited {dateTime(note.updatedAt)}
+            </time>
+            {note.conflictOf && <span> · Recovered conflict copy</span>}
+            {draft.state !== 'active' && (
+              <span>
+                {' '}
+                · {draft.state === 'trash' ? 'In trash' : 'Archived'}
+              </span>
+            )}
+          </div>
+        </header>
         {sourceOnly && (
           <p className="crm-hint notes-source-hint">
             This note uses extended Markdown. Edit its source to preserve every
@@ -846,6 +967,15 @@ export default function NoteEditor({
           </section>
         )}
       </div>
+      <footer className="notes-document-footer">
+        <span>
+          {usingSource
+            ? draft.body.trim().split(/\s+/u).filter(Boolean).length
+            : formatting?.words || 0}{' '}
+          words
+        </span>
+        <span>{usingSource ? 'Markdown source' : 'Markdown supported'}</span>
+      </footer>
     </article>
   );
 }

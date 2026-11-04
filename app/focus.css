@@ -84,4 +84,9 @@
       forced-color-adjust: none;
     }
   }
+  /* Writing surfaces keep a stable canvas while the caret shows keyboard focus. */
+  :where(.notes-title, .notes-source, .notes-prose):focus-visible {
+    background-color: transparent !important;
+    color: var(--foreground) !important;
+  }
 }
