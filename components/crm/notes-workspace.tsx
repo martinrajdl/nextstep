@@ -206,8 +206,10 @@ export default function NotesWorkspace({
       <aside className="notes-browser" aria-label="Notes library">
         <header>
           <div>
-            <span className="crm-eyebrow">YOUR NOTEBOOK</span>
-            <h1>Notes{listLoaded && <span>{page.total}</span>}</h1>
+            <h1>
+              <FileText size={16} aria-hidden="true" />
+              Notes{listLoaded && <span>{page.total}</span>}
+            </h1>
           </div>
           <AppButton
             aria-label="New note"
@@ -456,14 +458,10 @@ export default function NotesWorkspace({
             <div>
               <FileText size={31} />
             </div>
-            <span className="crm-eyebrow">SPACE TO THINK</span>
-            <h2>
-              A thought. A conversation.
-              <br />A place to start.
-            </h2>
+            <h2>Your notes, close to your work.</h2>
             <p>
-              Write naturally, connect your ideas, and keep the details close to
-              your work.
+              Capture an idea, write a meeting note, or connect a thought to a
+              record.
             </p>
             <AppButton
               className="crm-button crm-button-primary"

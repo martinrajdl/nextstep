@@ -65,7 +65,7 @@ try {
   await expect(page.locator('html')).toHaveAttribute('data-accent', '#4473cf');
   await app.evaluate(({ Menu }) => Menu.getApplicationMenu().getMenuItemById('theme-dark').click());
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(0, 0, 0)');
+  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(17, 17, 17)');
   expect(await app.evaluate(({ nativeTheme }) => nativeTheme.themeSource)).toBe('dark');
   await expect(page.locator('.desktop-titlebar')).toHaveCount(0);
   expect((await page.locator('.crm-sidebar').boundingBox()).y).toBe(0);
