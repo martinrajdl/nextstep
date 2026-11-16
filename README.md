@@ -6,7 +6,7 @@ Tell your agent what you need to keep track of. It builds the collections, field
 
 Nextstep is a local-first **Electron app** with a SQLite database on your computer. It is open source, works with your own agent, and can connect to a [backend on your own server](docs/self-hosting.md). No Nextstep account, model subscription or API key is required.
 
-**[Download for macOS · Apple silicon](https://github.com/martinrajdl/nextstep/releases/download/v0.5.1/Nextstep-0.5.1-macOS-arm64.zip)** · [Website](https://www.nextstepcrm.com/) · [All releases](https://github.com/martinrajdl/nextstep/releases)
+**[Download for macOS · Apple silicon](https://github.com/martinrajdl/nextstep/releases/download/v0.5.2/Nextstep-0.5.2-macOS-arm64.zip)** · [Website](https://www.nextstepcrm.com/) · [All releases](https://github.com/martinrajdl/nextstep/releases)
 
 ![A Nextstep collection with fictional people, companies and next steps](docs/images/workspace.png)
 
@@ -48,7 +48,7 @@ Automatic connection is available for installed Mac desktop agents. The **Agent*
 
 </details>
 
-[Read the composable CRM guide](docs/composable-crm.md) for supported operations, MCP tools, review policy and the data model. Manual schema and JSON tools remain available under advanced setup and Manual tools.
+[Read the composable CRM guide](docs/composable-crm.md) for supported operations, MCP tools, review policy and the data model. [Architecture diagrams](docs/architecture.md) explain the local app, hosted workspace and local agent connections. Manual schema and JSON tools remain available under advanced setup and Manual tools.
 
 Signed macOS releases from 0.4.3 include **Settings → App updates**: check for updates, download a signed release, then restart to install it. Update checks can be disabled independently of optional usage counts.
 
@@ -84,6 +84,8 @@ The workspace is at `/`. The browser version offers copyable agent configuration
 **Settings → Privacy → Share anonymous usage** is off by default. If enabled, the desktop app sends one daily check-in with a rotating daily identifier, app version and OS family. CRM data and agent content are never part of the check-in. Private receipts are scheduled for deletion after a 31-day window; download totals use GitHub's release counters. [Read the exact payload and privacy details](docs/privacy.md).
 
 Nextstep binds its HTTP service to loopback with Host/Origin checks. It is a single-owner app, not a public multi-user server. Use a private SSH tunnel for self-hosting; do not expose the unauthenticated port to the internet. The desktop renderer stays local and sandboxed when using your backend.
+
+An optional [Vercel + Supabase deployment](docs/self-hosting.md#shared-web-deployment-on-vercel-and-supabase) provides a shared browser workspace with invited Apple sign-in, authenticated agent connections and Postgres persistence. It uses a separate hosted API; the desktop app and private SQLite server retain their existing defaults. Hosted deployments need their own configuration and contain no bundled records or credentials.
 
 Your chosen agent provider may process the context it reads. The general CRM connection can read and write by default. **Require review** is off by default and applies to the selected database, including already-connected agents. Explicit proposals always wait for a human decision.
 

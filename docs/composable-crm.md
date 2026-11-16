@@ -126,7 +126,17 @@ In a collection, **Import JSON** accepts a change set, a record array, or `{ "re
 
 The UI uses `/api/crm/context`, `/query`, `/preview`, `/proposals`, `/apply`, `/changes`, `/changes/:id/review`, `/records/:id`, `/history`, `/flows`, `/flows/:id`, `/flows/report`, and `/export`. Host/Origin protection and loopback binding remain enabled. The API is a local application interface, not an internet-facing multi-tenant service.
 
-See [self-hosting.md](self-hosting.md) to run on a private server through SSH. Multiple local processes can safely share the database using SQLite WAL, transactions and optimistic versions. Shared user accounts, per-user roles, public HTTP authentication and multi-owner collaboration are not part of this release.
+See [self-hosting.md](self-hosting.md) to run on a private server through SSH. Multiple local processes can safely share the database using SQLite WAL, transactions and optimistic versions. The optional hosted adapter adds invited Apple accounts and workspace roles through a separate authenticated API; it does not expose the local server publicly.
+
+### Optional hosted adapter
+
+`server/hosted/` owns the Vercel/Supabase option. Postgres is the durable source: workspace entities are JSONB rows, with separately authenticated membership, agent credentials and audit records. For each operation, a request-local in-memory SQLite engine runs the existing validation, proposal, versioning, query and history code. It never opens a user's local database or writes a server filesystem. A Postgres workspace-row lock serializes writes and commits changed entities, the revision and the authenticated audit entry together. A failed request rolls back all of them. Agent writes retain the dynamically checked Require review policy. Agents cannot approve proposals or change that policy.
+
+This adapter deliberately targets small shared workspaces. It materializes a workspace's entities in memory and supports at most 50,000 entities / 32 MiB, including history, with 4 MiB HTTP requests. A bounded warm-instance cache is keyed by the live database revision; membership and credential expiry are checked before every use, and a cold instance reloads from Postgres. Cache contents are never durable state or authorization evidence. Larger workspaces should use a future native Postgres query implementation behind this same API. The desktop engine remains independent of this deployment choice.
+
+Every shared entity is protected by workspace RLS and an unexposed `nextstep` schema. The runtime login is `nextstep_app`, without administrative or RLS-bypass privileges. Request identity comes from verified Supabase Auth or a hashed, expiring agent credential, never a supplied actor label. Imported history retains its original labels; new authenticated actions additionally record the person and agent credential in `nextstep.audit`.
+
+`mcp/crm-stdio.mjs --server HTTPS_ORIGIN --workspace UUID --credential-file PRIVATE_FILE` connects the same MCP tools to the hosted API. The installed macOS app (0.5.2 or newer) accepts the same options after `--crm-mcp`, using its bundled runtime. The hosted Agent page generates a separate `nextstep-shared` connection. The credential file must be owner-only. A hosted disconnect fails without falling back to a local database. Desktop folder synchronization and the bounded compatibility importer remain local; they are not exposed by the hosted API.
 
 ## Existing data and backups
 
@@ -134,7 +144,7 @@ All collections, including imported existing workspaces, use `crm_records` and t
 
 **Export workspace** includes collections, all records including archived records, views, proposal decisions, agent flows and full history. JSON export is not a byte-for-byte database restore format. For a complete backup while running, use SQLite's backup operation. Otherwise stop the app and connected helpers before copying the selected SQLite file and its companion files together. Keep backups private. See [desktop.md](desktop.md#your-database) for desktop locations.
 
-The standalone public marketing website lives in its own repository. No marketing build or public hosting configuration belongs in this CRM repository.
+The standalone public marketing website lives in its own repository. The optional CRM deployment configuration belongs here; marketing build tooling and content do not.
 
 
 ## Notes API

@@ -7,14 +7,12 @@ import {
 } from 'react';
 import {
   Archive,
-  Cloud,
   FileText,
   Hash,
   Pin,
   Plus,
   Search,
   Trash2,
-  X,
   ArrowLeft,
   Upload,
   Link2,
@@ -23,9 +21,8 @@ import AppButton from '@/components/app-button';
 import { Input } from '@/components/ui/input';
 import { request } from '@/lib/model';
 import { applyChange, dateTime, errorMessage } from '@/lib/crm';
-import type { Note, NotesPage, NotesSync } from '@/lib/notes';
+import type { Note, NotesPage } from '@/lib/notes';
 import NoteEditor from './note-editor';
-import Modal from './modal';
 import './notes.css';
 
 export default function NotesWorkspace({
@@ -49,8 +46,6 @@ export default function NotesWorkspace({
     [scope, setScope] = useState('active'),
     [error, setError] = useState(''),
     [focus, setFocus] = useState(false),
-    [sync, setSync] = useState<NotesSync | null>(null),
-    [syncOpen, setSyncOpen] = useState(false),
     [backlinks, setBacklinks] = useState<{ id: string; title: string }[]>([]);
   const [listLoaded, setListLoaded] = useState(false);
   const [offset, setOffset] = useState(0),
@@ -73,14 +68,10 @@ export default function NotesWorkspace({
         offset: String(offset),
         ...(linkedTo ? { linkedTo } : {}),
       });
-      const [data, status] = await Promise.all([
-        request<NotesPage>(`/api/notes?${params}`),
-        request<NotesSync>('/api/notes/sync'),
-      ]);
+      const data = await request<NotesPage>(`/api/notes?${params}`);
       if (sequence !== listSequence.current) return;
       setPage(data);
       setListLoaded(true);
-      setSync(status);
       if (selectedRef.current) {
         const note = await request<Note>(
           `/api/notes/${selectedRef.current.id}`,
@@ -345,28 +336,6 @@ export default function NotesWorkspace({
           )}
         </div>
         <footer>
-          <AppButton
-            className="notes-cloud-button"
-            onClick={() => setSyncOpen(true)}
-          >
-            <Cloud size={16} />
-            <span>
-              {sync?.enabled
-                ? sync.state === 'synced'
-                  ? 'Folder · Up to date'
-                  : sync.state === 'error'
-                    ? 'Folder · Needs attention'
-                    : sync.state === 'syncing'
-                      ? 'Folder · Syncing…'
-                      : 'Folder · Changes queued'
-                : 'Folder sync'}
-              <small>
-                {sync?.enabled
-                  ? 'Notes only'
-                  : 'iCloud Drive or your own folder'}
-              </small>
-            </span>
-          </AppButton>
           <label className="notes-import">
             <Upload size={14} />
             <span>Import Markdown</span>
@@ -475,135 +444,7 @@ export default function NotesWorkspace({
           </div>
         )}
       </section>
-      {syncOpen && (
-        <Modal
-          title="Sync your notes"
-          subtitle="Beta · Markdown files in a folder you own"
-          onClose={() => setSyncOpen(false)}
-        >
-          <div className="crm-form-body">
-            <p>
-              Folder sync is in beta. Choose a folder in your own iCloud Drive,
-              or another synced location. Nextstep saves individual Markdown
-              files in a Nextstep Notes subfolder. No Nextstep account or
-              developer cloud container is involved.
-            </p>
-            <p>
-              Notes, tags, links, pin state and trash are included. CRM records,
-              proposals and your local database stay here.
-            </p>
-            {!sync?.available && (
-              <p className="crm-hint">
-                Choose a folder in the desktop app to sync. You can keep writing
-                locally here.
-              </p>
-            )}
-            {sync?.message && (
-              <p className="crm-error" role="alert">
-                {sync.message}
-              </p>
-            )}
-            {sync?.folder && (
-              <label htmlFor="notes-folder">
-                Notes folder
-                <Input
-                  id="notes-folder"
-                  aria-label="Notes folder"
-                  readOnly
-                  value={sync.folder}
-                />
-              </label>
-            )}
-            {sync?.available && !sync?.folder && (
-              <AppButton
-                className="crm-button"
-                onClick={() =>
-                  void window.nextstepDesktop
-                    ?.chooseNotesFolder()
-                    .then((result) => {
-                      if (result) setSync(result);
-                    })
-                    .catch((e) =>
-                      setSync((current) =>
-                        current
-                          ? { ...current, message: errorMessage(e) }
-                          : current,
-                      ),
-                    )
-                }
-              >
-                Choose folder…
-              </AppButton>
-            )}
-            {sync?.lastSyncedAt && (
-              <p>Last checked {dateTime(sync.lastSyncedAt)}</p>
-            )}
-            <p className="crm-hint">
-              Nextstep checks files while it is open. Your cloud service
-              controls when files reach other devices. Keep this folder
-              downloaded on each Mac. Conflicting text is preserved in recovery
-              copies; removing a file does not delete its local note. Use Trash
-              in Nextstep to sync a removal.
-            </p>
-          </div>
-          <footer>
-            <AppButton
-              className="crm-button"
-              onClick={() => setSyncOpen(false)}
-            >
-              <X size={14} />
-              Close
-            </AppButton>
-            {sync?.enabled && (
-              <AppButton
-                className="crm-button"
-                onClick={() =>
-                  void request<NotesSync>('/api/notes/sync/run', 'POST', {})
-                    .then(setSync)
-                    .then(() => load())
-                    .catch((e) => setError(errorMessage(e)))
-                }
-              >
-                Sync now
-              </AppButton>
-            )}
-            {Boolean(sync?.missingCount) && (
-              <AppButton
-                className="crm-button"
-                onClick={() =>
-                  void request<NotesSync>('/api/notes/sync', 'PATCH', {
-                    enabled: true,
-                    restoreMissing: true,
-                  })
-                    .then(setSync)
-                    .catch((e) => setError(errorMessage(e)))
-                }
-              >
-                Restore missing files
-              </AppButton>
-            )}
-            <AppButton
-              className="crm-button crm-button-primary"
-              disabled={!sync?.enabled && (!sync?.available || !sync?.folder)}
-              onClick={() =>
-                void request<NotesSync>('/api/notes/sync', 'PATCH', {
-                  enabled: !sync?.enabled,
-                })
-                  .then(setSync)
-                  .catch((e) =>
-                    setSync((current) =>
-                      current
-                        ? { ...current, message: errorMessage(e) }
-                        : current,
-                    ),
-                  )
-              }
-            >
-              {sync?.enabled ? 'Disable sync' : 'Enable folder sync'}
-            </AppButton>
-          </footer>
-        </Modal>
-      )}
+
     </div>
   );
 }

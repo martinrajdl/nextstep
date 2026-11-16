@@ -31,6 +31,7 @@ const server = createServer(async (req, res) => {
     if (req.headers.origin && !allowedOrigins.has(req.headers.origin)) throw new AppError('Requests must come from this app.', 403);
     const path = new URL(req.url, `http://127.0.0.1:${activePort}`).pathname;
     if (path === '/api/health' && req.method === 'GET') return json(res, 200, { status: 'ok', app: 'nextstep', pid: process.pid, backend:backend ? 'self-hosted' : 'local' });
+    if (path === '/api/auth/session' && req.method === 'GET') return json(res,200,{ mode:'local' });
     if (backend && path.startsWith('/api/')) {
       if (!['GET','POST','PATCH','DELETE'].includes(req.method)) throw new AppError('Method not allowed.',405);
       const payload = req.method === 'GET' ? undefined : JSON.stringify(await body(req,8388608));

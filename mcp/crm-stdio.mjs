@@ -3,12 +3,13 @@ import { pathToFileURL } from 'node:url';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { databaseArgument } from './stdio.mjs';
 import { createCrmMcp } from './crm-server.mjs';
+import { remoteCrmArgument } from './remote-options.mjs';
 
 export async function startCrmMcp(
   database,
-  { requireReview = false, onClose = () => {} } = {},
+  { requireReview = false, onClose = () => {}, remote } = {},
 ) {
-  const service = createCrmMcp(database, { requireReview });
+  const service = createCrmMcp(database, { requireReview, remote });
   const transport = new StdioServerTransport();
   await service.server.connect(transport);
   const finish = async () => {
@@ -28,8 +29,13 @@ if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(resolve(process.argv[1])).href
 ) {
-  startCrmMcp(databaseArgument(), {
+  let remote;
+  try {
+    remote = remoteCrmArgument();
+  } catch (error) { console.error(error.message); process.exit(1); }
+  startCrmMcp(remote ? null : databaseArgument(), {
     requireReview: process.argv.includes('--require-review'),
+    remote,
   }).catch((error) => {
     console.error(error.message);
     process.exitCode = 1;

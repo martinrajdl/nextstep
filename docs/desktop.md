@@ -51,6 +51,10 @@ Local SQLite is the default. To use a backend on your own server, start a privat
 
 Automatic agent installation is available only for a local database. Self-hosted agents must connect over SSH on the server, using the server's exact database path. The Agent page’s Connection & instructions panel can generate an SSH configuration from a host or alias you provide.
 
+For agents working with a shared Vercel/Supabase workspace, the packaged executable also accepts `--crm-mcp --server HTTPS_ORIGIN --workspace UUID --credential-file PRIVATE_FILE` from version 0.5.2. This background connector talks to the authenticated hosted API; it never opens or creates a local database, including when the hosted service is unavailable. Configure it separately as `nextstep-shared` using **Agent → Connection & instructions** in the hosted app. This does not switch the desktop window’s selected backend.
+
+Optional Markdown folder sync is available only under **Settings → Notes folder sync** with a local desktop database. The Notes writing interface has no storage controls. Hosted notes are saved with the shared workspace in Supabase.
+
 ## Your database
 
 The first desktop launch creates an empty database in Electron's per-user application-data directory, normally `~/Library/Application Support/Nextstep/nextstep.sqlite` on macOS. Choose **File → Open database…** to use an existing Nextstep SQLite file. It is opened in place, not copied, and the app remembers the selection. A missing previously selected file is an error rather than a reason to create an empty replacement.

@@ -14,7 +14,9 @@ The single-file importer confirms the filename and uses a source identity to rej
 
 ## Choose a sync folder
 
-Open Notes, then Folder sync. Use Choose folder to select a directory, preferably in your own iCloud Drive if you want Mac-to-Mac transfer. Nextstep creates or uses its `Nextstep Notes` subfolder. Enable folder sync explicitly after selecting it. On the second Mac, select the same synced directory.
+In the local desktop app, open **Settings → Notes folder sync**. Use Choose folder to select a directory, optionally in iCloud Drive if you want Mac-to-Mac transfer. Nextstep creates or uses its `Nextstep Notes` subfolder. Enable folder sync explicitly after selecting it. On the second Mac, select the same synced directory.
+
+The Notes workspace keeps storage controls out of the writing interface. Hosted notes and their history are saved in Supabase with the rest of the shared workspace; hosted and private-server interfaces do not offer local folder sync.
 
 The app polls while open. Keep the folder downloaded so cloud placeholders do not block file access. Up to date means the local folder is reconciled; the file-sync provider controls remote delivery. SQLite always remains in the selected local database location. No Nextstep account, Apple Developer account or CloudKit container is needed by users.
 

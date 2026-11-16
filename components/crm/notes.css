@@ -141,20 +141,6 @@
   border-top: 1px solid var(--border);
   padding: 14px 19px;
 }
-.notes-cloud-button {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  text-align: left;
-  font-size: 12px;
-  width: 100%;
-}
-.notes-cloud-button small {
-  display: block;
-  color: var(--muted-foreground);
-  font-size: 10px;
-  margin-top: 3px;
-}
 .notes-import {
   display: flex;
   align-items: center;
@@ -440,11 +426,8 @@
   padding: 13px 17px;
   background: var(--sidebar);
 }
-.notes-cloud-button {
-  font-size: 11px;
-}
 .notes-import {
-  margin-top: 12px;
+  margin: 0;
 }
 .notes-document {
   display: flex;

@@ -81,13 +81,9 @@ test('notes write Markdown, persist, filter tags and recover from trash', async 
   await expect(
     page.getByRole('heading', { name: 'Document history' }),
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Folder sync', exact: false }).click();
-  await expect(
-    page.getByRole('dialog', { name: 'Sync your notes' }),
-  ).toContainText('Choose a folder in the desktop app to sync');
-  await expect(
-    page.getByRole('button', { name: 'Enable folder sync' }),
-  ).toBeDisabled();
+  await expect(page.getByText(/iCloud Drive|Folder sync/)).toHaveCount(0);
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Notes folder sync' })).toHaveCount(0);
 });
 
 test('an overlapping agent edit never overwrites a typing buffer', async ({

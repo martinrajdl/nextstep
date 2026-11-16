@@ -95,6 +95,7 @@ export type Event = Diff & {
   createdAt: string;
 };
 export type Workspace = {
+  hosted?: { workspaceId: string; workspaceName: string; role: 'owner'|'editor'|'viewer'; origin: string };
   notes?: {libraryId:string|null};
   compatibilityCollectionId: string | null;
   policy: {reviewRequired: boolean; version: number};

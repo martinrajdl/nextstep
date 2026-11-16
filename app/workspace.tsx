@@ -340,7 +340,7 @@ export default function WorkspaceApp() {
           <div>
             <span className="crm-topbar-local">
               <span />
-              {backendUrl ? 'Self-hosted' : 'Local'}
+              {backendUrl ? 'Self-hosted' : workspace?.hosted ? 'Shared' : 'Local'}
             </span>
             <AppButton
               className="crm-icon-button"
