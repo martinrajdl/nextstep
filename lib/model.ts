@@ -34,6 +34,9 @@ export async function request<T>(path: string, method = 'GET', data?: unknown): 
   }
   const response = await fetch(path, options);
   const result = await response.json();
-  if (!response.ok) throw new Error(result.error || 'Could not reach the local app. Please try again.');
+  if (!response.ok) {
+    if (result.authRequired && typeof window !== 'undefined') window.dispatchEvent(new Event('nextstep:auth-required'));
+    throw new Error(result.error || 'Could not reach the app. Please try again.');
+  }
   return result;
 }

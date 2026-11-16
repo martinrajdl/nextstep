@@ -17,6 +17,7 @@ import AgentConnection from './agent-connection';
 import { errorMessage, type UpdateState, type ThemePreference } from '@/lib/agent';
 import { request } from '@/lib/model';
 import type { Workspace } from '@/lib/crm';
+import { useHostedSession, signOutHosted } from './hosted-session';
 import '../app/appearance.css';
 import '../app/settings.css';
 
@@ -90,6 +91,7 @@ function DataExports() {
 }
 
 function AgentSettings() {
+  const hosted = useHostedSession();
   const [policy, setPolicy] = useState<Workspace['policy'] | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -115,15 +117,17 @@ function AgentSettings() {
   }
   return <section>
     <h3><ShieldCheck size={18}/>Agent changes</h3>
-    <Label className="usage-consent"><Checkbox checked={policy?.reviewRequired ?? false} disabled={!policy || saving} onCheckedChange={event => void change(event)}/><span>Require review</span></Label>
+    <Label className="usage-consent"><Checkbox checked={policy?.reviewRequired ?? false} disabled={!policy || saving || Boolean(hosted && hosted.workspace.role !== 'owner')} onCheckedChange={event => void change(event)}/><span>Require review</span></Label>
     {saving && <output className="settings-note">Saving…</output>}
     <p>Off by default. Your connected agents can create and update your workspace directly. Turn this on to approve their changes before they are saved.</p>
     <p className="settings-note">Applies to this database and its connected agents. Existing proposals still need a decision. Every applied change keeps its history.</p>
+    {hosted && hosted.workspace.role !== 'owner' && <p className="settings-note">The workspace owner manages this setting.</p>}
     {error && <p className="crm-error" role="alert">{error}</p>}
   </section>;
 }
 
 export default function AppSettings({ children }: { children: ReactNode }) {
+  const hosted = useHostedSession();
   const [update, setUpdate] = useState<UpdateState | null>(null);
   const [accent, setAccent] = useState(initialAccent);
   const [theme, setTheme] = useState<ThemePreference>(initialTheme);
@@ -284,6 +288,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
               </>}
               <a href="https://github.com/martinrajdl/nextstep/releases/latest" target="_blank" rel="noreferrer">Release notes ↗</a>
             </section>}
+            {hosted && <section><h3>Account</h3><p>{hosted.user.email}</p><p>{hosted.workspace.name}</p><AppButton className="crm-button" onClick={() => void signOutHosted().catch(value => setError(errorMessage(value)))}>Sign out</AppButton></section>}
             <section>
               <h3>
                 <Palette size={18} /> Appearance
@@ -337,7 +342,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
                 <strong>
                   {backendUrl
                     ? 'Self-hosted backend'
-                    : window.nextstepDesktop
+                    : hosted ? 'Shared workspace' : window.nextstepDesktop
                       ? 'Local SQLite database'
                       : 'Current server'}
                 </strong>
@@ -409,7 +414,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
                     </a>
                   </CollapsibleContent></Collapsible>
                 </>
-              ) : (
+              ) : hosted ? <p>Your team works with the same shared records. Personal appearance settings apply only to this browser.</p> : (
                 <p>
                   In Electron, use this panel to switch between the local
                   database and your own server. In a browser, the page address

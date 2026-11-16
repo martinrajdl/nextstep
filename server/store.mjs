@@ -54,9 +54,9 @@ function validate(input, current = {}) {
   return Object.fromEntries([...Object.keys(limits), 'priority', 'stage'].map(key => [key, value[key]]));
 }
 
-export function openStore(filename) {
+export function openStore(filename, { connection } = {}) {
   if (filename !== ':memory:') mkdirSync(dirname(filename), { recursive: true });
-  const db = new DatabaseSync(filename);
+  const db = connection ?? new DatabaseSync(filename);
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
   const schemaVersion = db.prepare('PRAGMA user_version').get().user_version;
   if (filename !== ':memory:' && schemaVersion > 0 && schemaVersion < 7) {

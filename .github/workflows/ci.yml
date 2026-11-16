@@ -22,6 +22,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run setup
       - run: pnpm test
+      - run: pnpm test:hosted
       - run: pnpm lint
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium

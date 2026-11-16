@@ -58,10 +58,10 @@ const noteOperation = z.discriminatedUnion('type', [
     })
     .strict(),
 ]);
-export function createCrmMcp(database, { requireReview = false } = {}) {
-  assertNextstepDatabase(database);
-  const store = openStore(database),
-    crm = store.crm;
+export function createCrmMcp(database, { requireReview = false, remote } = {}) {
+  if (!remote) assertNextstepDatabase(database);
+  const store = remote ? null : openStore(database),
+    crm = remote || store.crm;
   const server = new McpServer(
     { name: 'nextstep-crm', version: '0.4.5' },
     { instructions: crmInstructions },
@@ -80,7 +80,7 @@ export function createCrmMcp(database, { requireReview = false } = {}) {
       },
       async (input) => {
         try {
-          const value = handler(input);
+          const value = await handler(input);
           return {
             content: [{ type: 'text', text: JSON.stringify(value) }],
             structuredContent: value,
@@ -107,10 +107,10 @@ export function createCrmMcp(database, { requireReview = false } = {}) {
     'Discover collections, typed fields, saved views, templates, versions and review policy. Read before shaping data.',
     {},
     true,
-    () => ({
-      ...crm.context(),
+    async () => ({
+      ...await crm.context(),
       access:
-        requireReview || crm.policy().reviewRequired
+        requireReview || (await crm.policy()).reviewRequired
           ? 'review-required'
           : 'write',
       operationGuide: {
@@ -201,8 +201,8 @@ export function createCrmMcp(database, { requireReview = false } = {}) {
       offset: z.number().int().nonnegative().optional(),
     },
     true,
-    (input) =>
-      input.id ? { note: crm.notes.get(input.id) } : crm.notes.list(input),
+    async (input) =>
+      input.id ? { note: await crm.notes.get(input.id) } : crm.notes.list(input),
   );
   tool(
     'nextstep_crm_write_note',
@@ -256,9 +256,9 @@ export function createCrmMcp(database, { requireReview = false } = {}) {
     'Read one record with its current optimistic version and collection schema.',
     { id: z.string().min(1).max(120) },
     true,
-    ({ id }) => {
-      const record = crm.getRecord(id);
-      return { record, collection: crm.getCollection(record.collectionId) };
+    async ({ id }) => {
+      const record = await crm.getRecord(id);
+      return { record, collection: await crm.getCollection(record.collectionId) };
     },
   );
   tool(
@@ -284,7 +284,7 @@ export function createCrmMcp(database, { requireReview = false } = {}) {
       offset: z.number().int().nonnegative().optional(),
     },
     true,
-    (input) => ({ changes: crm.changes(input) }),
+    async (input) => ({ changes: await crm.changes(input) }),
   );
   tool(
     'nextstep_crm_history',
@@ -295,7 +295,7 @@ export function createCrmMcp(database, { requireReview = false } = {}) {
       limit: z.number().int().min(1).max(200).optional(),
     },
     true,
-    (input) => ({ events: crm.history(input) }),
+    async (input) => ({ events: await crm.history(input) }),
   );
   tool(
     'nextstep_crm_flows',
@@ -306,8 +306,8 @@ export function createCrmMcp(database, { requireReview = false } = {}) {
       offset: z.number().int().nonnegative().optional(),
     },
     true,
-    (input) =>
-      input.id ? crm.flows.get(input.id) : { flows: crm.flows.list(input) },
+    async (input) =>
+      input.id ? crm.flows.get(input.id) : { flows: await crm.flows.list(input) },
   );
   tool(
     'nextstep_crm_report_flow',
@@ -349,7 +349,7 @@ export function createCrmMcp(database, { requireReview = false } = {}) {
       if (closed) return;
       closed = true;
       await server.close();
-      store.close();
+      store?.close();
     },
   };
 }

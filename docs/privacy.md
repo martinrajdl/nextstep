@@ -2,6 +2,8 @@
 
 Nextstep keeps CRM data in your selected SQLite database, locally or on your own backend. Your connected agent provider may process the context it reads through MCP.
 
+An optional hosted deployment stores the selected shared workspace in its configured Supabase Postgres project and uses Supabase Auth with Apple sign-in. The deployed app runs on Vercel. Those providers process the data and network metadata needed to serve the app. Only explicitly invited workspace members and their authorized agent connections can access its CRM data. Apple authentication sessions use Secure, HttpOnly cookies; the browser does not store the session in local storage. Agent credentials are displayed once, stored as hashes in Postgres, expire after 90 days and can be revoked. Hosted activity records authenticated user and agent identifiers in a private workspace audit log. This hosting choice does not upload any local desktop workspace automatically.
+
 ## Off by default
 
 **Settings → Privacy → Share anonymous usage** is optional and starts off, including after an upgrade. Leaving it off sends no usage check-ins. It does not affect any app features. Browser and self-hosted server builds do not send check-ins; neither do MCP helpers or development Electron builds.

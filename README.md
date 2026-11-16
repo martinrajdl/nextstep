@@ -85,6 +85,8 @@ The workspace is at `/`. The browser version offers copyable agent configuration
 
 Nextstep binds its HTTP service to loopback with Host/Origin checks. It is a single-owner app, not a public multi-user server. Use a private SSH tunnel for self-hosting; do not expose the unauthenticated port to the internet. The desktop renderer stays local and sandboxed when using your backend.
 
+An optional [Vercel + Supabase deployment](docs/self-hosting.md#shared-web-deployment-on-vercel-and-supabase) provides a shared browser workspace with invited Apple sign-in, authenticated agent connections and Postgres persistence. It uses a separate hosted API; the desktop app and private SQLite server retain their existing defaults. Hosted deployments need their own configuration and contain no bundled records or credentials.
+
 Your chosen agent provider may process the context it reads. The general CRM connection can read and write by default. **Require review** is off by default and applies to the selected database, including already-connected agents. Explicit proposals always wait for a human decision.
 
 Personal records, research and profiles belong in ignored `data/`; runtime logs belong in `.runtime/`. Tests and screenshots use temporary databases. For a full backup while running, use SQLite's backup operation. Otherwise stop the app and all connected helpers before copying the database and any `-wal` / `-shm` companions together. JSON export is not a full SQLite backup.

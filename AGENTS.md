@@ -19,7 +19,7 @@ Nextstep is a local composable CRM operated by agents and reviewed by people. Re
 - `server/crm-flows.mjs` records agent-reported progress and derives applied counts from real change sets. Progress reporting must never approve proposals or mutate records.
 - Electron remains the primary app. `desktop/preferences.mjs` preserves appearance and backend selection; self-hosted mode serves the bundled renderer and proxies JSON API requests through a loopback SSH tunnel without opening a local shadow database.
 - Read `docs/composable-crm.md` before changing the generic model, and `docs/self-hosting.md` for private server deployment. Do not weaken loopback or Host/Origin restrictions.
-- The public website has its own Git repository. Do not add marketing build tooling or public deployment configuration here.
+- The public marketing website has its own Git repository. Do not add marketing tooling here. The optional hosted CRM API and Vercel deployment configuration belong in this repository; preserve local defaults and keep deployment credentials and completed workspace configurations private.
 
 ## Architecture and commands
 
@@ -33,6 +33,8 @@ Nextstep is a local composable CRM operated by agents and reviewed by people. Re
 - `pnpm dev`: UI 4317 and API 4318. `pnpm build` then `pnpm start`: production 4317. Avoid launching a second server on the user's occupied port.
 
 Use pinned dependencies and keep `pnpm-lock.yaml` in sync. Tests use temporary databases. Run `pnpm test`, `pnpm build`, and `pnpm lint` for relevant changes; UI changes also require `pnpm test:e2e` and a visual check. Install Playwright Chromium first, or set `PLAYWRIGHT_CHANNEL=chrome` for installed Chrome. Browser tests always use their own database on port 4321.
+
+Hosted changes also require `pnpm test:hosted`. `server/hosted/schema.sql` owns the optional private Postgres schema; its runtime role must not own tables or bypass RLS. Never route hosted requests through the unauthenticated local API. Membership, exports, history, notes and agents must all use the same authenticated workspace boundary. Keep real transfer files in ignored `work/` or private storage; tests and public docs use fictional data only.
 
 Schema changes need migration coverage that proves existing records and activity survive. Import changes need coverage for duplicate identities, existing decisions, removed records, ordering, and repeat imports. Use fictional names and example.com URLs in fixtures.
 

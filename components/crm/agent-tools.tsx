@@ -27,6 +27,7 @@ import {
 import Modal from './modal';
 import { DiffView } from './review';
 import { useAppPreferences } from '@/components/app-settings';
+import HostedAgentConnection from './hosted-agent';
 export function ChangeWorkbench({
   collection,
   onClose,
@@ -249,7 +250,7 @@ export default function AgentTools({ workspace, onWorkbench, onNewCollection, on
     {!embedded && <><div className="crm-start-symbol"><Bot size={28}/></div>
     <h1>{awaitingReview ? 'Ready for your review.' : 'Connect your agent.'}</h1>
     <p className="crm-start-description">{awaitingReview ? 'Your agent has proposed changes. Take a look before they become part of your workspace.' : 'Tell it what you want to track. Your agent builds the structure and brings the information here.'}</p></>}
-    {awaitingReview ? <AppButton className="crm-button crm-button-primary crm-review-start" onClick={onReview}>Review {workspace.pendingCount === 1 ? 'proposed changes' : `${workspace.pendingCount} proposals`}<ArrowRight size={17}/></AppButton> : <div className="crm-connect-options">
+    {awaitingReview ? <AppButton className="crm-button crm-button-primary crm-review-start" onClick={onReview}>Review {workspace.pendingCount === 1 ? 'proposed changes' : `${workspace.pendingCount} proposals`}<ArrowRight size={17}/></AppButton> : workspace.hosted ? <HostedAgentConnection/> : <div className="crm-connect-options">
       {(['codex','claude-code'] as const).map(provider => {
         const available = agents.some(agent => agent.provider === provider && agent.canConnect);
         return <AppButton className="crm-connect-option" key={provider} disabled={!available || Boolean(opening)} onClick={() => void openAgent(provider)}>
@@ -258,7 +259,7 @@ export default function AgentTools({ workspace, onWorkbench, onNewCollection, on
       })}
     </div>}
     <output className="crm-setup-status">
-      {progress ? <span><span className="crm-progress-dot"/> {progress.message || 'Your agent is working on your workspace.'}</span> : opened ? <span>Send the prepared request in {agentLabel(opened)}. Your agent will ask what you want to track. Watch your workspace take shape here.</span> : <span>{backendUrl ? 'For a self-hosted workspace, connect over SSH below.' : window.nextstepDesktop ? 'Use an agent you already have. Your information stays on this computer.' : 'Open the Nextstep desktop app for one-click setup, or connect another agent below.'}</span>}
+      {progress ? <span><span className="crm-progress-dot"/> {progress.message || 'Your agent is working on your workspace.'}</span> : opened ? <span>Send the prepared request in {agentLabel(opened)}. Your agent will ask what you want to track. Watch your workspace take shape here.</span> : <span>{workspace.hosted ? 'Use the connection below to work with this shared workspace.' : backendUrl ? 'For a self-hosted workspace, connect over SSH below.' : window.nextstepDesktop ? 'Use an agent you already have. Your information stays on this computer.' : 'Open the Nextstep desktop app for one-click setup, or connect another agent below.'}</span>}
     </output>
     {error && <p className="crm-error" role="alert">{error}</p>}
     {!embedded && <ol className="crm-start-steps" aria-label="Getting started">
