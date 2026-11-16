@@ -1,13 +1,15 @@
 // Verify the packaged renderer -> IPC -> native updater contract without downloading
 // or installing anything. All data and preferences are temporary.
 import {_electron as electron,expect} from '@playwright/test';
+import {Client} from '@modelcontextprotocol/sdk/client/index.js';
+import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import {join,resolve} from 'node:path';
 import {root} from '../server/config.mjs';
 import {openStore} from '../server/store.mjs';
-const executablePath=process.argv[2];
-if (!executablePath) throw new Error('Pass a packaged Nextstep executable.');
+if (!process.argv[2]) throw new Error('Pass a packaged Nextstep executable.');
+const executablePath=resolve(process.argv[2]);
 const directory=mkdtempSync(join(tmpdir(),'nextstep-updates-'));
 const userData=join(directory,'profile'),database=join(directory,'example.sqlite');
 mkdirSync(userData);
@@ -17,7 +19,18 @@ store.create({company:'Fictional update keeper',stage:'interested',notes:'Keep t
 store.updateOnboarding({version:store.agentStatus().onboarding.version,status:'dismissed',step:0});
 const before=store.list();
 let app;
+const helpers=[];
+const running=pid=>{try{process.kill(pid,0);return true;}catch(error){if(error.code==='ESRCH')return false;throw error;}};
 try {
+  for (const mode of ['--mcp','--crm-mcp']) {
+    const client=new Client({name:'fictional-update-handoff',version:'1.0.0'});
+    const transport=new StdioClientTransport({command:executablePath,args:[mode,'--database',database],stderr:'pipe',env:{NEXTSTEP_DEV_ICON:'1',NEXTSTEP_DISABLE_UPDATES:'1',NEXTSTEP_DISABLE_USAGE:'1',NEXTSTEP_DB_PATH:'',DB_PATH:'',NEXTSTEP_USER_DATA:userData,NEXTSTEP_AGENT_CONFIG_HOME:join(directory,'agents')}});
+    const helper={client,pid:null};helpers.push(helper);
+    await client.connect(transport);
+    expect((await client.listTools()).tools.length).toBeGreaterThan(0);
+    helper.pid=transport.pid;
+    expect(Number.isInteger(helper.pid)&&helper.pid>1).toBe(true);
+  }
   app=await electron.launch({executablePath,args:[],env:{...process.env,NEXTSTEP_DEV_ICON:'1',NEXTSTEP_DISABLE_UPDATES:'',NEXTSTEP_DB_PATH:'',DB_PATH:'',NEXTSTEP_USER_DATA:userData,NEXTSTEP_AGENT_CONFIG_HOME:join(directory,'agents')}});
   const page=await app.firstWindow();
   await expect(page.getByRole('heading',{name:'Your workspace'})).toBeVisible();
@@ -45,6 +58,7 @@ try {
   await page.screenshot({path:join(root,'test-results/desktop-update-ready.png')});
   await page.getByRole('button',{name:'Restart to update',exact:true}).click();
   expect(await app.evaluate(() => globalThis.updateInstalls)).toBe(1);
+  expect(helpers.every(helper=>running(helper.pid))).toBe(true);
   expect(store.list()).toEqual(before);
   expect(JSON.parse(readFileSync(join(userData,'settings.json'),'utf8')).usageAnalytics).toEqual({enabled:false});
   await page.getByRole('button',{name:'Done',exact:true}).click();
@@ -58,11 +72,13 @@ try {
   const saved=await page.evaluate(key => window.nextstepDesktop.getBoardSettings(key),key);
   expect(saved.stageNames.prospect).toBe('Inbox');expect(saved.hiddenStages).toEqual(['rejected']);expect(saved.stageOrder[0]).toBe('prospect');
   await app.close();app=null;
+  await expect.poll(()=>helpers.every(helper=>!running(helper.pid)),{timeout:10000}).toBe(true);
+  expect(store.list()).toEqual(before);
   app=await electron.launch({executablePath,args:[],env:{...process.env,NEXTSTEP_DEV_ICON:'1',NEXTSTEP_DISABLE_UPDATES:'1',NEXTSTEP_DB_PATH:'',DB_PATH:'',NEXTSTEP_USER_DATA:userData,NEXTSTEP_AGENT_CONFIG_HOME:join(directory,'agents')}});
   const reopened=await app.firstWindow();
   await reopened.getByRole('link',{name:'Job search',exact:true}).click();
   await expect(reopened.locator('.crm-board > section').first()).toHaveAttribute('aria-label','Inbox column');
   expect(await reopened.evaluate(key => window.nextstepDesktop.getBoardSettings(key),key)).toEqual(saved);
   expect(store.list()).toEqual(before);
-  console.log('Packaged updater UI passed: metadata-only checks, explicit download and restart, native events, persistent per-database stage names/order/visibility, and unchanged records and usage consent.');
-} finally {if(app) await app.close();store.close();rmSync(directory,{recursive:true,force:true});}
+  console.log('Packaged updater UI passed: verified download/restart events, graceful closure of both background MCP connectors on update quit, persistent stage settings, and unchanged records and usage consent.');
+} finally {if(app) await app.close();for(const helper of helpers) await helper.client.close();store.close();rmSync(directory,{recursive:true,force:true});}
