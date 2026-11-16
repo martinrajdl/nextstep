@@ -41,6 +41,49 @@ Supabase Postgres is the durable source for hosted records, notes, proposals, hi
 
 Invited membership and workspace roles are checked before data access. The restricted runtime role is subject to row-level security. Browser sessions use secure HttpOnly cookies. Folder-sync paths and desktop preferences are not shared entities. The browser periodically refreshes committed changes; this adapter does not use Supabase Realtime subscriptions.
 
+### Where the hosted API runs
+
+The API entry, permissions, validation and history run together inside one deployed Vercel function. The boxes above describe responsibilities within the backend. Internal calls between these modules stay in the same Node.js process; authentication and database requests connect to Supabase.
+
+`pnpm build:hosted` builds the React interface as static assets and bundles the API entry with its server modules into `.vercel/output/functions/api/index.func/index.mjs`. All `/api/*` paths route to that function. The current build configuration selects Node.js 24, the Frankfurt region (`fra1`) and a 30-second request limit. Vercel manages function instances and can reuse an instance across requests.
+
+| Responsibility | Owning source |
+| --- | --- |
+| API entry and lazy handler initialization | [api/[...path].mjs](../api/%5B...path%5D.mjs) |
+| Host/Origin checks, identity and HTTP routing | [server/hosted/http.mjs](../server/hosted/http.mjs) |
+| Apple session verification and secure cookies | [server/hosted/auth.mjs](../server/hosted/auth.mjs) |
+| Workspace roles, agent credentials, Postgres transactions and audit | [server/hosted/postgres.mjs](../server/hosted/postgres.mjs) |
+| Endpoint-to-CRM operation dispatch | [server/hosted/operations.mjs](../server/hosted/operations.mjs) |
+| Temporary SQLite engine and entity differences | [server/hosted/workspace-engine.mjs](../server/hosted/workspace-engine.mjs) |
+| Shared validation, versions, review and before/after history | [server/crm-store.mjs](../server/crm-store.mjs) |
+| Workspace tables, restricted role and row-level security | [server/hosted/schema.sql](../server/hosted/schema.sql) |
+| Function packaging, runtime and route configuration | [scripts/build-hosted.mjs](../scripts/build-hosted.mjs) |
+
+For example, an authenticated change follows this path:
+
+```mermaid
+sequenceDiagram
+  participant Client as Browser or MCP bridge
+  participant API as Vercel API function
+  participant PG as Supabase Postgres
+  participant CRM as Temporary CRM engine
+  Client->>API: POST /api/crm/apply with a change set
+  API->>API: Verify browser session or agent identity
+  API->>PG: Begin transaction and check workspace permissions
+  PG-->>API: Current membership, role and credential status
+  API->>PG: Lock workspace and load entities if cache is stale
+  API->>CRM: Run shared validation, versions and review rules
+  CRM-->>API: Changed entities, proposal and history as applicable
+  API->>PG: Save entity differences, revision and audit; commit
+  API-->>Client: JSON result with applied or pending status
+```
+
+The function returns a successful write result after the Postgres transaction commits. A failed transaction rolls back its changes. If Require review is enabled for an agent write, the saved result is a pending proposal; the proposed record or note edits wait for a signed-in person's approval. Applied changes include before/after history, and the authenticated audit entry records the person and agent connection responsible for the request.
+
+Permissions and validation are enforced inside the request path. Clients use endpoints such as `POST /api/crm/preview`, `POST /api/crm/apply`, `POST /api/crm/proposals`, `GET /api/crm/history`, `GET /api/notes` and `GET /api/notes/:id`. Notes are written as typed operations through the same preview/apply/proposal endpoints.
+
+A warm instance can retain a database pool and a bounded entity cache, but membership, credential validity and the database revision are checked before reusing cached entities. Each workspace operation creates and closes its own in-memory SQLite engine. Supabase remains the durable store. The adapter materializes a workspace in memory and currently supports at most 50,000 entities or 32 MiB, including history, with a 4 MiB HTTP request limit.
+
 ## Local agents working with hosted data
 
 ```mermaid
