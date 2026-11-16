@@ -136,7 +136,7 @@ This adapter deliberately targets small shared workspaces. It materializes a wor
 
 Every shared entity is protected by workspace RLS and an unexposed `nextstep` schema. The runtime login is `nextstep_app`, without administrative or RLS-bypass privileges. Request identity comes from verified Supabase Auth or a hashed, expiring agent credential, never a supplied actor label. Imported history retains its original labels; new authenticated actions additionally record the person and agent credential in `nextstep.audit`.
 
-`mcp/crm-stdio.mjs --server HTTPS_ORIGIN --workspace UUID --credential-file PRIVATE_FILE` connects the same MCP tools to the hosted API. The credential file must be owner-only. A hosted disconnect fails without falling back to a local database. Desktop folder synchronization and the bounded compatibility importer remain local; they are not exposed by the hosted API.
+`mcp/crm-stdio.mjs --server HTTPS_ORIGIN --workspace UUID --credential-file PRIVATE_FILE` connects the same MCP tools to the hosted API. The installed macOS app (0.5.2 or newer) accepts the same options after `--crm-mcp`, using its bundled runtime. The hosted Agent page generates a separate `nextstep-shared` connection. The credential file must be owner-only. A hosted disconnect fails without falling back to a local database. Desktop folder synchronization and the bounded compatibility importer remain local; they are not exposed by the hosted API.
 
 ## Existing data and backups
 

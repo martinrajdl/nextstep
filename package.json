@@ -1,6 +1,6 @@
 {
   "name": "nextstep-local-crm",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "private": true,
   "description": "A local, composable CRM for your agents, with optional human review.",
   "license": "MIT",
@@ -34,7 +34,8 @@
     "mcp:crm": "node mcp/crm-stdio.mjs",
     "hosted": "node scripts/hosted.mjs",
     "test:hosted": "node --test tests/hosted.test.mjs",
-    "test:desktop:notes": "node scripts/test-desktop-notes.mjs"
+    "test:desktop:notes": "node scripts/test-desktop-notes.mjs",
+    "test:desktop:hosted": "node scripts/test-desktop-hosted.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",

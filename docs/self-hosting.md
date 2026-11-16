@@ -168,7 +168,9 @@ This is a one-time copy, not bidirectional sync. After acceptance, choose the ho
 
 ### Connect agents
 
-While signed in, open **Settings → Agent tools** and create a named connection. It issues a credential once, scoped to your account and workspace, expiring after 90 days. Save it in an owner-only file outside Git. The server stores only its hash. Revoking the connection or disabling membership takes effect on subsequent requests, including warm function instances.
+While signed in, open **Agent → Connection & instructions** and create a named connection. It issues a credential once, scoped to your account and workspace, expiring after 90 days. Save it in an owner-only file outside Git (`chmod 600 /absolute/path/to/the/file`). The server stores only its hash. Revoking the connection or disabling membership takes effect on subsequent requests, including warm function instances.
+
+Enter that file’s absolute path and copy the MCP connection from the same panel. The macOS option uses the installed Nextstep app (0.5.2 or newer), including its bundled runtime. Change the executable path if the app lives elsewhere. Codex, Claude Code and other stdio MCP clients launch this background connector; it sends authenticated HTTPS requests to the deployed API and opens no local database or app window. The source-checkout option uses Node 24 and `mcp/crm-stdio.mjs` with installed dependencies instead.
 
 Use a separate MCP entry so local/private workflows retain their existing connector:
 
@@ -176,9 +178,9 @@ Use a separate MCP entry so local/private workflows retain their existing connec
 {
   "mcpServers": {
     "nextstep-shared": {
-      "command": "node",
+      "command": "/Applications/Nextstep.app/Contents/MacOS/Nextstep",
       "args": [
-        "/srv/nextstep/mcp/crm-stdio.mjs",
+        "--crm-mcp",
         "--server", "https://nextstep.example.com",
         "--workspace", "11111111-1111-4111-8111-111111111111",
         "--credential-file", "/private/credentials/nextstep-shared"
@@ -190,9 +192,11 @@ Use a separate MCP entry so local/private workflows retain their existing connec
 
 The bridge exposes the same CRM tools, honors Require review, and never falls back to local storage when the hosted app is unavailable. Agent connections cannot approve their own proposals, change Require review, or manage other connections. `NEXTSTEP_AGENT_TOKEN` is an alternative for a private process environment; never put a token in command arguments, prompts, logs or committed MCP configuration.
 
+For a custom client, the same HTTPS API accepts `Authorization: Bearer <agent credential>` and `X-Nextstep-Workspace: <workspace UUID>`. Read `GET /api/crm/context` first, preview changes with `POST /api/crm/preview`, then save with `POST /api/crm/apply` or propose with `POST /api/crm/proposals`. Read notes through `GET /api/notes` and `GET /api/notes/:id`; write them as typed note operations through the same preview/apply endpoints. Applied changes and agent progress appear in the browser against the same Supabase data. This is a stdio MCP bridge over HTTPS, not a public Streamable HTTP MCP endpoint. Clients need no Supabase database credentials or Apple browser session.
+
 ### Verification, limits and recovery
 
-Run `pnpm test:hosted`, `pnpm test`, `pnpm lint`, `pnpm test:e2e` and `pnpm build:hosted` before deployment. Desktop changes also require `pnpm test:desktop`. The hosted tests use fictional workspaces and exercise RLS isolation, revocation, review, concurrent edits, transfer scope, cookie security and retries. Verify the deployed flow separately: Apple login, invited access, shared edits from both accounts, sign-out, and anonymous rejection of records, notes, history and exports. A green build does not prove Apple account acceptance.
+Run `pnpm test:hosted`, `pnpm test`, `pnpm lint`, `pnpm test:e2e` and `pnpm build:hosted` before deployment. Desktop changes also require `pnpm test:desktop` and `pnpm test:desktop:hosted`; repeat the latter with the packaged executable as its argument. The hosted tests use fictional workspaces and exercise RLS isolation, revocation, review, concurrent edits, transfer scope, cookie security and retries. Verify the deployed flow separately: Apple login, invited access, shared edits from both accounts, sign-out, and anonymous rejection of records, notes, history and exports. A green build does not prove Apple account acceptance.
 
 The adapter hydrates one workspace's CRM entities into disposable in-memory SQLite per request, reuses the established validation engine, and commits row differences to Postgres atomically. A workspace lock serializes writers; optimistic record versions still reject stale edits. A bounded warm cache uses the live Postgres revision and always follows a fresh access check. The cache is disposable; durable data lives only in Postgres. No filesystem persistence is used in Vercel functions.
 

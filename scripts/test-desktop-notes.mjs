@@ -55,9 +55,10 @@ try {
   await expect(
     page.getByRole('heading', { name: 'Local writing', exact: true }),
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Folder sync', exact: false }).click();
+  await expect(page.getByText(/iCloud Drive|Folder sync/)).toHaveCount(0);
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(
-    page.getByRole('dialog', { name: 'Sync your notes' }),
+    page.getByRole('heading', { name: 'Notes folder sync' }),
   ).toBeVisible();
   const folder = join(directory, 'sync');
   mkdirSync(folder);
@@ -68,7 +69,7 @@ try {
     });
   }, folder);
   await page.getByRole('button', { name: 'Choose folder…' }).click();
-  await expect(page.getByLabel('Notes folder')).toHaveValue(
+  await expect(page.getByRole('textbox', { name: 'Notes folder', exact: true })).toHaveValue(
     join(realpathSync(folder), 'Nextstep Notes'),
   );
   await page
@@ -95,6 +96,8 @@ try {
     ),
   ).toContain('Keep this note after reopening.');
   await expect.poll(()=>page.evaluate(async()=>(await (await fetch('/api/notes/sync')).json()).pending)).toBe(0);
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(page.getByText(/iCloud Drive|Folder sync/)).toHaveCount(0);
   expect(errors).toEqual([]);
   await app.close();
   app = null;

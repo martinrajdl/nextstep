@@ -18,6 +18,7 @@ import { errorMessage, type UpdateState, type ThemePreference } from '@/lib/agen
 import { request } from '@/lib/model';
 import type { Workspace } from '@/lib/crm';
 import { useHostedSession, signOutHosted } from './hosted-session';
+import NotesSyncSettings from './crm/notes-sync-settings';
 import '../app/appearance.css';
 import '../app/settings.css';
 
@@ -333,6 +334,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
                 </p>
               </fieldset>
             </section>
+            {!hosted && window.nextstepDesktop && !backendUrl && <NotesSyncSettings/>}
             <section>
               <h3>
                 {backendUrl ? <Server size={18} /> : <Database size={18} />}{' '}
@@ -353,6 +355,7 @@ export default function AppSettings({ children }: { children: ReactNode }) {
                       : window.location.origin)}
                 </small>
               </div>
+              {hosted && <p>Records, notes and their history are saved in your shared workspace. Everyone with access works with the same saved data.</p>}
               <DataExports />
               {window.nextstepDesktop ? (
                 <>

@@ -268,7 +268,7 @@ export default function AgentTools({ workspace, onWorkbench, onNewCollection, on
     <Collapsible className="crm-advanced-setup">
       <CollapsibleTrigger>Other agents & advanced setup</CollapsibleTrigger><CollapsibleContent>
       <div className="crm-advanced-body">
-        <h2>Connect another agent</h2>
+        {!workspace.hosted && <><h2>Connect another agent</h2>
         <p>Add this connection to your agent’s MCP settings, then send it the setup request below.</p>
         {backendUrl && <Label>SSH host<Input aria-label="SSH host" value={sshHost} onChange={event => setSshHost(event.target.value.replace(/[^a-zA-Z0-9_.@-]/g,''))}/></Label>}
         <pre>{JSON.stringify(configuration,null,2)}</pre>
@@ -276,7 +276,7 @@ export default function AgentTools({ workspace, onWorkbench, onNewCollection, on
         <p className="crm-hint">{workspace.policy.reviewRequired ? 'Require review is on. Agent changes wait for your approval.' : 'Your agent can save changes directly. Turn on Require review in Settings if you prefer to approve them first.'}</p>
         <AppButton className="crm-button" onClick={() => void copy(crmAgentRequest,'prompt')}><Copy size={15}/>{copied === 'prompt' ? 'Copied' : 'Copy setup request'}</AppButton>
         <Collapsible className="crm-details"><CollapsibleTrigger>Read setup request</CollapsibleTrigger><CollapsibleContent><p className="crm-generated-brief">{crmAgentRequest}</p></CollapsibleContent></Collapsible>
-        <hr/>
+        <hr/></>}
         <h2>Manual tools</h2>
         <div className="crm-manual-actions"><AppButton className="crm-button" onClick={onNewCollection}>Create a collection</AppButton><AppButton className="crm-button" onClick={onWorkbench}><FileJson size={16}/>Open JSON workbench</AppButton></div>
       </div>

@@ -5,6 +5,7 @@ import { assertNextstepDatabase } from '../server/database-file.mjs';
 import { startServer } from '../server/http.mjs';
 import { startMcp, databaseArgument } from '../mcp/stdio.mjs';
 import { startCrmMcp } from '../mcp/crm-stdio.mjs';
+import { remoteCrmArgument } from '../mcp/remote-options.mjs';
 import { createAgentConnector } from './agent-connector.mjs';
 import { connectionConfig, setupInstructions, searchInstructions } from '../server/agent-instructions.mjs';
 import { agentHandoffUrl } from './agent-handoff.mjs';
@@ -278,7 +279,10 @@ async function main() {
   if (mcpMode) {
     await app.whenReady();
     if (process.platform === 'darwin') app.setActivationPolicy('accessory');
-    if (crmMcpMode) await startCrmMcp(appDatabase(),{requireReview:process.argv.includes('--require-review'),onClose:() => app.quit()});
+    if (crmMcpMode) {
+      const remote = remoteCrmArgument(process.argv.slice(1));
+      await startCrmMcp(remote ? null : appDatabase(),{remote,requireReview:process.argv.includes('--require-review'),onClose:() => app.quit()});
+    }
     else await startMcp(appDatabase(),() => app.quit());
     if (process.platform === 'darwin') forwardDesktopActivation(app);
     return;

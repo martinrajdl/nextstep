@@ -10,7 +10,7 @@ export function workspaceOperation(method, path, params, input, identity, origin
   if (path === '/api/crm/context' && method === 'GET') return read(({ crm, workspace, member }) => ({
     ...crm.context(),
     compatibilityCollectionId: null,
-    connection: { mcpServers: { 'nextstep-crm': {
+    connection: { mcpServers: { 'nextstep-shared': {
       command: 'node', args: ['/path/to/nextstep/mcp/crm-stdio.mjs','--server',origin,'--workspace',workspace.id,'--credential-file','/private/path/nextstep-agent-token'],
     } } },
     hosted: { workspaceId: workspace.id, workspaceName: workspace.name, role: member.role, origin },

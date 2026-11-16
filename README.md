@@ -6,7 +6,7 @@ Tell your agent what you need to keep track of. It builds the collections, field
 
 Nextstep is a local-first **Electron app** with a SQLite database on your computer. It is open source, works with your own agent, and can connect to a [backend on your own server](docs/self-hosting.md). No Nextstep account, model subscription or API key is required.
 
-**[Download for macOS · Apple silicon](https://github.com/martinrajdl/nextstep/releases/download/v0.5.1/Nextstep-0.5.1-macOS-arm64.zip)** · [Website](https://www.nextstepcrm.com/) · [All releases](https://github.com/martinrajdl/nextstep/releases)
+**[Download for macOS · Apple silicon](https://github.com/martinrajdl/nextstep/releases/download/v0.5.2/Nextstep-0.5.2-macOS-arm64.zip)** · [Website](https://www.nextstepcrm.com/) · [All releases](https://github.com/martinrajdl/nextstep/releases)
 
 ![A Nextstep collection with fictional people, companies and next steps](docs/images/workspace.png)
 
@@ -48,7 +48,7 @@ Automatic connection is available for installed Mac desktop agents. The **Agent*
 
 </details>
 
-[Read the composable CRM guide](docs/composable-crm.md) for supported operations, MCP tools, review policy and the data model. Manual schema and JSON tools remain available under advanced setup and Manual tools.
+[Read the composable CRM guide](docs/composable-crm.md) for supported operations, MCP tools, review policy and the data model. [Architecture diagrams](docs/architecture.md) explain the local app, hosted workspace and local agent connections. Manual schema and JSON tools remain available under advanced setup and Manual tools.
 
 Signed macOS releases from 0.4.3 include **Settings → App updates**: check for updates, download a signed release, then restart to install it. Update checks can be disabled independently of optional usage counts.
 

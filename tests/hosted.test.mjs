@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, rmSync, existsSync, chmodSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { createServer } from 'node:http';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { PGlite } from '@electric-sql/pglite';
@@ -12,6 +17,7 @@ import { createHostedHandler } from '../server/hosted/http.mjs';
 import { selectWorkspaceRows, importTransfer } from '../server/hosted/transfer.mjs';
 import { createRemoteCrm } from '../mcp/remote-crm.mjs';
 import { hostedAuth } from '../server/hosted/auth.mjs';
+import { remoteCrmArgument } from '../mcp/remote-options.mjs';
 
 const owner = { id: randomUUID(), email: 'owner@example.com', kind: 'person' };
 const editor = { id: randomUUID(), email: 'editor@example.com', kind: 'person' };
@@ -20,6 +26,21 @@ const viewer = { id: randomUUID(), email: 'viewer@example.com', kind: 'person' }
 const workspaceId = randomUUID(), otherWorkspaceId = randomUUID();
 const collection = { type: 'create_collection', id: 'people', name: 'People', fields: [{ key:'status',name:'Status',type:'select',options:['New','Contacted'] }] };
 const change = (operations) => ({ id: randomUUID(), title: 'Fictional change', actor: 'Untrusted actor', operations });
+
+test('hosted connector arguments reject incomplete setup without choosing local storage',()=>{
+  assert.equal(remoteCrmArgument([],{}),undefined);
+  assert.throws(()=>remoteCrmArgument(['--workspace',workspaceId],{}),/--server/);
+  assert.throws(()=>remoteCrmArgument(['--server','--workspace',workspaceId],{}),/--server/);
+  assert.throws(()=>remoteCrmArgument(['--server','https://nextstep.example.com','--workspace',workspaceId,'--database','/example.sqlite'],{}),/either/);
+  const directory=mkdtempSync(join(tmpdir(),'nextstep-hosted-arguments-')), file=join(directory,'credential');
+  try {
+    writeFileSync(file,`nextstep_${'a'.repeat(43)}`,{mode:0o600});
+    const args=['--server','https://nextstep.example.com','--workspace',workspaceId,'--credential-file',file];
+    assert.ok(remoteCrmArgument(args,{}).context);
+    chmodSync(file,0o644);
+    assert.throws(()=>remoteCrmArgument(args,{}),/chmod 600/);
+  } finally {rmSync(directory,{recursive:true,force:true});}
+});
 
 test('hosted migrations are repeatable and keep existing workspace rows',async t=>{
   const db=new PGlite(); t.after(()=>db.close());
@@ -226,4 +247,58 @@ test('hosted HTTP protects direct endpoints, cookies, origins, access and agent 
   const applied=await remote.agentApply(change([{type:'create_record',collectionId:'people',collectionVersion:1,title:'Fictional remote contact'}]));
   assert.equal(applied.status,'applied');
   assert.equal((await remote.query({collectionId:'people'})).total,1);
+});
+
+test('local MCP bridge writes hosted notes, survives cold reads, honors review and revocation', {timeout:60000}, async t=>{
+  const {hosted,run,admin,pool}=await fixture(t);
+  const token=await hosted.createToken(editor,workspaceId,'Fictional local agent');
+  let handler;
+  const http=createServer((req,res)=>void handler(req,res));
+  await new Promise(resolve=>http.listen(0,'127.0.0.1',resolve));
+  const origin=`http://127.0.0.1:${http.address().port}`;
+  handler=createHostedHandler({config:{appUrl:origin},database:hosted,authFactory:()=>({user:async()=>null})});
+  const directory=mkdtempSync(join(tmpdir(),'nextstep-hosted-mcp-')), file=join(directory,'credential');
+  const missingDatabase=join(directory,'must-not-exist.sqlite');
+  writeFileSync(file,token.token,{mode:0o600});
+  const executable=process.env.NEXTSTEP_TEST_MCP_EXECUTABLE;
+  const args=[...(executable ? [...(process.env.NEXTSTEP_TEST_MCP_SOURCE ? [resolve('.')] : []),'--crm-mcp'] : [resolve('mcp/crm-stdio.mjs')]),'--server',origin,'--workspace',workspaceId,'--credential-file',file];
+  const client=new Client({name:'fictional-hosted-mcp-test',version:'1.0.0'});
+  const transport=new StdioClientTransport({command:executable || process.execPath,args,stderr:'pipe',env:{NEXTSTEP_USER_DATA:join(directory,'settings'),NEXTSTEP_DB_PATH:missingDatabase,NEXTSTEP_DISABLE_UPDATES:'1',NEXTSTEP_DISABLE_USAGE:'1'}});
+  try {
+    await client.connect(transport);
+    const call=async(name,input={})=>{
+      const value=await client.callTool({name,arguments:input});
+      assert.ok(!value.isError,JSON.stringify(value.content));
+      return value.structuredContent;
+    };
+    const context=await call('nextstep_crm_context');
+    assert.equal(context.hosted.workspaceId,workspaceId);
+    assert.ok(context.connection.mcpServers['nextstep-shared']);
+    const id=randomUUID();
+    const note={changeId:randomUUID(),title:'Fictional hosted writing',mode:'apply',operation:{type:'create_note',id,title:'Fictional shared note',body:'Saved through a local MCP agent.'}};
+    await call('nextstep_crm_write_note',{...note,mode:'preview'});
+    assert.equal((await run(owner,'GET','/api/notes')).total,0);
+    await call('nextstep_crm_write_note',note);
+    assert.equal((await call('nextstep_crm_notes',{id})).note.body,'Saved through a local MCP agent.');
+    const saved=(await admin("SELECT data FROM nextstep.entities WHERE workspace_id=$1 AND table_name='crm_note_documents' AND row_id=$2",[workspaceId,id])).rows[0];
+    assert.equal(saved.data.body,'Saved through a local MCP agent.');
+    const cold=createHostedDatabase({pool});
+    const read=workspaceOperation('GET',`/api/notes/${id}`,new URLSearchParams(),{},owner,origin);
+    assert.equal((await cold.withWorkspace(owner,workspaceId,read,read.run)).body,saved.data.body);
+    await run(owner,'PATCH','/api/crm/policy',{version:1,reviewRequired:true});
+    const pendingId=randomUUID();
+    const pending=await call('nextstep_crm_write_note',{changeId:pendingId,title:'Fictional reviewed append',mode:'apply',operation:{type:'append_note',id,version:1,text:'Reviewed addition.'}});
+    assert.equal(pending.status,'pending');
+    assert.equal((await call('nextstep_crm_notes',{id})).note.body,saved.data.body);
+    await run(owner,'POST',`/api/crm/changes/${pendingId}/review`,{version:1,decision:'approve'});
+    assert.match((await call('nextstep_crm_notes',{id})).note.body,/Reviewed addition/);
+    await hosted.revokeToken(editor,workspaceId,token.id);
+    assert.equal((await client.callTool({name:'nextstep_crm_context',arguments:{}})).isError,true);
+    assert.equal(existsSync(missingDatabase),false);
+  } finally {
+    await client.close();
+    http.closeAllConnections();
+    await new Promise(resolve=>http.close(resolve));
+    rmSync(directory,{recursive:true,force:true});
+  }
 });

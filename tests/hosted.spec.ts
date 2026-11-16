@@ -39,8 +39,13 @@ test('admitted users keep the existing workspace and can sign out from settings'
   });
   await page.goto('/');
   await expect(page.getByText('Shared',{exact:true})).toBeVisible();
+  await page.getByRole('link',{name:'Notes',exact:true}).click();
+  await expect(page.getByRole('heading',{name:/^Notes/})).toBeVisible();
+  await expect(page.getByText(/iCloud Drive|Folder sync/)).toHaveCount(0);
   await page.getByRole('button',{name:'Settings',exact:true}).click();
   await expect(page.getByText(user.email,{exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Notes folder sync'})).toHaveCount(0);
+  await expect(page.getByText('Records, notes and their history are saved in your shared workspace.',{exact:false})).toBeVisible();
   await page.getByRole('button',{name:'Sign out',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Sign in to Nextstep.'})).toBeVisible();
 });
@@ -58,4 +63,39 @@ test('expired or revoked access unmounts previously displayed workspace data',as
   await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
   await expect(page.getByRole('heading',{name:'An invitation is needed.'})).toBeVisible();
   await expect(page.getByRole('button',{name:'Settings',exact:true})).toHaveCount(0);
+});
+
+test('hosted agent setup gives local agents a separate MCP connection without copying its credential',async({page},testInfo)=>{
+  const credential=`nextstep_${'a'.repeat(43)}`, token={id:'00000000-0000-4000-8000-000000000003',label:'Fictional agent',expires_at:'2027-01-01T00:00:00Z',revoked_at:null};
+  await page.route('**/api/auth/session',route=>route.fulfill({json:{mode:'hosted',authenticated:true,user,workspaces:[workspace]}}));
+  await page.route('**/api/crm/context',async route=>{
+    const response=await route.fetch();
+    await route.fulfill({json:{...await response.json(),hosted:{workspaceId:workspace.id,workspaceName:workspace.name,role:'owner',origin:'http://127.0.0.1:4321'}}});
+  });
+  await page.route('**/api/account/agent-tokens',route=>route.fulfill({json:route.request().method() === 'POST' ? {...token,token:credential} : {tokens:[]}}));
+  await page.route(`**/api/account/agent-tokens/${token.id}`,route=>route.fulfill({json:{revoked:true}}));
+  await page.goto('/#/agents');
+  await page.getByRole('button',{name:'Connection & instructions',exact:true}).click();
+  await page.getByRole('button',{name:'Create agent connection',exact:true}).click();
+  await expect(page.getByLabel('New agent credential')).toHaveText(credential);
+  await expect(page.getByRole('button',{name:'Copy MCP connection',exact:true})).toBeDisabled();
+  await page.getByLabel('Private credential file',{exact:true}).fill('/private/example/nextstep-shared');
+  await page.getByRole('button',{name:'Connection configuration',exact:true}).click();
+  const configuration=JSON.parse(await page.getByLabel('Hosted MCP configuration').innerText());
+  expect(Object.keys(configuration.mcpServers)).toEqual(['nextstep-shared']);
+  const connection=configuration.mcpServers['nextstep-shared'];
+  expect(connection.command).toBe('/Applications/Nextstep.app/Contents/MacOS/Nextstep');
+  expect(connection.args).toEqual(['--crm-mcp','--server','http://127.0.0.1:4321','--workspace',workspace.id,'--credential-file','/private/example/nextstep-shared']);
+  expect(JSON.stringify(configuration)).not.toContain(credential);
+  await expect(page.getByRole('button',{name:'Copy MCP connection',exact:true})).toBeEnabled();
+  await page.getByRole('button',{name:'Hide credential',exact:true}).click();
+  await page.screenshot({path:testInfo.outputPath('hosted-agent-setup.png'),fullPage:true});
+  await page.getByRole('button',{name:'Source checkout',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Copy MCP connection',exact:true})).toBeDisabled();
+  await page.getByLabel('Connector script',{exact:true}).fill('/example/nextstep/mcp/crm-stdio.mjs');
+  const source=JSON.parse(await page.getByLabel('Hosted MCP configuration').innerText()).mcpServers['nextstep-shared'];
+  expect(source.command).toBe('node');
+  expect(source.args[0]).toBe('/example/nextstep/mcp/crm-stdio.mjs');
+  await page.getByRole('button',{name:'Revoke',exact:true}).click();
+  await expect(page.getByText('Fictional agent',{exact:true})).toHaveCount(0);
 });
