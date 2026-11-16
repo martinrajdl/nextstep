@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 const workspace = { id:'00000000-0000-4000-8000-000000000001',name:'Fictional team',role:'owner' };
 const user = { id:'00000000-0000-4000-8000-000000000002',email:'owner@example.com' };
 
-test('hosted sign-in shows no CRM data or setup before admission at desktop and mobile sizes',async({page})=>{
+test('hosted sign-in shows no CRM data or setup before admission at desktop and mobile sizes',async({page},testInfo)=>{
   let crmRequests=0;
   page.on('request',request=>{ if(new URL(request.url()).pathname.startsWith('/api/crm/')) crmRequests++; });
   await page.route('**/api/auth/session',route=>route.fulfill({json:{mode:'hosted',authenticated:false}}));
@@ -11,11 +11,11 @@ test('hosted sign-in shows no CRM data or setup before admission at desktop and 
   await expect(page.getByRole('heading',{name:'Sign in to Nextstep.'})).toBeVisible();
   await expect(page.getByRole('link',{name:'Continue with Apple'})).toHaveAttribute('href','/api/auth/login');
   await expect(page.getByText('Share My Email',{exact:false})).toBeVisible();
-  await page.screenshot({path:'/private/tmp/nextstep-hosted-signin-desktop.png'});
+  await page.screenshot({path:testInfo.outputPath('hosted-signin-desktop.png')});
   await page.setViewportSize({width:375,height:812});
   await expect(page.getByRole('link',{name:'Continue with Apple'})).toBeInViewport();
   await expect(page.locator('body')).toHaveJSProperty('scrollWidth',375);
-  await page.screenshot({path:'/private/tmp/nextstep-hosted-signin-mobile.png'});
+  await page.screenshot({path:testInfo.outputPath('hosted-signin-mobile.png')});
   expect(crmRequests).toBe(0);
 });
 
