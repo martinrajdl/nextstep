@@ -1,6 +1,6 @@
 {
   "name": "nextstep-local-crm",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "private": true,
   "description": "A local, composable CRM for your agents, with optional human review.",
   "license": "MIT",
@@ -20,7 +20,7 @@
     "background:stop": "node scripts/background.mjs stop",
     "background:restart": "node scripts/background.mjs restart",
     "background:status": "node scripts/background.mjs status",
-    "test": "node --test tests/store.test.mjs tests/setup.test.mjs tests/agent.test.mjs tests/mcp.test.mjs tests/macos-release.test.mjs tests/onboarding.test.mjs tests/agent-connector.test.mjs tests/agent-handoff.test.mjs tests/composable.test.mjs tests/crm-mcp.test.mjs tests/backend.test.mjs tests/flows.test.mjs tests/usage.test.mjs tests/updates.test.mjs tests/unified.test.mjs tests/reopen.test.mjs tests/notes.test.mjs",
+    "test": "node --test tests/store.test.mjs tests/setup.test.mjs tests/agent.test.mjs tests/mcp.test.mjs tests/macos-release.test.mjs tests/onboarding.test.mjs tests/agent-connector.test.mjs tests/agent-handoff.test.mjs tests/composable.test.mjs tests/crm-mcp.test.mjs tests/backend.test.mjs tests/flows.test.mjs tests/usage.test.mjs tests/updates.test.mjs tests/update-handoff.test.mjs tests/unified.test.mjs tests/reopen.test.mjs tests/notes.test.mjs",
     "test:e2e": "playwright test",
     "lint": "oxlint app components/job-board.tsx components/job-list.tsx components/opportunity-editor.tsx components/search-preferences.tsx components/agent-connection.tsx components/onboarding-wizard.tsx components/hosted-session.tsx lib/model.ts lib/search-profile.ts lib/agent.ts components/crm lib/crm.ts components/app-settings.tsx components/board-controls.tsx components/app-button.tsx components/ui/button.tsx",
     "format": "oxfmt",

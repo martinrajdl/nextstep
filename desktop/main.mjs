@@ -14,6 +14,7 @@ import { backendOrigin } from '../server/backend.mjs';
 import { crmAgentRequest } from '../lib/crm-agent-request.ts';
 import { createUsageReporter } from './usage.mjs';
 import { createUpdater } from './updates.mjs';
+import { stopAgentHelpersForUpdate } from './update-handoff.mjs';
 import { forwardDesktopActivation } from './reopen.mjs';
 import { createHash } from 'node:crypto';
 
@@ -323,12 +324,17 @@ async function main() {
   // SQLite writes are synchronous. Close it after unsaved-edit prompts are resolved;
   // waiting on asynchronous HTTP teardown here can stall Electron's shutdown.
   app.on('will-quit',() => {
+    const installing = app.isPackaged && updater.getState().status === 'ready';
     clearInterval(usageTimer);
     clearTimeout(firstUpdateCheck); clearInterval(updateTimer); updater.stop();
     usage.stop();
     service.stopSync?.();
     service.server.closeAllConnections();
     service.store?.close();
+    if (installing) {
+      try { stopAgentHelpersForUpdate(); }
+      catch { console.error('Could not close all background agent connections. Quit connected agents to finish installing the update.'); }
+    }
   });
 }
 main().catch(error => {
