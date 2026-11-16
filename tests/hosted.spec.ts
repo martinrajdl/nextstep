@@ -38,6 +38,7 @@ test('admitted users keep the existing workspace and can sign out from settings'
     await route.fulfill({json:{...context,hosted:{workspaceId:workspace.id,workspaceName:workspace.name,role:'owner',origin:'http://127.0.0.1:4321'}}});
   });
   await page.goto('/');
+  await expect(page.getByText('Shared',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Settings',exact:true}).click();
   await expect(page.getByText(user.email,{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Sign out',exact:true}).click();
