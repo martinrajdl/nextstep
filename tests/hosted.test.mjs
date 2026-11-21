@@ -210,6 +210,38 @@ function request(method,path,body,headers={}) {
   const res={statusCode:200,headers:{},setHeader(name,value){this.headers[name.toLowerCase()]=value;},getHeader(name){return this.headers[name.toLowerCase()];},end(value){text=value||'';}};
   return {req,res,result:()=>({status:res.statusCode,headers:res.headers,body:text?JSON.parse(text):null})};
 }
+test('a second hosted origin has its own sign-in callback and rejects cross-origin requests', async () => {
+  const primary = 'https://nextstep.example.com';
+  const additional = 'https://crm.example.com';
+  const handler = createHostedHandler({
+    config: { appUrl: primary, additionalAppUrl: additional },
+    database: {},
+    authFactory: (_req, _res, { appUrl }) => ({
+      login: async () => `${appUrl}/api/auth/callback`,
+      user: async () => null,
+    }),
+  });
+  async function call(path, headers) {
+    const { req, res, result } = request('GET', path, undefined, headers);
+    await handler(req, res);
+    return result();
+  }
+
+  for (const appUrl of [primary, additional]) {
+    const host = new URL(appUrl).host;
+    const login = await call('/api/auth/login', { host });
+    assert.equal(login.status, 303);
+    assert.equal(login.headers.location, `${appUrl}/api/auth/callback`);
+    const failed = await call('/api/auth/callback?error=denied', { host });
+    assert.equal(failed.headers.location, `${appUrl}/?signin=failed`);
+    assert.equal((await call('/api/crm/context', { host })).status, 401);
+  }
+
+  const host = new URL(additional).host;
+  assert.equal((await call('/api/auth/session', { host, origin: primary })).status, 403);
+  assert.equal((await call('/api/auth/session', { host: 'other.example.com', origin: additional })).status, 403);
+});
+
 test('hosted HTTP protects direct endpoints, cookies, origins, access and agent review without exposing configuration',async t=>{
   const {hosted,run}=await fixture(t);
   let signedIn=null;

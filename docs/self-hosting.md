@@ -144,7 +144,7 @@ pnpm build:hosted
 vercel deploy --prebuilt --prod
 ```
 
-Keep preview deployments protected and give previews a separate test database, configuration and invited test accounts if you enable them. The production domain must reach Nextstep's Apple sign-in screen without a Vercel account. The API accepts only the configured origin and Host; generated deployment URLs do not become alternate access paths. Do not remove its checks to test a preview.
+Keep preview deployments protected and give previews a separate test database, configuration and invited test accounts if you enable them. The production domain must reach Nextstep's Apple sign-in screen without a Vercel account. The API accepts only explicitly configured origins and requires the browser origin to match the request host. To serve a second production domain, add it to the same Vercel project, configure its exact `/api/auth/callback` URL in Supabase, and set `NEXTSTEP_ADDITIONAL_APP_URL` to its HTTPS origin before redeploying. Keep the original callback for existing links and integrations. Cookies and sign-in callbacks stay on the origin that started sign-in. Generated deployment URLs are rejected unless explicitly configured. Do not remove its checks to test a preview.
 
 ### Transfer an existing workspace
 
