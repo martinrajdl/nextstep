@@ -5,11 +5,12 @@ import { workspaceOperation } from './operations.mjs';
 
 export function hostedConfig(env = process.env) {
   const appUrl = env.NEXTSTEP_APP_URL?.replace(/\/$/, '');
+  const additionalAppUrl = env.NEXTSTEP_ADDITIONAL_APP_URL?.replace(/\/$/, '');
   const supabaseUrl = env.NEXTSTEP_SUPABASE_URL?.replace(/\/$/, '');
   const publishableKey = env.NEXTSTEP_SUPABASE_PUBLISHABLE_KEY;
   if (!appUrl || !supabaseUrl || !publishableKey || !env.NEXTSTEP_DATABASE_URL)
     throw new Error('Set the required hosted deployment variables.');
-  for (const value of [appUrl, supabaseUrl]) {
+  for (const value of [appUrl, additionalAppUrl, supabaseUrl].filter(Boolean)) {
     const url = new URL(value);
     if (url.username || url.password || url.pathname !== '/' || url.search || url.hash || (url.protocol !== 'https:' && !(env.NODE_ENV !== 'production' && url.protocol === 'http:' && ['127.0.0.1','localhost'].includes(url.hostname))))
       throw new Error('Use a complete HTTPS origin for hosted deployment URLs.');
@@ -18,7 +19,7 @@ export function hostedConfig(env = process.env) {
   const databaseUrl = new URL(env.NEXTSTEP_DATABASE_URL);
   if (!['postgres:','postgresql:'].includes(databaseUrl.protocol) || databaseUrl.username.split('.')[0] !== 'nextstep_app' || databaseUrl.searchParams.get('sslmode') !== 'verify-full')
     throw new Error('Use the nextstep_app login with TLS certificate verification for the hosted database.');
-  return { appUrl, supabaseUrl, publishableKey, connectionString: databaseUrl.href, sslCa: env.NEXTSTEP_DATABASE_CA };
+  return { appUrl, additionalAppUrl, supabaseUrl, publishableKey, connectionString: databaseUrl.href, sslCa: env.NEXTSTEP_DATABASE_CA };
 }
 
 async function body(req) {
@@ -47,8 +48,8 @@ async function body(req) {
 }
 
 export function createHostedHandler({ config = hostedConfig(), database = createHostedDatabase(config), authFactory = hostedAuth } = {}) {
-  const origin = config.appUrl;
-  const host = new URL(origin).host;
+  const origins = [config.appUrl, config.additionalAppUrl].filter(Boolean);
+  const originsByHost = new Map(origins.map(origin => [new URL(origin).host, origin]));
   return async function handler(req, res) {
     const json = (status, value) => { res.statusCode = status; res.setHeader('Content-Type','application/json; charset=utf-8'); res.end(JSON.stringify(value)); };
     const redirect = (target) => { res.statusCode = 303; res.setHeader('Location', target); res.end(); };
@@ -57,7 +58,8 @@ export function createHostedHandler({ config = hostedConfig(), database = create
     res.setHeader('X-Content-Type-Options','nosniff');
     res.setHeader('Referrer-Policy','no-referrer');
     try {
-      if (req.headers.host !== host) throw new AppError('Use the configured Nextstep address.', 403);
+      const origin = originsByHost.get(req.headers.host);
+      if (!origin) throw new AppError('Use the configured Nextstep address.', 403);
       if (req.headers.origin && req.headers.origin !== origin) throw new AppError('Requests must come from this app.', 403);
       const url = new URL(req.url, origin);
       const path = url.pathname;
@@ -67,7 +69,7 @@ export function createHostedHandler({ config = hostedConfig(), database = create
       const agent = credential?.startsWith('Bearer nextstep_');
       if (credential && !agent) throw new AppError('Invalid agent credential.', 401);
       if (!agent && req.method !== 'GET' && req.headers.origin !== origin) throw new AppError('Requests must come from this app.', 403);
-      const auth = authFactory(req, res, config);
+      const auth = authFactory(req, res, { ...config, appUrl: origin });
       if (path === '/api/auth/login' && req.method === 'GET') return redirect(await auth.login());
       if (path === '/api/auth/callback' && req.method === 'GET') {
         if (url.searchParams.has('error')) return redirect(`${origin}/?signin=failed`);
